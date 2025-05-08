@@ -23,7 +23,7 @@ const DeviationTableComponent = ({ monthlyData, parameterRanges }) => {
 
   return (
     <div className="w-full overflow-x-auto mt-6 -ml-2">
-      <div className="text-2xl font-bold mb-4 text-center text-white">Percentage of Data Outside Range</div>
+      {/* <div className="text-2xl font-bold mb-4 text-center text-white">Percentage of Data Outside Range</div> */}
       <table className="w-full border-collapse">
         <thead>
           <tr className="bg-gradient-to-r from-[#024673] to-[#5C99E3] text-white">

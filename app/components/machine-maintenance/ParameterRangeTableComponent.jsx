@@ -105,9 +105,9 @@ const ParameterRangeTableComponent = ({ csvData, selectedMachine, selectedMonth 
 
   return (
     <div className="w-full overflow-x-auto mt-6 ml-1">
-      <div className="text-2xl font-bold mb-4 text-center text-white">
+      {/* <div className="text-2xl font-bold mb-4 text-center text-white">
         Parameter Analysis for {selectedMachine} - {selectedMonth}
-      </div>
+      </div> */}
       <table className="w-full border-collapse border border-blue-300">
         <thead>
           <tr className="bg-gradient-to-r from-[#024673] to-[#5C99E3] text-white">

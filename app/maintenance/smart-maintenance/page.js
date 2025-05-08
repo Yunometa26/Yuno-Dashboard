@@ -19,8 +19,9 @@ export default function MaintenanceDashboard() {
   const [selectedMonth, setSelectedMonth] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showDeviation, setShowDeviation] = useState(false);
-  const [showRangeTable, setShowRangeTable] = useState(false);
+  
+  // Use a single state to control which view is active
+  const [activeView, setActiveView] = useState('maintenance'); // 'maintenance', 'deviation', or 'range'
 
   // Load CSV data from public folder
   useEffect(() => {
@@ -105,18 +106,6 @@ export default function MaintenanceDashboard() {
     setSelectedMonth(month);
   };
 
-  // Toggle the deviation analysis visibility
-  const toggleDeviationAnalysis = () => {
-    setShowDeviation(!showDeviation);
-    if (showDeviation) setShowRangeTable(false);
-  };
-
-  // Toggle the parameter range table visibility
-  const toggleRangeTable = () => {
-    setShowRangeTable(!showRangeTable);
-    if (showRangeTable) setShowDeviation(false);
-  };
-
   return (
     <div className="p-4 bg-gradient-to-br from-[#024673] to-[#5C99E3] min-h-screen">
       <div className="bg-opacity-15 backdrop-blur-sm m-1 rounded-xl bg-gradient-to-r from-[#024673] to-[#5C99E3]">
@@ -147,11 +136,8 @@ export default function MaintenanceDashboard() {
           {/* Toggle Buttons for Different Views */}
           <div className="flex flex-wrap gap-4 mt-6 mb-4">
             <button 
-              onClick={() => {
-                setShowDeviation(false);
-                setShowRangeTable(false);
-              }}
-              className={`group relative flex items-center justify-center overflow-hidden rounded-lg ${!showDeviation && !showRangeTable ? 'bg-gradient-to-br from-green-500 to-green-700' : 'bg-gradient-to-br from-blue-500 to-purple-600'} p-0.5 text-sm font-medium text-white hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 shadow-lg`}
+              onClick={() => setActiveView('maintenance')}
+              className={`group relative flex items-center justify-center overflow-hidden rounded-lg ${activeView === 'maintenance' ? 'bg-gradient-to-br from-green-500 to-green-700' : 'bg-gradient-to-br from-blue-500 to-purple-600'} p-0.5 text-sm font-medium text-white hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 shadow-lg`}
             >
               <span className="relative flex items-center gap-2 rounded-md bg-gradient-to-r from-[#024673] to-[#5C99E3] px-5 py-2.5 transition-all duration-300 ease-in group-hover:bg-opacity-0">
                 Maintenance Analysis
@@ -159,8 +145,8 @@ export default function MaintenanceDashboard() {
             </button>
             
             <button 
-              onClick={toggleDeviationAnalysis}
-              className={`group relative flex items-center justify-center overflow-hidden rounded-lg ${showDeviation ? 'bg-gradient-to-br from-green-500 to-green-700' : 'bg-gradient-to-br from-blue-500 to-purple-600'} p-0.5 text-sm font-medium text-white hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 shadow-lg`}
+              onClick={() => setActiveView('deviation')}
+              className={`group relative flex items-center justify-center overflow-hidden rounded-lg ${activeView === 'deviation' ? 'bg-gradient-to-br from-green-500 to-green-700' : 'bg-gradient-to-br from-blue-500 to-purple-600'} p-0.5 text-sm font-medium text-white hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 shadow-lg`}
             >
               <span className="relative flex items-center gap-2 rounded-md bg-gradient-to-r from-[#024673] to-[#5C99E3] px-5 py-2.5 transition-all duration-300 ease-in group-hover:bg-opacity-0">
                 Deviation Analysis
@@ -168,8 +154,8 @@ export default function MaintenanceDashboard() {
             </button>
             
             <button 
-              onClick={toggleRangeTable}
-              className={`group relative flex items-center justify-center overflow-hidden rounded-lg ${showRangeTable ? 'bg-gradient-to-br from-green-500 to-green-700' : 'bg-gradient-to-br from-blue-500 to-purple-600'} p-0.5 text-sm font-medium text-white hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 shadow-lg`}
+              onClick={() => setActiveView('range')}
+              className={`group relative flex items-center justify-center overflow-hidden rounded-lg ${activeView === 'range' ? 'bg-gradient-to-br from-green-500 to-green-700' : 'bg-gradient-to-br from-blue-500 to-purple-600'} p-0.5 text-sm font-medium text-white hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 shadow-lg`}
             >
               <span className="relative flex items-center gap-2 rounded-md bg-gradient-to-r from-[#024673] to-[#5C99E3] px-5 py-2.5 transition-all duration-300 ease-in group-hover:bg-opacity-0">
                 Parameter Range Analysis
@@ -177,9 +163,9 @@ export default function MaintenanceDashboard() {
             </button>
           </div>
 
-          {/* Different views based on toggle state */}
-          {!showDeviation && !showRangeTable && (
-            <>
+          {/* Different views based on activeView state */}
+          {activeView === 'maintenance' && (
+            <div className="animate-fade-in">
               {/* Filters Component */}
               <FilterComponent 
                 machines={machines}
@@ -193,18 +179,18 @@ export default function MaintenanceDashboard() {
                 selectedMachine={selectedMachine}
                 selectedDate={selectedDate}
               />
-            </>
+            </div>
           )}
 
           {/* Deviation Analysis View */}
-          {showDeviation && (
+          {activeView === 'deviation' && (
             <div className="animate-fade-in">
               <DeviationAnalysisComponent csvData={csvData} />
             </div>
           )}
 
           {/* Parameter Range Analysis View */}
-          {showRangeTable && (
+          {activeView === 'range' && (
             <div className="animate-fade-in">
               <MonthMachineFilterComponent 
                 csvData={csvData}
