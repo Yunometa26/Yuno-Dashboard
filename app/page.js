@@ -29,7 +29,7 @@ export default function DashboardHomepage() {
     },
     { 
       id: 4, 
-      title: "Machine Maintenance", 
+      title: "Machine Health", 
       icon: <Settings className="h-8 w-8 text-orange-500" />, 
       path: "/maintenance",
       borderColor: "bg-orange-500"
