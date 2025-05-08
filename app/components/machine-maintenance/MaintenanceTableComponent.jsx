@@ -76,9 +76,7 @@ const calculateMaintenanceStats = (data, breakdownMachine, breakdownDate) => {
     { key: 'Water_Out_Temp_C', name: 'Feed Temperature' },
     { key: 'Nozzle_Temperature_C', name: 'Nozzle Temperature' },
     { key: 'Melt_Cushion_mm', name: 'Melt Cushion' },
-    { key: 'Zone Temerature', name: 'Zone 1 Temperature' },  // Using Zone Temperature as Zone 1
-    { key: 'Water_In_Temp_C', name: 'Zone 2 Temperature' },  // Using Water In Temp as Zone 2 (for demo)
-    { key: 'Water_Out_Temp_C', name: 'Zone 3 Temperature' }, // Using Water Out Temp as Zone 3 (for demo)
+    { key: 'Zone Temerature', name: 'Zone Temperature' },
     { key: 'Cooling_Time_sec', name: 'Cooling Time' }
   ];
 
@@ -137,4 +135,3 @@ const MaintenanceTableComponent = ({ csvData, selectedMachine, selectedDate }) =
 };
 
 export default MaintenanceTableComponent;
-

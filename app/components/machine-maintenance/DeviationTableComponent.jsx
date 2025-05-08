@@ -9,9 +9,7 @@ const DeviationTableComponent = ({ monthlyData, parameterRanges }) => {
     'Nozzle_Temperature_C': 'Nozzle Temperature',
     'Feed_Temperature_C': 'Feed Temperature',  // Fixed parameter name
     'Melt_Cushion_mm': 'Melt Cushion',
-    'Zone Temerature': 'Zone1 Temperature',
-    'Water_In_Temp_C': 'Zone2 Temperature',
-    'Water_Out_Temp_C': 'Zone3 Temperature',
+    'Zone Temerature': 'Zone Temperature',
     'Cooling_Time_sec': 'Cooling Time'
   };
 
@@ -36,9 +34,7 @@ const DeviationTableComponent = ({ monthlyData, parameterRanges }) => {
             <th className="p-3 text-center border border-blue-200">Nozzle Temperature</th>
             <th className="p-3 text-center border border-blue-200">Feed Temperature</th>
             <th className="p-3 text-center border border-blue-200">Melt Cushion</th>
-            <th className="p-3 text-center border border-blue-200">Zone1 Temperature</th>
-            <th className="p-3 text-center border border-blue-200">Zone2 Temperature</th>
-            <th className="p-3 text-center border border-blue-200">Zone3 Temperature</th>
+            <th className="p-3 text-center border border-blue-200">Zone Temperature</th>
             <th className="p-3 text-center border border-blue-200">Cooling Time</th>
           </tr>
         </thead>
@@ -63,12 +59,6 @@ const DeviationTableComponent = ({ monthlyData, parameterRanges }) => {
               </td>
               <td className="p-3 text-center border border-blue-200">
                 {monthData.parameters['Zone Temerature'] ? monthData.parameters['Zone Temerature'].toFixed(2) : '0.00'}
-              </td>
-              <td className="p-3 text-center border border-blue-200">
-                {monthData.parameters['Water_In_Temp_C'] ? monthData.parameters['Water_In_Temp_C'].toFixed(2) : '0.00'}
-              </td>
-              <td className="p-3 text-center border border-blue-200">
-                {monthData.parameters['Water_Out_Temp_C'] ? monthData.parameters['Water_Out_Temp_C'].toFixed(2) : '0.00'}
               </td>
               <td className="p-3 text-center border border-blue-200">
                 {monthData.parameters['Cooling_Time_sec'] ? monthData.parameters['Cooling_Time_sec'].toFixed(2) : '0.00'}
