@@ -314,6 +314,14 @@ const FilterPage = () => {
             </>
           )}
         </div>
+        <div className="mt-8 flex justify-center">
+          <button 
+            onClick={() => window.location.href = '/inventory-position'}
+            className="bg-gradient-to-r from-[#024673] to-[#5C99E3] hover:from-[#023d63] hover:to-[#4b88d2] text-white px-6 py-3 rounded-lg shadow-md transition-all duration-300 font-medium"
+          >
+            Back to Inventory position
+          </button>
+        </div>
       </div>
     </div>
   );
