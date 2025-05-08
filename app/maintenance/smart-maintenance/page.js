@@ -129,7 +129,7 @@ export default function MaintenanceDashboard() {
       
       {isLoading ? (
         <div className="text-center py-8">
-          <div className="text-blue-600">Loading data...</div>
+          <div className="text-white">Loading data...</div>
         </div>
       ) : (
         <>

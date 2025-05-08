@@ -73,7 +73,6 @@ const calculateMaintenanceStats = (data, breakdownMachine, breakdownDate) => {
   const parameterKeys = [
     { key: 'Cycle_Time_sec', name: 'Cycle Time' },
     { key: 'Oil_Temperature_C', name: 'Oil Temperature' },
-    { key: 'Water_Out_Temp_C', name: 'Feed Temperature' },
     { key: 'Nozzle_Temperature_C', name: 'Nozzle Temperature' },
     { key: 'Melt_Cushion_mm', name: 'Melt Cushion' },
     { key: 'Zone Temerature', name: 'Zone Temperature' },
