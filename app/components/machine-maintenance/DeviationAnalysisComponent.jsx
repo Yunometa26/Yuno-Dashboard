@@ -110,18 +110,6 @@ const DeviationAnalysisComponent = ({ csvData }) => {
 
   return (
     <div className="p-4">
-      <div className="bg-opacity-15 backdrop-blur-sm rounded-xl">
-          <div className="p-8 sm:p-12">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
-              {/* Left side with text content */}
-              <div className="flex-1 space-y-5 align-middle text-center">
-                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white leading-tight">
-                  <span className="text-white">Deviation Analysis</span>
-                </h2>
-              </div>
-            </div>
-          </div>
-        </div>
       
       {error && (
         <div className="bg-red-50 text-red-700 p-4 mb-6 rounded-md">

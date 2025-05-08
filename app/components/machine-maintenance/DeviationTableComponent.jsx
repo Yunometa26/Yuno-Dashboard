@@ -6,8 +6,7 @@ const DeviationTableComponent = ({ monthlyData, parameterRanges }) => {
   const parameterDisplayNames = {
     'Cycle_Time_sec': 'Cycle Time',
     'Oil_Temperature_C': 'Oil Temperature',
-    'Nozzle_Temperature_C': 'Nozzle Temperature',
-    'Feed_Temperature_C': 'Feed Temperature',  // Fixed parameter name
+    'Nozzle_Temperature_C': 'Nozzle Temperature', // Fixed parameter name
     'Melt_Cushion_mm': 'Melt Cushion',
     'Zone Temerature': 'Zone Temperature',
     'Cooling_Time_sec': 'Cooling Time'
@@ -32,7 +31,6 @@ const DeviationTableComponent = ({ monthlyData, parameterRanges }) => {
             <th className="p-3 text-center border border-blue-200">Cycle Time</th>
             <th className="p-3 text-center border border-blue-200">Oil Temperature</th>
             <th className="p-3 text-center border border-blue-200">Nozzle Temperature</th>
-            <th className="p-3 text-center border border-blue-200">Feed Temperature</th>
             <th className="p-3 text-center border border-blue-200">Melt Cushion</th>
             <th className="p-3 text-center border border-blue-200">Zone Temperature</th>
             <th className="p-3 text-center border border-blue-200">Cooling Time</th>
@@ -50,9 +48,6 @@ const DeviationTableComponent = ({ monthlyData, parameterRanges }) => {
               </td>
               <td className="p-3 text-center border border-blue-200">
                 {monthData.parameters['Nozzle_Temperature_C'] ? monthData.parameters['Nozzle_Temperature_C'].toFixed(2) : '0.00'}
-              </td>
-              <td className="p-3 text-center border border-blue-200">
-                {monthData.parameters['Feed_Temperature_C'] ? monthData.parameters['Feed_Temperature_C'].toFixed(2) : '0.00'}
               </td>
               <td className="p-3 text-center border border-blue-200">
                 {monthData.parameters['Melt_Cushion_mm'] ? monthData.parameters['Melt_Cushion_mm'].toFixed(2) : '0.00'}

@@ -4,6 +4,8 @@ import Papa from 'papaparse';
 import FilterComponent from '@/app/components/machine-maintenance/FilterComponent';
 import MaintenanceTableComponent from '@/app/components/machine-maintenance/MaintenanceTableComponent';
 import DeviationAnalysisComponent from '@/app/components/machine-maintenance/DeviationAnalysisComponent';
+import MonthMachineFilterComponent from '@/app/components/machine-maintenance/MonthMachineFilterComponent';
+import ParameterRangeTableComponent from '@/app/components/machine-maintenance/ParameterRangeTableComponent';
 
 // Main Dashboard Component
 export default function MaintenanceDashboard() {
@@ -13,9 +15,12 @@ export default function MaintenanceDashboard() {
   const [breakdownDates, setBreakdownDates] = useState({});
   const [selectedMachine, setSelectedMachine] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
+  const [selectedMonthMachine, setSelectedMonthMachine] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showDeviation, setShowDeviation] = useState(false);
+  const [showRangeTable, setShowRangeTable] = useState(false);
 
   // Load CSV data from public folder
   useEffect(() => {
@@ -94,9 +99,22 @@ export default function MaintenanceDashboard() {
     setSelectedDate(date);
   };
 
+  // Handle month-machine filter changes
+  const handleMonthMachineFilterChange = (machine, month) => {
+    setSelectedMonthMachine(machine);
+    setSelectedMonth(month);
+  };
+
   // Toggle the deviation analysis visibility
   const toggleDeviationAnalysis = () => {
     setShowDeviation(!showDeviation);
+    if (showDeviation) setShowRangeTable(false);
+  };
+
+  // Toggle the parameter range table visibility
+  const toggleRangeTable = () => {
+    setShowRangeTable(!showRangeTable);
+    if (showRangeTable) setShowDeviation(false);
   };
 
   return (
@@ -126,45 +144,77 @@ export default function MaintenanceDashboard() {
         </div>
       ) : (
         <>
-          {/* Filters Component */}
-          <FilterComponent 
-            machines={machines}
-            breakdownDates={breakdownDates}
-            onFilterChange={handleFilterChange}
-          />
-          
-          {/* Maintenance Table Component */}
-          <MaintenanceTableComponent 
-            csvData={csvData}
-            selectedMachine={selectedMachine}
-            selectedDate={selectedDate}
-          />
-
-          {/* Deviation Analysis Toggle Button */}
-          <div className="mt-6 mb-4">
+          {/* Toggle Buttons for Different Views */}
+          <div className="flex flex-wrap gap-4 mt-6 mb-4">
             <button 
-              onClick={toggleDeviationAnalysis}
-              className="group relative flex items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 p-0.5 text-sm font-medium text-white hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 shadow-lg"
+              onClick={() => {
+                setShowDeviation(false);
+                setShowRangeTable(false);
+              }}
+              className={`group relative flex items-center justify-center overflow-hidden rounded-lg ${!showDeviation && !showRangeTable ? 'bg-gradient-to-br from-green-500 to-green-700' : 'bg-gradient-to-br from-blue-500 to-purple-600'} p-0.5 text-sm font-medium text-white hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 shadow-lg`}
             >
               <span className="relative flex items-center gap-2 rounded-md bg-gradient-to-r from-[#024673] to-[#5C99E3] px-5 py-2.5 transition-all duration-300 ease-in group-hover:bg-opacity-0">
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className={`h-5 w-5 transition-transform duration-300 ${showDeviation ? 'rotate-180' : ''}`} 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-                {showDeviation ? 'Hide Deviation Analysis' : 'Show Deviation Analysis'}
+                Maintenance Analysis
+              </span>
+            </button>
+            
+            <button 
+              onClick={toggleDeviationAnalysis}
+              className={`group relative flex items-center justify-center overflow-hidden rounded-lg ${showDeviation ? 'bg-gradient-to-br from-green-500 to-green-700' : 'bg-gradient-to-br from-blue-500 to-purple-600'} p-0.5 text-sm font-medium text-white hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 shadow-lg`}
+            >
+              <span className="relative flex items-center gap-2 rounded-md bg-gradient-to-r from-[#024673] to-[#5C99E3] px-5 py-2.5 transition-all duration-300 ease-in group-hover:bg-opacity-0">
+                Deviation Analysis
+              </span>
+            </button>
+            
+            <button 
+              onClick={toggleRangeTable}
+              className={`group relative flex items-center justify-center overflow-hidden rounded-lg ${showRangeTable ? 'bg-gradient-to-br from-green-500 to-green-700' : 'bg-gradient-to-br from-blue-500 to-purple-600'} p-0.5 text-sm font-medium text-white hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 shadow-lg`}
+            >
+              <span className="relative flex items-center gap-2 rounded-md bg-gradient-to-r from-[#024673] to-[#5C99E3] px-5 py-2.5 transition-all duration-300 ease-in group-hover:bg-opacity-0">
+                Parameter Range Analysis
               </span>
             </button>
           </div>
 
-          {/* Conditionally render DeviationAnalysisComponent */}
+          {/* Different views based on toggle state */}
+          {!showDeviation && !showRangeTable && (
+            <>
+              {/* Filters Component */}
+              <FilterComponent 
+                machines={machines}
+                breakdownDates={breakdownDates}
+                onFilterChange={handleFilterChange}
+              />
+              
+              {/* Maintenance Table Component */}
+              <MaintenanceTableComponent 
+                csvData={csvData}
+                selectedMachine={selectedMachine}
+                selectedDate={selectedDate}
+              />
+            </>
+          )}
+
+          {/* Deviation Analysis View */}
           {showDeviation && (
             <div className="animate-fade-in">
               <DeviationAnalysisComponent csvData={csvData} />
+            </div>
+          )}
+
+          {/* Parameter Range Analysis View */}
+          {showRangeTable && (
+            <div className="animate-fade-in">
+              <MonthMachineFilterComponent 
+                csvData={csvData}
+                onFilterChange={handleMonthMachineFilterChange}
+              />
+              <ParameterRangeTableComponent 
+                csvData={csvData}
+                selectedMachine={selectedMonthMachine}
+                selectedMonth={selectedMonth}
+              />
             </div>
           )}
         </>
@@ -183,4 +233,3 @@ export default function MaintenanceDashboard() {
     </div>
   );
 }
-
