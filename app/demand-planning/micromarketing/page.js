@@ -1,0 +1,1 @@
+export { default } from '@/app/components/demand-planning/micromarketing/lifecycle';
