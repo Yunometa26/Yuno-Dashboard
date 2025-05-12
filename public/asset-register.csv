@@ -1,0 +1,105 @@
+﻿Asset ID,Asset Name,Category,Status,Port Feasibility,Registered Date,OEE,OEE Bucket
+1001,Machine-1,Cutting,Running,Not Available,30-Apr-16,76,75-80
+1002,Machine-2,Cutting,Idle,Not Available,06-Dec-16,77,75-80
+1003,Machine-3,Cutting,Idle,Not Available,06-May-20,73,<75
+1004,Machine-4,Drilling,Running,Feasible,25-Jul-21,88,85-90
+1005,Machine-5,Drilling,Breakdown,To be checked,13-May-22,93,90-95
+1006,Machine-6,EDM,Idle,Not Available,14-Aug-20,74,<75
+1007,Machine-7,EDM,Idle,Not Available,13-Aug-19,93,90-95
+1008,Machine-8,Grinding,Maintenance,Not Available,19-May-16,72,<75
+1009,Machine-9,HBM,Running,Feasible,30-May-18,73,<75
+1010,Machine-10,HBM,Idle,Feasible,09-Jan-15,93,90-95
+1011,Machine-11,HBM,Idle,Feasible,10-Nov-19,71,<75
+1012,Machine-12,HMC,Maintenance,Feasible,02-Feb-17,80,80-85
+1013,Machine-13,HMC,Running,Feasible,08-May-15,77,75-80
+1014,Machine-14,HMC,Idle,Not Available,25-Jun-15,75,75-80
+1015,Machine-15,HMC,Running,Feasible,24-Feb-22,84,80-85
+1016,Machine-16,HMC,Running,Feasible,18-Aug-20,76,75-80
+1017,Machine-17,HMC,Idle,Feasible,11-Oct-16,94,90-95
+1018,Machine-18,Honning,Breakdown,Not Available,30-May-22,93,90-95
+1019,Machine-19,Honning,Breakdown,Not Available,04-Apr-22,93,90-95
+1020,Machine-20,Honning,Breakdown,Not Available,14-Oct-22,93,90-95
+1021,Machine-21,TC,Breakdown,Feasible,10-Jul-22,92,90-95
+1022,Machine-22,TC,Idle,Feasible,21-Apr-22,85,85-90
+1023,Machine-23,TC,Idle,Feasible,26-Aug-19,80,80-85
+1024,Machine-24,TC,Maintenance,Not Available,23-Mar-16,88,85-90
+1025,Machine-25,TC,Breakdown,Feasible,09-Dec-17,74,<75
+1026,Machine-26,TC,Running,Feasible,22-Dec-21,74,<75
+1027,Machine-27,TC,Maintenance,Feasible,26-Aug-20,79,75-80
+1028,Machine-28,TC,Idle,Feasible,26-Feb-22,81,80-85
+1029,Machine-29,TC,Idle,Feasible,11-Jan-18,82,80-85
+1030,Machine-30,TC,Breakdown,Feasible,10-Nov-18,90,90-95
+1031,Machine-31,TC,Running,Feasible,17-Aug-22,82,80-85
+1032,Machine-32,TC,Idle,Feasible,18-Mar-15,88,85-90
+1033,Machine-33,TC,Breakdown,Feasible,17-Dec-19,87,85-90
+1034,Machine-34,TC,Running,Feasible,18-Jul-17,76,75-80
+1035,Machine-35,TC,Maintenance,Feasible,12-Nov-20,75,75-80
+1036,Machine-36,TC,Running,Not Available,20-Dec-21,78,75-80
+1037,Machine-37,TC,Maintenance,Feasible,24-Dec-15,80,80-85
+1038,Machine-38,TC,Running,Feasible,21-Jan-17,77,75-80
+1039,Machine-39,TC,Idle,Feasible,12-Dec-16,80,80-85
+1040,Machine-40,TC,Idle,Not Available,01-Apr-19,73,<75
+1041,Machine-41,TC,Running,Feasible,03-Jun-20,71,<75
+1042,Machine-42,TC,Breakdown,Feasible,14-Dec-22,88,85-90
+1043,Machine-43,TC,Running,Not Available,24-Jul-19,93,90-95
+1044,Machine-44,TC,Maintenance,Feasible,14-Dec-18,89,85-90
+1045,Machine-45,TC,Breakdown,Feasible,03-Nov-19,70,<75
+1046,Machine-46,TC,Idle,Feasible,22-May-15,84,80-85
+1047,Machine-47,TC,Idle,Feasible,11-Sep-17,88,85-90
+1048,Machine-48,TC,Maintenance,Feasible,30-Jul-15,73,<75
+1049,Machine-49,TC,Breakdown,Feasible,26-Apr-18,79,75-80
+1050,Machine-50,TC,Running,Feasible,22-May-18,71,<75
+1051,Machine-51,TC,Running,Feasible,24-May-16,76,75-80
+1052,Machine-52,TC,Breakdown,Feasible,14-Jun-23,91,90-95
+1053,Machine-53,TC,Running,Feasible,31-Mar-24,82,80-85
+1054,Machine-54,TC,Idle,Feasible,03-Jun-21,82,80-85
+1055,Machine-55,TC,Running,Feasible,17-Jan-17,94,90-95
+1056,Machine-56,TC,Running,Feasible,20-Sep-21,88,85-90
+1057,Machine-57,TC,Idle,Not Available,29-Jan-20,79,75-80
+1058,Machine-58,TC,Breakdown,Feasible,10-Oct-17,76,75-80
+1059,Machine-59,TC,Maintenance,Feasible,26-Jan-16,85,85-90
+1060,Machine-60,TC,Running,Feasible,21-Dec-19,82,80-85
+1061,Machine-61,TC,Breakdown,Feasible,23-Nov-20,73,<75
+1062,Machine-62,TC,Running,Not Available,17-Apr-17,81,80-85
+1063,Machine-63,TC,Breakdown,Feasible,06-May-19,72,<75
+1064,Machine-64,TC,Maintenance,Feasible,22-Feb-16,82,80-85
+1065,Machine-65,TC,Breakdown,Feasible,10-Jan-18,70,<75
+1066,Machine-66,TC,Running,Feasible,30-May-19,82,80-85
+1067,Machine-67,TC,Idle,Not Available,28-Feb-17,75,75-80
+1068,Machine-68,TC,Breakdown,Feasible,24-Jul-21,89,85-90
+1069,Machine-69,TC,Idle,Feasible,26-Mar-16,85,85-90
+1070,Machine-70,TC,Maintenance,Feasible,14-Nov-23,90,90-95
+1071,Machine-71,TC,Breakdown,Feasible,28-Feb-18,74,<75
+1072,Machine-72,TC,Breakdown,Feasible,04-Jun-17,78,75-80
+1073,Machine-73,TC,Running,Feasible,04-Sep-25,95,90-95
+1074,Machine-74,TC,Breakdown,Feasible,22-Nov-25,79,75-80
+1075,Machine-75,TC,Idle,Feasible,10-Mar-16,83,80-85
+1076,Machine-76,TC,Breakdown,Feasible,04-Feb-24,73,<75
+1077,Machine-77,TMC,Idle,Feasible,10-Nov-21,73,<75
+1078,Machine-78,TMC,Breakdown,Feasible,27-Jan-18,77,75-80
+1079,Machine-79,TMC,Idle,Feasible,26-Jun-22,78,75-80
+1080,Machine-80,TMC,Breakdown,Not Available,27-Nov-22,91,90-95
+1081,Machine-81,TMC,Running,Not Available,22-Dec-23,85,85-90
+1082,Machine-82,TMC,Breakdown,Feasible,25-Jun-25,92,90-95
+1083,Machine-83,TMC,Maintenance,Not Available,14-Apr-16,85,85-90
+1084,Machine-84,TMC,Running,Not Available,25-Dec-17,71,<75
+1085,Machine-85,TMC,Running,Not Available,17-May-16,72,<75
+1086,Machine-86,TMC,Breakdown,Feasible,13-Jun-25,71,<75
+1087,Machine-87,TMC,Idle,Feasible,11-Dec-21,81,80-85
+1088,Machine-88,TMC,Idle,Feasible,17-Apr-17,91,90-95
+1089,Machine-89,TMC,Breakdown,Not Available,20-Oct-18,88,85-90
+1090,Machine-90,TMC,Idle,Feasible,12-Jan-25,84,80-85
+1091,Machine-91,VMC,Maintenance,Not Available,18-Dec-24,78,75-80
+1092,Machine-92,VMC,Idle,Not Available,29-Mar-22,85,85-90
+1093,Machine-93,VMC,Maintenance,Feasible,15-Aug-17,74,<75
+1094,Machine-94,VMC,Breakdown,Feasible,08-Jun-23,89,85-90
+1095,Machine-95,VMC,Breakdown,Not Available,25-Sep-20,76,75-80
+1096,Machine-96,VMC,Running,Not Available,04-Aug-17,90,90-95
+1097,Machine-97,VMC,Breakdown,Feasible,12-Apr-25,75,75-80
+1098,Machine-98,VMC,Breakdown,Not Available,27-Feb-21,76,75-80
+1099,Machine-99,VMC,Maintenance,Feasible,16-Jan-21,71,<75
+1100,Machine-100,Wire Cut,Idle,Not Available,24-Aug-24,73,<75
+1101,Machine-101,Wire Cut,Idle,Not Available,09-Oct-20,90,90-95
+1102,Machine-102,Wire Cut,Breakdown,Not Available,10-Nov-21,70,<75
+1103,Machine-103,Press Machine,Running,Not Available,21-Dec-19,74,<75
+,,,,,,85,85-90

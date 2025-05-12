@@ -140,7 +140,7 @@ export default function MaintenanceDashboard() {
               className={`group relative flex items-center justify-center overflow-hidden rounded-lg ${activeView === 'maintenance' ? 'bg-gradient-to-br from-green-500 to-green-700' : 'bg-gradient-to-br from-blue-500 to-purple-600'} p-0.5 text-sm font-medium text-white hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 shadow-lg`}
             >
               <span className="relative flex items-center gap-2 rounded-md bg-gradient-to-r from-[#024673] to-[#5C99E3] px-5 py-2.5 transition-all duration-300 ease-in group-hover:bg-opacity-0">
-                Maintenance Analysis
+                Data Back validation of Maintenance Analysis
               </span>
             </button>
             
@@ -158,7 +158,7 @@ export default function MaintenanceDashboard() {
               className={`group relative flex items-center justify-center overflow-hidden rounded-lg ${activeView === 'range' ? 'bg-gradient-to-br from-green-500 to-green-700' : 'bg-gradient-to-br from-blue-500 to-purple-600'} p-0.5 text-sm font-medium text-white hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 shadow-lg`}
             >
               <span className="relative flex items-center gap-2 rounded-md bg-gradient-to-r from-[#024673] to-[#5C99E3] px-5 py-2.5 transition-all duration-300 ease-in group-hover:bg-opacity-0">
-                Parameter Range Analysis
+                Customized Maintenance Report
               </span>
             </button>
           </div>
