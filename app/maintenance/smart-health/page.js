@@ -6,6 +6,8 @@ import MetricCards from "@/app/components/machine-maintenance/smart-health/Metri
 import UsedCapacityBarChart from "@/app/components/machine-maintenance/smart-health/UsedCapacityBarChart";
 import OEETrendChart from "@/app/components/machine-maintenance/smart-health/OEETrendChart";
 import MachinesTable from "@/app/components/machine-maintenance/smart-health/MachinesTable";
+import ProductionDashboard from "@/app/components/machine-maintenance/smart-health/Downtime";
+import AlarmDashboard from "@/app/components/machine-maintenance/smart-health/AlarmDashboard";
 
 const Dashboard = () => {
   const [data, setData] = useState([]);
@@ -14,6 +16,11 @@ const Dashboard = () => {
   const [selectedStartDate, setSelectedStartDate] = useState("");
   const [selectedEndDate, setSelectedEndDate] = useState("");
   const [selectedBucketing, setSelectedBucketing] = useState("");
+  
+  // Toggle states
+  const [showAlarms, setShowAlarms] = useState(false);
+  const [showOEE, setShowOEE] = useState(false);
+  const [showDowntime, setShowDowntime] = useState(false);
 
   useEffect(() => {
     Papa.parse("/smart-health.csv", {
@@ -47,6 +54,20 @@ const Dashboard = () => {
     bucketing: selectedBucketing
   };
 
+  // Toggle button component
+  const ToggleButton = ({ label, isActive, onClick }) => (
+    <button
+      onClick={onClick}
+      className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+        isActive 
+          ? "bg-white text-blue-900 shadow-lg" 
+          : "bg-blue-900 text-white hover:bg-blue-800"
+      }`}
+    >
+      {label}
+    </button>
+  );
+
   return (
     <div className="p-6 space-y-6 bg-gradient-to-br from-[#024673] to-[#5C99E3] min-h-screen">
       <div className="bg-opacity-15 backdrop-blur-sm m-1 rounded-xl bg-gradient-to-r from-[#024673] to-[#5C99E3]">
@@ -61,35 +82,78 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-      
-      <FilterComponent
-        orderDates={orderDates}
-        bucketings={bucketings}
-        selectedStartDate={selectedStartDate}
-        selectedEndDate={selectedEndDate}
-        selectedBucketing={selectedBucketing}
-        onStartDateChange={setSelectedStartDate}
-        onEndDateChange={setSelectedEndDate}
-        onBucketingChange={setSelectedBucketing}
-      />
-      <MetricCards data={filteredData} />
-      <UsedCapacityBarChart data={filteredData} />
-      <div className="flex flex-row w-full gap-6 h-96">
-        <div className="w-1/2">
-          <OEETrendChart data={filteredData} />
-        </div>
-        <div className="w-1/2">
-          <MachinesTable data={filteredData} filters={filters} />
-        </div>
+
+      {/* Toggle Buttons Row - Always visible */}
+      <div className="flex flex-wrap gap-4 justify-center mb-6 mt-3">
+        <ToggleButton 
+          label="Downtime" 
+          isActive={showDowntime} 
+          onClick={() => setShowDowntime(!showDowntime)} 
+        />
+        <ToggleButton 
+          label="Alarms" 
+          isActive={showAlarms} 
+          onClick={() => setShowAlarms(!showAlarms)} 
+        />
+        <ToggleButton 
+          label="OEE Details" 
+          isActive={showOEE} 
+          onClick={() => setShowOEE(!showOEE)} 
+        />
       </div>
-      <div className="mt-8 flex justify-center">
-          <button 
-            onClick={() => window.location.href = '/maintenance'}
-            className="bg-gradient-to-r from-[#024673] to-[#5C99E3] hover:from-[#023d63] hover:to-[#4b88d2] text-white px-6 py-3 rounded-lg shadow-md transition-all duration-300 font-medium"
-          >
-            Back to Maintenance
-          </button>
+      
+      {/* Show ProductionDashboard when Downtime is toggled on */}
+      {showDowntime ? (
+        <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] rounded-lg shadow-lg p-4 mb-6">
+          <ProductionDashboard />
         </div>
+      ) : showAlarms ? (
+        // Show AlarmDashboard when Alarms is toggled on
+        <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] rounded-lg shadow-lg p-4 mb-6">
+          <AlarmDashboard />
+        </div>
+      ) : (
+        <>
+          <FilterComponent
+            orderDates={orderDates}
+            bucketings={bucketings}
+            selectedStartDate={selectedStartDate}
+            selectedEndDate={selectedEndDate}
+            selectedBucketing={selectedBucketing}
+            onStartDateChange={setSelectedStartDate}
+            onEndDateChange={setSelectedEndDate}
+            onBucketingChange={setSelectedBucketing}
+          />
+
+          {/* Toggled content section for OEE */}
+          {showOEE && (
+            <div className="bg-white rounded-lg shadow-lg p-4 mb-6">
+              <h3 className="text-xl font-bold text-blue-900 mb-4">OEE Breakdown Analysis</h3>
+              <p className="text-gray-600">Detailed insights into Availability, Performance, and Quality metrics</p>
+            </div>
+          )}
+
+          <MetricCards data={filteredData} />
+          <UsedCapacityBarChart data={filteredData} />
+          <div className="flex flex-row w-full gap-6 h-96">
+            <div className="w-1/2">
+              <OEETrendChart data={filteredData} />
+            </div>
+            <div className="w-1/2">
+              <MachinesTable data={filteredData} filters={filters} />
+            </div>
+          </div>
+        </>
+      )}
+
+      <div className="mt-8 flex justify-center">
+        <button 
+          onClick={() => window.location.href = '/maintenance'}
+          className="bg-gradient-to-r from-[#024673] to-[#5C99E3] hover:from-[#023d63] hover:to-[#4b88d2] text-white px-6 py-3 rounded-lg shadow-md transition-all duration-300 font-medium"
+        >
+          Back to Maintenance
+        </button>
+      </div>
     </div>
   );
 };
