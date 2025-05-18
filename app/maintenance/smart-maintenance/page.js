@@ -1,11 +1,11 @@
 'use client'
 import { useState, useEffect } from 'react';
 import Papa from 'papaparse';
-import FilterComponent from '@/app/components/machine-maintenance/FilterComponent';
-import MaintenanceTableComponent from '@/app/components/machine-maintenance/MaintenanceTableComponent';
-import DeviationAnalysisComponent from '@/app/components/machine-maintenance/DeviationAnalysisComponent';
-import MonthMachineFilterComponent from '@/app/components/machine-maintenance/MonthMachineFilterComponent';
-import ParameterRangeTableComponent from '@/app/components/machine-maintenance/ParameterRangeTableComponent';
+import FilterComponent from '@/app/components/machine-maintenance/smart-maintenance/FilterComponent';
+import MaintenanceTableComponent from '@/app/components/machine-maintenance/smart-maintenance/MaintenanceTableComponent';
+import DeviationAnalysisComponent from '@/app/components/machine-maintenance/smart-maintenance/DeviationAnalysisComponent';
+import MonthMachineFilterComponent from '@/app/components/machine-maintenance/smart-maintenance/MonthMachineFilterComponent';
+import ParameterRangeTableComponent from '@/app/components/machine-maintenance/smart-maintenance/ParameterRangeTableComponent';
 
 // Main Dashboard Component
 export default function MaintenanceDashboard() {
