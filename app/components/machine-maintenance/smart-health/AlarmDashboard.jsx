@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import Papa from 'papaparse';
 import {
   PieChart, Pie, Cell, Tooltip as ReTooltip, Legend,
@@ -10,123 +10,141 @@ import {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
 const AlarmDashboard = () => {
-  const [data, setData] = useState([]);
+  const [rawData, setRawData] = useState([]);
   const [deviceFilter, setDeviceFilter] = useState('All');
   const [monthFilter, setMonthFilter] = useState('All');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // Load the data once
   useEffect(() => {
+    setIsLoading(true);
     Papa.parse('/Alarms.csv', {
       download: true,
       header: true,
+      dynamicTyping: true, // Automatically convert numeric values
+      skipEmptyLines: true, // Skip empty rows automatically
       complete: (results) => {
-        const parsedData = results.data
-          .filter(row => row['AlaNum']) // Remove empty rows
-          .map(row => ({
-            ...row,
-            date: row['date'],
-            // Format month as YYYY-MM for better sorting and display
-            month: row['date'] ? formatMonthDisplay(row['date']) : '',
-          }));
-        setData(parsedData);
+        // Pre-process data once during initial load
+        const processedData = results.data
+          .filter(row => row.AlaNum) // Remove empty rows
+          .map(row => {
+            // Parse date once and store formatted values
+            const dateObj = row.date ? new Date(row.date) : null;
+            const isValidDate = dateObj && !isNaN(dateObj.getTime());
+            
+            return {
+              ...row,
+              dateObj: isValidDate ? dateObj : null, // Store the actual date object
+              monthDisplay: isValidDate ? 
+                dateObj.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '',
+              shortDate: isValidDate ? 
+                dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''
+            };
+          });
+        setRawData(processedData);
+        setIsLoading(false);
       },
+      error: (error) => {
+        console.error("Error parsing CSV:", error);
+        setError("Failed to load alarm data");
+        setIsLoading(false);
+      }
     });
   }, []);
 
-  // Function to format month in a readable way
-  const formatMonthDisplay = (dateString) => {
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return ''; // Invalid date
-      
-      // Format as "MMM YYYY" (e.g., "Oct 2023")
-      return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-    } catch (error) {
-      return '';
-    }
-  };
+  // Memoize device options to avoid recalculation on every render
+  const deviceOptions = useMemo(() => {
+    return [...new Set(rawData.map(d => d.Device))];
+  }, [rawData]);
 
-  const deviceOptions = [...new Set(data.map(d => d.Device))];
-  const monthOptions = [...new Set(data.map(d => d.month))]
-    // Filter out empty values
-    .filter(month => month)
-    // Sort months chronologically
-    .sort((a, b) => {
-      const dateA = new Date(a);
-      const dateB = new Date(b);
-      return dateA - dateB;
+  // Memoize month options to avoid recalculation on every render
+  const monthOptions = useMemo(() => {
+    return [...new Set(rawData.map(d => d.monthDisplay))]
+      .filter(Boolean)
+      .sort((a, b) => {
+        const dateA = new Date(a);
+        const dateB = new Date(b);
+        return dateA - dateB;
+      });
+  }, [rawData]);
+
+  // Memoize filtered data to avoid recalculation unless dependencies change
+  const filteredData = useMemo(() => {
+    return rawData.filter(d => {
+      if (deviceFilter !== 'All' && d.Device !== deviceFilter) return false;
+      if (monthFilter === 'All') return true;
+      return d.monthDisplay === monthFilter;
     });
+  }, [rawData, deviceFilter, monthFilter]);
 
-  // Helper function to use for checking date equality for month filtering
-  const isSameMonth = (date1, monthDisplay) => {
-    if (!date1 || !monthDisplay) return false;
-    try {
-      const d1 = new Date(date1);
-      if (isNaN(d1.getTime())) return false;
-      
-      const formattedMonth = d1.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-      return formattedMonth === monthDisplay;
-    } catch (error) {
-      return false;
-    }
-  };
+  // Memoize chart data to prevent recalculation on every render
+  const chartData = useMemo(() => {
+    // Pie chart data
+    const pieData = Object.entries(
+      filteredData.reduce((acc, curr) => {
+        const category = curr['Alarm Category'] || 'Unknown';
+        acc[category] = (acc[category] || 0) + 1;
+        return acc;
+      }, {})
+    ).map(([category, value]) => ({ name: category, value }));
 
-  const filteredData = data.filter(d => {
-    if (deviceFilter !== 'All' && d.Device !== deviceFilter) return false;
-    if (monthFilter === 'All') return true;
+    // Line chart data
+    const dateCountMap = filteredData.reduce((acc, curr) => {
+      if (curr.date) {
+        acc[curr.date] = (acc[curr.date] || 0) + 1;
+      }
+      return acc;
+    }, {});
     
-    // Use proper month comparison
-    return isSameMonth(d.date, monthFilter);
-  });
+    const lineData = Object.entries(dateCountMap)
+      .map(([date, count]) => ({ 
+        date, 
+        count,
+        shortDate: filteredData.find(d => d.date === date)?.shortDate || date
+      }))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
 
-  const pieData = Object.entries(
-    filteredData.reduce((acc, curr) => {
-      acc[curr['Alarm Category']] = (acc[curr['Alarm Category']] || 0) + 1;
-      return acc;
-    }, {})
-  ).map(([category, value]) => ({ name: category, value }));
+    // Bar chart data
+    const barData = Object.entries(
+      filteredData.reduce((acc, curr) => {
+        const device = curr.Device || 'Unknown';
+        acc[device] = (acc[device] || 0) + 1;
+        return acc;
+      }, {})
+    )
+      .map(([device, count]) => ({ device, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5); // Top 5 devices
 
-  const lineData = Object.entries(
-    filteredData.reduce((acc, curr) => {
-      const date = curr.date;
-      acc[date] = (acc[date] || 0) + 1;
-      return acc;
-    }, {})
-  )
-    .map(([date, count]) => ({ date, count }))
-    .sort((a, b) => new Date(a.date) - new Date(b.date)); // Sort dates in ascending order
+    // Summary stats
+    const topCategory = pieData.length > 0 ? 
+      pieData.reduce((max, curr) => curr.value > max.value ? curr : max, pieData[0]) : 
+      null;
+    
+    const topDevice = barData.length > 0 ? barData[0] : null;
 
-  const barData = Object.entries(
-    filteredData.reduce((acc, curr) => {
-      acc[curr.Device] = (acc[curr.Device] || 0) + 1;
-      return acc;
-    }, {})
-  ).map(([device, count]) => ({ device, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5); // Top 5 devices
+    return { pieData, lineData, barData, topCategory, topDevice };
+  }, [filteredData]);
 
-  // Optimize line chart display for dates
-  const formatXAxis = (tickItem) => {
-    // Format date to show in a more readable format
-    const date = new Date(tickItem);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
+  // Extract chart data for easier access
+  const { pieData, lineData, barData, topCategory, topDevice } = chartData;
 
-  const topCategory = pieData.reduce((max, curr) => curr.value > (max?.value || 0) ? curr : max, null);
-  const topDevice = barData[0];
-
-  const CustomTooltip = ({ active, payload, label }) => {
+  // Memoize tooltip components to prevent unnecessary re-creation
+  const CustomTooltip = useCallback(({ active, payload, label }) => {
     if (active && payload && payload.length) {
+      const item = payload[0].payload;
       return (
         <div className="bg-white p-2 border border-gray-300 rounded shadow text-black">
-          <p>{`Date: ${label}`}</p>
+          <p>{`Date: ${item.shortDate || label}`}</p>
           <p>{`Count: ${payload[0].value}`}</p>
         </div>
       );
     }
     return null;
-  };
+  }, []);
 
-  const CustomBarTooltip = ({ active, payload, label }) => {
+  const CustomBarTooltip = useCallback(({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-2 border border-gray-300 rounded shadow">
@@ -136,7 +154,37 @@ const AlarmDashboard = () => {
       );
     }
     return null;
-  };
+  }, []);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen text-white">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></div>
+          <p className="mt-2">Loading alarm data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen text-white">
+        <div className="text-center bg-red-600 p-4 rounded">
+          <p className="font-bold">Error</p>
+          <p>{error}</p>
+          <button 
+            className="mt-2 bg-white text-red-600 px-3 py-1 rounded" 
+            onClick={() => window.location.reload()}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -244,10 +292,9 @@ const AlarmDashboard = () => {
           <LineChart data={lineData}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.3)" />
             <XAxis 
-              dataKey="date" 
+              dataKey="shortDate" 
               stroke="#FFFFFF" 
               tick={{ fill: '#FFFFFF' }} 
-              tickFormatter={formatXAxis}
               interval="preserveStartEnd"
             />
             <YAxis stroke="#FFFFFF" tick={{ fill: '#FFFFFF' }} />

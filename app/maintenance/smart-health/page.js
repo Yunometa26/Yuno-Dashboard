@@ -1,9 +1,9 @@
 'use client'
 import React, { useEffect, useState } from "react";
 import Papa from "papaparse";
-import ProductionDashboard from "@/app/components/machine-maintenance/smart-health/Downtime";
 import AlarmDashboard from "@/app/components/machine-maintenance/smart-health/AlarmDashboard";
 import OEEStats from "@/app/components/machine-maintenance/smart-health/OEE";
+import EnergyDashboard from "@/app/components/machine-maintenance/smart-health/Energy";
 
 const Dashboard = () => {
   const [data, setData] = useState([]);
@@ -51,7 +51,7 @@ const Dashboard = () => {
       className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
         isActive 
           ? "bg-white text-blue-900 shadow-lg" 
-          : "bg-gradient-to-r from-[#024673] to-[#5C99E3] hover:from-[#023d63] hover:to-[#4b88d2]"
+          : "text-white bg-gradient-to-r from-[#024673] to-[#5C99E3] hover:from-[#023d63] hover:to-[#4b88d2]"
       }`}
     >
       {label}
@@ -101,7 +101,7 @@ const Dashboard = () => {
         </div>
       ) : showEnergy ? (
         <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] rounded-lg shadow-lg p-4 mb-6">
-          <ProductionDashboard />
+          <EnergyDashboard />
         </div>
       ) : (
         <>
