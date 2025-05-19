@@ -1,13 +1,9 @@
 'use client'
 import React, { useEffect, useState } from "react";
 import Papa from "papaparse";
-import FilterComponent from "@/app/components/machine-maintenance/smart-health/FilterComponent";
-import MetricCards from "@/app/components/machine-maintenance/smart-health/MetricCards";
-import UsedCapacityBarChart from "@/app/components/machine-maintenance/smart-health/UsedCapacityBarChart";
-import OEETrendChart from "@/app/components/machine-maintenance/smart-health/OEETrendChart";
-import MachinesTable from "@/app/components/machine-maintenance/smart-health/MachinesTable";
 import ProductionDashboard from "@/app/components/machine-maintenance/smart-health/Downtime";
 import AlarmDashboard from "@/app/components/machine-maintenance/smart-health/AlarmDashboard";
+import OEEStats from "@/app/components/machine-maintenance/smart-health/OEE";
 
 const Dashboard = () => {
   const [data, setData] = useState([]);
@@ -16,11 +12,11 @@ const Dashboard = () => {
   const [selectedStartDate, setSelectedStartDate] = useState("");
   const [selectedEndDate, setSelectedEndDate] = useState("");
   const [selectedBucketing, setSelectedBucketing] = useState("");
-  
-  // Toggle states
-  const [showAlarms, setShowAlarms] = useState(false);
+
+  const [showEnergy, setShowEnergy] = useState(false);
   const [showOEE, setShowOEE] = useState(false);
-  const [showDowntime, setShowDowntime] = useState(false);
+  const [showDeviation, setShowDeviation] = useState(false);
+  const [showWater, setShowWater] = useState(false);
 
   useEffect(() => {
     Papa.parse("/smart-health.csv", {
@@ -36,15 +32,10 @@ const Dashboard = () => {
     });
   }, []);
 
-  // Filter data based on selected date range and bucketing
   const filteredData = data.filter(row => {
-    // Date range filter
     const dateInRange = (!selectedStartDate || row["Order Date"] >= selectedStartDate) && 
                         (!selectedEndDate || row["Order Date"] <= selectedEndDate);
-    
-    // Bucketing filter
     const bucketingMatch = !selectedBucketing || row["Bucketing"] === selectedBucketing;
-    
     return dateInRange && bucketingMatch;
   });
 
@@ -54,14 +45,13 @@ const Dashboard = () => {
     bucketing: selectedBucketing
   };
 
-  // Toggle button component
   const ToggleButton = ({ label, isActive, onClick }) => (
     <button
       onClick={onClick}
       className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
         isActive 
           ? "bg-white text-blue-900 shadow-lg" 
-          : "bg-blue-900 text-white hover:bg-blue-800"
+          : "bg-gradient-to-r from-[#024673] to-[#5C99E3] hover:from-[#023d63] hover:to-[#4b88d2]"
       }`}
     >
       {label}
@@ -73,7 +63,6 @@ const Dashboard = () => {
       <div className="bg-opacity-15 backdrop-blur-sm m-1 rounded-xl bg-gradient-to-r from-[#024673] to-[#5C99E3]">
           <div className="p-8 sm:p-12">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
-              {/* Left side with text content */}
               <div className="flex-1 space-y-5 align-middle text-center">
                 <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white leading-tight">
                   <span className="text-white">Smart Health Dashboard</span>
@@ -83,66 +72,44 @@ const Dashboard = () => {
           </div>
         </div>
 
-      {/* Toggle Buttons Row - Always visible */}
       <div className="flex flex-wrap gap-4 justify-center mb-6 mt-3">
         <ToggleButton 
-          label="Downtime" 
-          isActive={showDowntime} 
-          onClick={() => setShowDowntime(!showDowntime)} 
-        />
-        <ToggleButton 
-          label="Alarms" 
-          isActive={showAlarms} 
-          onClick={() => setShowAlarms(!showAlarms)} 
-        />
-        <ToggleButton 
-          label="OEE Details" 
+          label="OEE" 
           isActive={showOEE} 
           onClick={() => setShowOEE(!showOEE)} 
         />
+        <ToggleButton 
+          label="Deviation Analysis" 
+          isActive={showDeviation} 
+          onClick={() => setShowDeviation(!showDeviation)} 
+        />
+        <ToggleButton 
+          label="Energy" 
+          isActive={showEnergy} 
+          onClick={() => setShowEnergy(!showEnergy)} 
+        />
+        <ToggleButton 
+          label="Water" 
+          isActive={showWater} 
+          onClick={() => setShowWater(!showWater)} 
+        />
       </div>
       
-      {/* Show ProductionDashboard when Downtime is toggled on */}
-      {showDowntime ? (
-        <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] rounded-lg shadow-lg p-4 mb-6">
-          <ProductionDashboard />
-        </div>
-      ) : showAlarms ? (
-        // Show AlarmDashboard when Alarms is toggled on
+      {showDeviation ? (
         <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] rounded-lg shadow-lg p-4 mb-6">
           <AlarmDashboard />
         </div>
+      ) : showEnergy ? (
+        <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] rounded-lg shadow-lg p-4 mb-6">
+          <ProductionDashboard />
+        </div>
       ) : (
         <>
-          <FilterComponent
-            orderDates={orderDates}
-            bucketings={bucketings}
-            selectedStartDate={selectedStartDate}
-            selectedEndDate={selectedEndDate}
-            selectedBucketing={selectedBucketing}
-            onStartDateChange={setSelectedStartDate}
-            onEndDateChange={setSelectedEndDate}
-            onBucketingChange={setSelectedBucketing}
-          />
-
-          {/* Toggled content section for OEE */}
           {showOEE && (
-            <div className="bg-white rounded-lg shadow-lg p-4 mb-6">
-              <h3 className="text-xl font-bold text-blue-900 mb-4">OEE Breakdown Analysis</h3>
-              <p className="text-gray-600">Detailed insights into Availability, Performance, and Quality metrics</p>
+            <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] rounded-lg shadow-lg p-4 mb-6">
+              <OEEStats />
             </div>
           )}
-
-          <MetricCards data={filteredData} />
-          <UsedCapacityBarChart data={filteredData} />
-          <div className="flex flex-row w-full gap-6 h-96">
-            <div className="w-1/2">
-              <OEETrendChart data={filteredData} />
-            </div>
-            <div className="w-1/2">
-              <MachinesTable data={filteredData} filters={filters} />
-            </div>
-          </div>
         </>
       )}
 
