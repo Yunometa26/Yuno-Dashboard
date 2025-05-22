@@ -216,7 +216,7 @@ const EnergyDashboard = () => {
         </div>
         <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] shadow rounded p-4 flex items-center justify-center">
           <div className="text-center">
-            <h3 className="text-md font-bold text-white">Avg Energy / Part</h3>
+            <h3 className="text-md font-bold text-white">Avg Energy / Unit</h3>
             <p className="text-xl font-extrabold text-white mt-2">{avgEnergyPerPart} kWh</p>
           </div>
         </div>

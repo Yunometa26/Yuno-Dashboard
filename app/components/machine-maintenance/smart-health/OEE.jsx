@@ -18,6 +18,7 @@ const OEEStats = () => {
   const [filteredData, setFilteredData] = useState([]);
   const [selectedMachine, setSelectedMachine] = useState('All');
   const [selectedMonth, setSelectedMonth] = useState('All');
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -59,7 +60,10 @@ const OEEStats = () => {
                 originalDate: item.Dates, // Keep original for reference
                 dateObj: dateObj, // For sorting
                 dateSortKey: `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`, // YYYY-MM-DD for sorting
-                dayKey: `${day.toString().padStart(2, '0')}-${(month + 1).toString().padStart(2, '0')}-${year}` // Day-Month-Year key for aggregation
+                monthKey: `${(month + 1).toString().padStart(2, '0')}-${year}`, // Month-Year key for aggregation
+                monthYear: `${year}-${(month + 1).toString().padStart(2, '0')}`, // For sorting months
+                month: month + 1,
+                year: year
               };
             }
             return item;
@@ -68,7 +72,7 @@ const OEEStats = () => {
         setRawData(processedData);
         
         // Immediately perform initial aggregation
-        const aggregated = aggregateDataByDay(processedData);
+        const aggregated = aggregateDataByMonth(processedData);
         setAggregatedData(aggregated);
         setFilteredData(aggregated);
         
@@ -77,31 +81,32 @@ const OEEStats = () => {
     });
   }, []);
 
-  // Function to aggregate data by day
-  const aggregateDataByDay = (data) => {
-    // Group data by date
-    const groupedByDay = {};
+  // Function to aggregate data by month
+  const aggregateDataByMonth = (data) => {
+    // Group data by month-year
+    const groupedByMonth = {};
     
     data.forEach(item => {
-      if (!item.dayKey) return;
+      if (!item.monthKey) return;
       
-      if (!groupedByDay[item.dayKey]) {
-        groupedByDay[item.dayKey] = {
+      if (!groupedByMonth[item.monthKey]) {
+        groupedByMonth[item.monthKey] = {
           items: [],
-          dateSortKey: item.dateSortKey,
-          dateObj: item.dateObj,
-          Dates: item.Dates,
+          monthYear: item.monthYear,
+          dateObj: new Date(item.year, item.month - 1, 1), // First day of month for reference
+          month: item.month,
+          year: item.year,
           Device: 'All', // Will be overwritten if filtering by device
         };
       }
       
-      groupedByDay[item.dayKey].items.push(item);
+      groupedByMonth[item.monthKey].items.push(item);
     });
     
-    // Calculate averages for each day
-    const aggregatedData = Object.keys(groupedByDay).map(dayKey => {
-      const dayData = groupedByDay[dayKey];
-      const items = dayData.items;
+    // Calculate averages for each month
+    const aggregatedData = Object.keys(groupedByMonth).map(monthKey => {
+      const monthData = groupedByMonth[monthKey];
+      const items = monthData.items;
       
       // Calculate averages for OEE metrics
       const calculateAvg = (key) => {
@@ -111,22 +116,37 @@ const OEEStats = () => {
         return parseFloat((sum / validItems.length).toFixed(2));
       };
       
+      const availability = calculateAvg('Availability');
+      const performance = calculateAvg('Performance');
+      const quality = calculateAvg('Quality');
+      
+      // Calculate OEE as multiplication of the three components (convert percentages to decimals, multiply, then back to percentage)
+      const calculatedOEE = parseFloat(((availability / 100) * (performance / 100) * (quality / 100) * 100).toFixed(2));
+      
+      const monthNames = {
+        1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr',
+        5: 'May', 6: 'Jun', 7: 'Jul', 8: 'Aug',
+        9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec'
+      };
+      
       return {
-        dayKey,
-        Dates: dayData.Dates,
-        dateSortKey: dayData.dateSortKey,
-        dateObj: dayData.dateObj,
-        Device: dayData.Device,
-        OEE: calculateAvg('OEE'),
-        Availability: calculateAvg('Availability'),
-        Performance: calculateAvg('Performance'),
-        Quality: calculateAvg('Quality'),
-        Count: items.length // Number of records for this day
+        monthKey,
+        monthDisplay: `${monthNames[monthData.month]} ${monthData.year}`,
+        monthYear: monthData.monthYear,
+        dateObj: monthData.dateObj,
+        Device: monthData.Device,
+        month: monthData.month,
+        year: monthData.year,
+        OEE: calculatedOEE, // Calculated OEE
+        Availability: availability,
+        Performance: performance,
+        Quality: quality,
+        Count: items.length // Number of records for this month
       };
     });
     
-    // Sort aggregated data by date
-    aggregatedData.sort((a, b) => a.dateSortKey.localeCompare(b.dateSortKey));
+    // Sort aggregated data by month-year
+    aggregatedData.sort((a, b) => a.monthYear.localeCompare(b.monthYear));
     
     return aggregatedData;
   };
@@ -140,8 +160,8 @@ const OEEStats = () => {
       dataToProcess = dataToProcess.filter(row => row.Device === selectedMachine);
     }
     
-    // Aggregate the filtered data by day
-    let aggregated = aggregateDataByDay(dataToProcess);
+    // Aggregate the filtered data by month
+    let aggregated = aggregateDataByMonth(dataToProcess);
     
     // Handle device name for filtered data
     if (selectedMachine !== 'All') {
@@ -154,9 +174,7 @@ const OEEStats = () => {
     // Apply month filter after aggregation
     if (selectedMonth !== 'All') {
       aggregated = aggregated.filter(row => {
-        if (!row.dateObj) return false;
-        const month = row.dateObj.getMonth() + 1; // getMonth() is 0-indexed
-        return month === parseInt(selectedMonth, 10);
+        return row.month === parseInt(selectedMonth, 10);
       });
     }
     
@@ -165,8 +183,20 @@ const OEEStats = () => {
 
   const average = (key) => {
     const valid = filteredData.filter(d => !isNaN(parseFloat(d[key])));
-    const sum = valid.reduce((acc, curr) => acc + parseFloat(curr[key]), 0);
-    return valid.length > 0 ? (sum / valid.length).toFixed(2) : '0.00';
+    if (valid.length === 0) return '0.00';
+    
+    if (key === 'OEE') {
+      // For OEE, calculate it from the component averages
+      const avgAvailability = valid.reduce((acc, curr) => acc + parseFloat(curr.Availability), 0) / valid.length;
+      const avgPerformance = valid.reduce((acc, curr) => acc + parseFloat(curr.Performance), 0) / valid.length;
+      const avgQuality = valid.reduce((acc, curr) => acc + parseFloat(curr.Quality), 0) / valid.length;
+      
+      const calculatedOEE = (avgAvailability / 100) * (avgPerformance / 100) * (avgQuality / 100) * 100;
+      return calculatedOEE.toFixed(2);
+    } else {
+      const sum = valid.reduce((acc, curr) => acc + parseFloat(curr[key]), 0);
+      return (sum / valid.length).toFixed(2);
+    }
   };
 
   const machines = [...new Set(rawData.map(d => d.Device))];
@@ -176,7 +206,16 @@ const OEEStats = () => {
     ...new Set(
       rawData
         .filter(d => d.dateObj)
-        .map(d => d.dateObj.getMonth() + 1)
+        .map(d => d.month)
+    ),
+  ];
+
+  // Get unique years from the data
+  const years = [
+    ...new Set(
+      rawData
+        .filter(d => d.dateObj)
+        .map(d => d.year)
     ),
   ];
 
@@ -248,28 +287,29 @@ const OEEStats = () => {
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center shadow-lg transition-all duration-300 hover:bg-white/20">
-          <div className="text-3xl font-bold">{average('OEE')}%</div>
-          <div className="text-sm text-white mt-2">Average OEE</div>
+          <div className="text-3xl font-bold">{average('OEE')}</div>
+          <div className="text-sm text-white mt-2">Calculated OEE</div>
+          {/* <div className="text-xs text-white/70 mt-1">(A × P × Q)</div> */}
         </div>
         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center shadow-lg transition-all duration-300 hover:bg-white/20">
-          <div className="text-3xl font-bold">{average('Availability')}%</div>
+          <div className="text-3xl font-bold">{average('Availability')}</div>
           <div className="text-sm text-white mt-2">Availability</div>
         </div>
         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center shadow-lg transition-all duration-300 hover:bg-white/20">
-          <div className="text-3xl font-bold">{average('Performance')}%</div>
+          <div className="text-3xl font-bold">{average('Performance')}</div>
           <div className="text-sm text-white mt-2">Performance</div>
         </div>
         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center shadow-lg transition-all duration-300 hover:bg-white/20">
-          <div className="text-3xl font-bold">{average('Quality')}%</div>
+          <div className="text-3xl font-bold">{average('Quality')}</div>
           <div className="text-sm text-white mt-2">Quality</div>
         </div>
       </div>
 
       {/* Chart with Horizontal Scrollbar */}
       <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 shadow-lg">
-        <h3 className="text-lg font-medium mb-6">Daily OEE Components Average</h3>
+        <h3 className="text-lg font-medium mb-6">Monthly OEE Components Average</h3>
         <div className="overflow-x-auto pb-4" style={{ maxWidth: '100%' }}>
-          <div style={{ height: '400px', width: `${Math.max(1000, filteredData.length * 80)}px`, minWidth: '100%' }}>
+          <div style={{ height: '400px', width: `${Math.max(800, filteredData.length * 120)}px`, minWidth: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart 
                 data={filteredData} 
@@ -277,7 +317,7 @@ const OEEStats = () => {
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.2)" />
                 <XAxis 
-                  dataKey="Dates" 
+                  dataKey="monthDisplay" 
                   tick={{ fill: 'white' }} 
                   angle={-45}
                   textAnchor="end"
@@ -296,11 +336,11 @@ const OEEStats = () => {
                     borderRadius: '8px',
                     color: 'white' 
                   }}
-                  formatter={(value, name, props) => [`${value}%`, name]}
-                  labelFormatter={(label) => `Date: ${label}`}
+                  formatter={(value, name, props) => [`${value}`, name]}
+                  labelFormatter={(label) => `Month: ${label}`}
                 />
                 <Legend wrapperStyle={{ color: 'white' }} />
-                <Bar dataKey="OEE" fill="#8884d8" name="OEE" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="OEE" fill="#8884d8" name="Calculated OEE" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="Availability" fill="#82ca9d" name="Availability" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="Performance" fill="#ffc658" name="Performance" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="Quality" fill="#ff6f91" name="Quality" radius={[4, 4, 0, 0]} />
