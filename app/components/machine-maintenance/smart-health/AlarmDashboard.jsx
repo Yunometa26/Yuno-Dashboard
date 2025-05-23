@@ -237,7 +237,7 @@ const AlarmDashboard = () => {
         </div>
         <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] shadow rounded p-4 flex items-center justify-center">
           <div className="text-center">
-            <h3 className="text-xl font-bold text-white">Top Device</h3>
+            <h3 className="text-xl font-bold text-white">Top Contributor</h3>
             <p className="text-2xl text-white mt-2">{topDevice?.device || 'N/A'}</p>
           </div>
         </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Papa from 'papaparse';
 import _ from 'lodash';
 
-export default function HierarchicalFlowchart() {
+export default function HierarchicalFlowchart2() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -18,7 +18,9 @@ export default function HierarchicalFlowchart() {
     { name: 'Count of Assets', field: null },
     { name: 'Month', field: 'Month' },
     { name: 'Asset Category', field: 'Asset Category' },
+    { name: 'Status', field: 'Status' },
     { name: 'Machine Name', field: 'Machine Name' },
+    { name: 'Delay Days', field: 'Delay Days' },
   ];
 
   // Extract year from date string (DD-MMM-YY format)
@@ -43,7 +45,7 @@ export default function HierarchicalFlowchart() {
   // Load CSV data
   useEffect(() => {
     setLoading(true);
-    Papa.parse('/asset.csv', {
+    Papa.parse('/asset1.csv', {
       download: true,
       header: true,
       dynamicTyping: true,

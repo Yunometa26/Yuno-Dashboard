@@ -1,6 +1,8 @@
 'use client';
 import React from 'react';
 import HierarchicalFlowchart from '@/app/components/machine-maintenance/asset-register/HierarchicalFlowchart';
+import Home from '@/app/components/machine-maintenance/asset-register';
+import HierarchicalFlowchart2 from '@/app/components/machine-maintenance/asset-register/HierarchicalFlowchart2';
 
 export default function MachineAnalyticsPage() {
   return (
@@ -20,13 +22,23 @@ export default function MachineAnalyticsPage() {
         
       <div>
         <div className=" p-4 bg-gradient-to-r from-[#024673] to-[#5C99E3] rounded-xl mt-5">
-          <h2 className="text-xl font-semibold mb-4">Asset Inventory</h2>
-          <p className="mb-6">
-            Drill down through different levels to explore machine data by Year, Category, OEE Bucket, and Asset Name.
+          <h2 className="text-xl font-semibold mb-4 text-white">Asset Inventory</h2>
+          <p className="mb-6 text-white">
+            Drill down through different levels to explore machine data by Month, Asset Category and Machine Name.
           </p>
           <HierarchicalFlowchart />
         </div>
       </div>
+
+      <div>
+        <div className=" p-4 bg-gradient-to-r from-[#024673] to-[#5C99E3] rounded-xl mt-5">
+          <Home />
+        </div>
+      </div>
+
+        <div className=" p-4 bg-gradient-to-r from-[#024673] to-[#5C99E3] rounded-xl mt-5">
+          <HierarchicalFlowchart2 />
+        </div>
 
       <div className="mt-8 flex justify-center">
           <button 
