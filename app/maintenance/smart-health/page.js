@@ -4,6 +4,7 @@ import Papa from "papaparse";
 import AlarmDashboard from "@/app/components/machine-maintenance/smart-health/AlarmDashboard";
 import OEEStats from "@/app/components/machine-maintenance/smart-health/OEE";
 import EnergyDashboard from "@/app/components/machine-maintenance/smart-health/Energy";
+import WaterDashboard from "@/app/components/machine-maintenance/smart-health/WaterDashboard";
 
 const Dashboard = () => {
   const [data, setData] = useState([]);
@@ -95,22 +96,28 @@ const Dashboard = () => {
         />
       </div>
       
-      {showDeviation ? (
-        <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] rounded-lg shadow-lg p-4 mb-6">
-          <AlarmDashboard />
-        </div>
-      ) : showEnergy ? (
+      {showEnergy && (
         <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] rounded-lg shadow-lg p-4 mb-6">
           <EnergyDashboard />
         </div>
-      ) : (
-        <>
-          {showOEE && (
-            <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] rounded-lg shadow-lg p-4 mb-6">
-              <OEEStats />
-            </div>
-          )}
-        </>
+      )}
+
+      {showDeviation && (
+        <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] rounded-lg shadow-lg p-4 mb-6">
+          <AlarmDashboard />
+        </div>
+      )}
+
+      {showOEE && (
+        <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] rounded-lg shadow-lg p-4 mb-6">
+          <OEEStats />
+        </div>
+      )}
+
+      {showWater && (
+        <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] rounded-lg shadow-lg p-4 mb-6">
+          <WaterDashboard />
+        </div>
       )}
 
       <div className="mt-8 flex justify-center">
