@@ -59,6 +59,8 @@ const InventoryDashboard = () => {
     return avgInventory ? (totalConsumption / avgInventory).toFixed(2) : '0';
   })();
 
+
+
   const handleFilterChange = (e) => {
     setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
@@ -162,7 +164,25 @@ const InventoryDashboard = () => {
 
       {/* Line Graph */}
       <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] border rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-white mb-4">Average Closing Stock & MSL by Day</h3>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold text-white">Average Closing Stock & MSL by Day</h3>
+          <div className="bg-red-500 text-white px-3 py-1 rounded-lg text-sm font-medium">
+            Below MSL: {(() => {
+              const chartData = Object.values(filtered.filter(d => d.date.isValid()).reduce((acc, row) => {
+                const day = row.date.format('DD-MM-YYYY');
+                if (!acc[day]) acc[day] = { day, closing: [], msl: [] };
+                acc[day].closing.push(row.closingStock);
+                acc[day].msl.push(row.msl);
+                return acc;
+              }, {})).map(d => ({
+                day: d.day,
+                avgClosing: d.closing.reduce((a, b) => a + b, 0) / d.closing.length,
+                avgMSL: d.msl.reduce((a, b) => a + b, 0) / d.msl.length,
+              }));
+              return chartData.filter(d => d.avgClosing < d.avgMSL).length;
+            })()}
+          </div>
+        </div>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
