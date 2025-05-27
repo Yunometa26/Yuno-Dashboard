@@ -19,6 +19,8 @@ const InventoryDashboard = () => {
     month: '',
     day: '',
   });
+  const [selectedABCClass, setSelectedABCClass] = useState(null);
+  const [showABCTable, setShowABCTable] = useState(false);
 
   useEffect(() => {
     Papa.parse('/store.csv', {
@@ -59,13 +61,70 @@ const InventoryDashboard = () => {
     return avgInventory ? (totalConsumption / avgInventory).toFixed(2) : '0';
   })();
 
-
-
   const handleFilterChange = (e) => {
     setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const unique = (key) => [...new Set(data.map((d) => d[key]))];
+
+  // ABC Analysis data
+  const abcAnalysisData = (() => {
+    const uniqueItems = {};
+    filtered.forEach(row => {
+      if (!uniqueItems[row['Item ID']]) {
+        uniqueItems[row['Item ID']] = {
+          itemId: row['Item ID'],
+          itemName: row['Item Name'],
+          category: row.Category,
+          abcClass: row['ABC Class'],
+          unit: row.Unit,
+          price: parseFloat(row.Price) || 0
+        };
+      }
+    });
+
+    const abcCounts = {};
+    Object.values(uniqueItems).forEach(item => {
+      abcCounts[item.abcClass] = (abcCounts[item.abcClass] || 0) + 1;
+    });
+
+    const totalItems = Object.values(abcCounts).reduce((sum, count) => sum + count, 0);
+    
+    return Object.entries(abcCounts).map(([abcClass, count]) => ({
+      name: `Class ${abcClass}`,
+      value: count,
+      percentage: totalItems > 0 ? ((count / totalItems) * 100).toFixed(1) : 0
+    }));
+  })();
+
+  // Get items for selected ABC class
+  const getItemsForABCClass = (abcClass) => {
+    const uniqueItems = {};
+    filtered.forEach(row => {
+      if (row['ABC Class'] === abcClass && !uniqueItems[row['Item ID']]) {
+        uniqueItems[row['Item ID']] = {
+          itemId: row['Item ID'],
+          itemName: row['Item Name'],
+          category: row.Category,
+          abcClass: row['ABC Class'],
+          unit: row.Unit,
+          price: parseFloat(row.Price) || 0
+        };
+      }
+    });
+    return Object.values(uniqueItems);
+  };
+
+  const handlePieClick = (data, index) => {
+    const abcClass = data.name.replace('Class ', '');
+    setSelectedABCClass(abcClass);
+    setShowABCTable(true);
+  };
+
+  const closeABCTable = () => {
+    setShowABCTable(false);
+    setSelectedABCClass(null);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#024673] to-[#5C99E3] text-white p-6 space-y-6">
@@ -146,6 +205,94 @@ const InventoryDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* ABC Analysis Pie Chart */}
+      <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] border rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-white mb-4">ABC Analysis</h3>
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={abcAnalysisData}
+                cx="50%" 
+                cy="50%" 
+                outerRadius={100}
+                label={({ name, percentage }) => `${name}: ${percentage}%`}
+                labelStyle={{ fill: '#ffffff', fontSize: 12 }}
+                dataKey="value"
+                onClick={handlePieClick}
+                style={{ cursor: 'pointer' }}
+              >
+                {abcAnalysisData.map((entry, idx) => (
+                  <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'rgba(2, 70, 115, 0.95)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '8px',
+                  color: '#fff',
+                }}
+                itemStyle={{ color: '#fff' }} // This changes the text color of each tooltip item
+                formatter={(value, name) => [
+                  `${value} items (${abcAnalysisData.find(d => d.name === name)?.percentage}%)`,
+                  name,
+                ]}
+              />
+
+              <Legend wrapperStyle={{ color: '#ffffff' }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        <p className="text-sm text-gray-200 mt-2 text-center">Click on any segment to view items in that ABC class</p>
+      </div>
+
+      {/* ABC Class Table Modal */}
+      {showABCTable && (
+        <div className="fixed inset-0 bg-transparent bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] rounded-xl p-6 max-w-4xl w-full max-h-[80vh] overflow-hidden">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold text-white">Items in ABC Class {selectedABCClass}</h3>
+              <button 
+                onClick={closeABCTable}
+                className="text-white hover:text-gray-300 text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+            <div className="overflow-auto max-h-[60vh]">
+              <table className="w-full text-white">
+                <thead className="bg-opacity-20">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Item ID</th>
+                    <th className="px-4 py-3 text-left">Item Name</th>
+                    <th className="px-4 py-3 text-left">Category</th>
+                    <th className="px-4 py-3 text-left">ABC Class</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {getItemsForABCClass(selectedABCClass).map((item, idx) => (
+                    <tr key={idx} className="border-b border-white border-opacity-20 hover:bg-opacity-10">
+                      <td className="px-4 py-3">{item.itemId}</td>
+                      <td className="px-4 py-3">{item.itemName}</td>
+                      <td className="px-4 py-3">{item.category}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded text-sm font-medium ${
+                          item.abcClass === 'A' ? 'bg-green-500' : 
+                          item.abcClass === 'B' ? 'bg-yellow-500' : 'bg-red-500'
+                        }`}>
+                          {item.abcClass}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Inventory Turnover Card */}
       <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] border rounded-xl p-6">
