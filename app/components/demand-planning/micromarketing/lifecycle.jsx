@@ -7,7 +7,7 @@ import FilterSection from './FilterSection';
 import StatsCard from './StatsCard';
 import CustomerBarChart from './CustomerBarChart';
 import MonthlyBarChart from './MonthlyBarChart';
-import ProductPieChart from './ProductPieChart';
+import ProductStackedBarChart from './ProductStackedBarChart';
 import FinancialYearBarChart from './FinancialYearBarChart';
 import DropdownFilters from '../forecasting/dropdownfiter';
 import TopPerformingSKUs from '../forecasting/topperforming';
@@ -588,11 +588,14 @@ export default function LifecyclePage() {
                     />
                     
                     {/* Pie Chart - Sales by Product */}
-                    <ProductPieChart 
+                    <ProductStackedBarChart 
                       pieData={pieData} 
                       animateCharts={animateCharts} 
                       activeProduct={activeProduct}
                       handlePieClick={handlePieClick}
+                      data={data}
+                      selectedCustomers={selectedCustomers}
+                      selectedFinancialYear={selectedFinancialYear}
                     />
                   </div>
                 )}
