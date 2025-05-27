@@ -11,6 +11,7 @@ import ProductStackedBarChart from './ProductStackedBarChart';
 import FinancialYearBarChart from './FinancialYearBarChart';
 import DropdownFilters from '../forecasting/dropdownfiter';
 import TopPerformingSKUs from '../forecasting/topperforming';
+import SalesActivityMonthsChart from './SalesActivityMonthsChart';
 
 export default function LifecyclePage() {
   // State for CSV data
@@ -526,6 +527,13 @@ export default function LifecyclePage() {
                   />
                 )}
                 
+                <SalesActivityMonthsChart 
+                  data={data}
+                  selectedCustomers={selectedCustomers}
+                  activeProduct={activeProduct}
+                  animateCharts={animateCharts}
+                />
+
                 {/* Active Filters Display */}
                 {activeProduct && (
                   <div className="mb-6 animate-fadeIn">

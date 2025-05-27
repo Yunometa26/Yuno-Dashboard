@@ -33,7 +33,7 @@ const SalesStatsCard = ({
 };
 
 // Part 2: Months with Sales Activity Card
-const MonthsActivityCard = ({
+/* const MonthsActivityCard = ({
   monthsWithSales,
   totalMonths,
   selectedFinancialYear,
@@ -60,7 +60,7 @@ const MonthsActivityCard = ({
       </div>
     </div>
   );
-};
+}; */
 
 // Combined Stats Card component that includes both cards
 const StatsCard = ({
@@ -72,16 +72,16 @@ const StatsCard = ({
   animateCharts
 }) => {
   // Calculate months with sales activity - only count months with sales > 0
-  const monthsWithSales = monthlyData 
+  /* const monthsWithSales = monthlyData 
     ? monthlyData.filter(month => month.sales > 0).length 
     : 0;
     
   // Total possible months is 12 for a financial year
   const totalMonths = selectedFinancialYear === "All Years" ? 
-    12 * (new Set(monthlyData?.map(item => item.fiscalYear)).size || 1) : 12;
+    12 * (new Set(monthlyData?.map(item => item.fiscalYear)).size || 1) : 12; */
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+    <div className="grid grid-cols-1 gap-6 mb-6">
       <SalesStatsCard 
         totalSales={totalSales}
         activeProduct={activeProduct}
@@ -89,16 +89,17 @@ const StatsCard = ({
         selectedCustomers={selectedCustomers}
         animateCharts={animateCharts}
       />
-      <MonthsActivityCard 
+      {/* <MonthsActivityCard 
         monthsWithSales={monthsWithSales}
         totalMonths={totalMonths}
         selectedFinancialYear={selectedFinancialYear}
         activeProduct={activeProduct}
         animateCharts={animateCharts}
-      />
+      /> */}
     </div>
   );
 };
 
 export default StatsCard;
-export { SalesStatsCard, MonthsActivityCard };
+export { SalesStatsCard }; // Removed MonthsActivityCard from exports
+// export { SalesStatsCard, MonthsActivityCard };
