@@ -4,20 +4,39 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 const ProductStackedBarChart = ({ pieData, animateCharts, activeProduct, handlePieClick, data, selectedCustomers, selectedFinancialYear }) => {
   const [activeIndex, setActiveIndex] = useState(null);
   
-  // Colors for different products
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A28DFF', '#FF6B6B', '#4BC0C0', '#9966FF', '#FF9F40'];
-
+  // Enhanced dark appealing colors for different products
+  const COLORS = [
+    '#E74C3C', // Deep Red
+    '#9B59B6', // Rich Purple
+    '#3498DB', // Bright Blue
+    '#E67E22', // Burnt Orange
+    '#1ABC9C', // Teal
+    '#F39C12', // Golden Yellow
+    '#2ECC71', // Emerald Green
+    '#34495E', // Dark Slate
+    '#8E44AD', // Dark Purple
+    '#E91E63', // Pink
+    '#FF5722', // Deep Orange
+    '#607D8B', // Blue Grey
+    '#795548', // Brown
+    '#FF9800', // Amber
+    '#4CAF50', // Green
+    '#9C27B0', // Purple
+    '#673AB7', // Deep Purple
+    '#3F51B5', // Indigo
+    '#009688', // Teal
+    '#FF6F00'  // Dark Orange
+  ];
+  
   // Process data to create stacked bar chart data
   const processStackedData = () => {
     if (!data || data.length === 0) return [];
-
     let filteredData = [...data];
     
     // Filter by customer if not "All Customers"
     if (!selectedCustomers.includes("All Customers")) {
       filteredData = filteredData.filter(row => selectedCustomers.includes(row.Customer));
     }
-
     // Create a map to store sales by financial year and product
     const yearProductMap = {};
     
@@ -33,7 +52,6 @@ const ProductStackedBarChart = ({ pieData, animateCharts, activeProduct, handleP
         yearProductMap[year][product] = (yearProductMap[year][product] || 0) + sales;
       }
     });
-
     // Convert to array format for recharts
     const stackedData = Object.keys(yearProductMap)
       .sort()
@@ -44,15 +62,14 @@ const ProductStackedBarChart = ({ pieData, animateCharts, activeProduct, handleP
         });
         return yearData;
       });
-
     return stackedData;
   };
-
+  
   const stackedData = processStackedData();
   
   // Get all unique products for the bars
   const allProducts = [...new Set(data?.map(row => row.Product) || [])];
-
+  
   // Handle bar click
   const onBarClick = (data, index) => {
     if (activeProduct === data.activeLabel) {
@@ -63,15 +80,15 @@ const ProductStackedBarChart = ({ pieData, animateCharts, activeProduct, handleP
       setActiveIndex(index);
     }
   };
-
+  
   // Custom tooltip formatter
   const customTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-semibold text-gray-800">{`Financial Year: ${label}`}</p>
+        <div className="bg-gray-900 p-3 border border-gray-600 rounded-lg shadow-xl backdrop-blur-sm">
+          <p className="font-semibold text-white mb-2">{`Financial Year: ${label}`}</p>
           {payload.map((entry, index) => (
-            <p key={index} style={{ color: entry.color }} className="text-sm">
+            <p key={index} style={{ color: entry.color }} className="text-sm font-medium">
               {`${entry.dataKey}: ₹${entry.value?.toLocaleString() || 0}`}
             </p>
           ))}
@@ -123,11 +140,14 @@ const ProductStackedBarChart = ({ pieData, animateCharts, activeProduct, handleP
                 dataKey={product}
                 stackId="products"
                 fill={COLORS[index % COLORS.length]}
-                stroke={activeProduct === product ? "#000" : undefined}
-                strokeWidth={activeProduct === product ? 2 : 0}
-                className="transition-all duration-300 cursor-pointer"
+                stroke={activeProduct === product ? "#FFF" : "rgba(255,255,255,0.1)"}
+                strokeWidth={activeProduct === product ? 3 : 1}
+                className="transition-all duration-300 cursor-pointer hover:opacity-90"
                 onClick={() => handlePieClick(product)}
                 radius={index === allProducts.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                style={{
+                  filter: activeProduct === product ? 'brightness(1.1) drop-shadow(0 0 8px rgba(255,255,255,0.3))' : 'none'
+                }}
               />
             ))}
           </BarChart>
@@ -139,16 +159,25 @@ const ProductStackedBarChart = ({ pieData, animateCharts, activeProduct, handleP
         {allProducts.map((product, index) => (
           <div
             key={product}
-            className={`flex items-center cursor-pointer transition-all duration-300 px-2 py-1 rounded ${
-              activeProduct === product ? 'bg-blue-200 bg-opacity-20' : 'hover:bg-blue-200 hover:bg-opacity-10'
+            className={`flex items-center cursor-pointer transition-all duration-300 px-3 py-2 rounded-lg border ${
+              activeProduct === product 
+                ? 'bg-blue-200 bg-opacity-20 border-white border-opacity-50 shadow-lg transform scale-105' 
+                : 'hover:bg-blue-200 hover:bg-opacity-10 border-transparent hover:border-white hover:border-opacity-30'
             }`}
             onClick={() => handlePieClick(product)}
           >
             <div
-              className="w-3 h-3 rounded mr-2"
-              style={{ backgroundColor: COLORS[index % COLORS.length] }}
+              className="w-4 h-4 rounded-sm mr-2 shadow-sm"
+              style={{ 
+                backgroundColor: COLORS[index % COLORS.length],
+                boxShadow: activeProduct === product ? `0 0 8px ${COLORS[index % COLORS.length]}50` : 'none'
+              }}
             />
-            <span className="text-white text-sm font-medium">{product}</span>
+            <span className={`text-sm font-medium transition-all duration-300 ${
+              activeProduct === product ? 'text-white font-semibold' : 'text-gray-100'
+            }`}>
+              {product}
+            </span>
           </div>
         ))}
       </div>
