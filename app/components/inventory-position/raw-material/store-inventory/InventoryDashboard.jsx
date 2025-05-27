@@ -78,7 +78,7 @@ const InventoryDashboard = () => {
           category: row.Category,
           abcClass: row['ABC Class'],
           unit: row.Unit,
-          price: parseFloat(row.Price) || 0
+          price: parseFloat(row.Price || row['Unit Price'] || row.price) || 0
         };
       }
     });
@@ -97,19 +97,29 @@ const InventoryDashboard = () => {
     }));
   })();
 
-  // Get items for selected ABC class
+  // Get items for selected ABC class with latest closing stock
   const getItemsForABCClass = (abcClass) => {
     const uniqueItems = {};
     filtered.forEach(row => {
-      if (row['ABC Class'] === abcClass && !uniqueItems[row['Item ID']]) {
-        uniqueItems[row['Item ID']] = {
-          itemId: row['Item ID'],
-          itemName: row['Item Name'],
-          category: row.Category,
-          abcClass: row['ABC Class'],
-          unit: row.Unit,
-          price: parseFloat(row.Price) || 0
-        };
+      if (row['ABC Class'] === abcClass) {
+        if (!uniqueItems[row['Item ID']]) {
+          uniqueItems[row['Item ID']] = {
+            itemId: row['Item ID'],
+            itemName: row['Item Name'],
+            category: row.Category,
+            abcClass: row['ABC Class'],
+            unit: row.Unit,
+            price: parseFloat(row.Price || row['Unit Price'] || row.price) || 0,
+            closingStock: row.closingStock,
+            date: row.date
+          };
+        } else {
+          // Keep the latest record for closing stock
+          if (row.date.isAfter(uniqueItems[row['Item ID']].date)) {
+            uniqueItems[row['Item ID']].closingStock = row.closingStock;
+            uniqueItems[row['Item ID']].date = row.date;
+          }
+        }
       }
     });
     return Object.values(uniqueItems);
@@ -251,7 +261,7 @@ const InventoryDashboard = () => {
       {/* ABC Class Table Modal */}
       {showABCTable && (
         <div className="fixed inset-0 bg-transparent bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] rounded-xl p-6 max-w-4xl w-full max-h-[80vh] overflow-hidden">
+          <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] rounded-xl p-6 max-w-6xl w-full max-h-[80vh] overflow-hidden">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-semibold text-white">Items in ABC Class {selectedABCClass}</h3>
               <button 
@@ -269,6 +279,8 @@ const InventoryDashboard = () => {
                     <th className="px-4 py-3 text-left">Item Name</th>
                     <th className="px-4 py-3 text-left">Category</th>
                     <th className="px-4 py-3 text-left">ABC Class</th>
+                    <th className="px-4 py-3 text-left">Closing Stock</th>
+                    <th className="px-4 py-3 text-left">Unit Price</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -285,6 +297,8 @@ const InventoryDashboard = () => {
                           {item.abcClass}
                         </span>
                       </td>
+                      <td className="px-4 py-3">{item.closingStock.toFixed(2)}</td>
+                      <td className="px-4 py-3">₹{item.price.toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
