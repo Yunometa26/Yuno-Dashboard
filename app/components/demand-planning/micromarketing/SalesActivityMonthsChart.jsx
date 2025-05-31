@@ -77,7 +77,7 @@ const SalesActivityMonthsChart = ({ data, selectedCustomers, activeProduct, anim
 
   return (
     <div className={`mb-6 bg-gradient-to-br from-[#024673] to-[#5C99E3] p-4 rounded-lg border border-blue-200 shadow-sm transition-all duration-500 ease-in-out transform ${animateCharts ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`} style={{ transitionDelay: '400ms' }}>
-      <h2 className="font-semibold text-white mb-4">Sales Activity by Months</h2>
+      <h2 className="font-semibold text-white mb-4">Buying Frequency</h2>
       <p className="text-blue-100 text-sm mb-4">Number of months with sales activity per financial year</p>
       
       <div className="h-64">

@@ -5,7 +5,7 @@ import { IndianRupee } from "lucide-react";
 import Papa from 'papaparse';
 import FilterSection from './FilterSection';
 import StatsCard from './StatsCard';
-import CustomerBarChart from './CustomerBarChart';
+// import CustomerBarChart from './CustomerBarChart';
 import MonthlyBarChart from './MonthlyBarChart';
 import ProductStackedBarChart from './ProductStackedBarChart';
 import FinancialYearBarChart from './FinancialYearBarChart';
@@ -570,7 +570,7 @@ export default function LifecyclePage() {
                 
                 {/* Charts Container */}
                 {!loading && selectedFinancialYear && (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 gap-6">
                     {/* Show either Financial Year Chart or Monthly Chart based on drill-down state */}
                     {!isDrillingDown ? (
                       /* Financial Year Bar Chart */
@@ -590,10 +590,10 @@ export default function LifecyclePage() {
                     )}
                     
                     {/* Bar Chart - Total Sales by Customer */}
-                    <CustomerBarChart 
+                    {/* <CustomerBarChart 
                       barData={barData} 
                       animateCharts={animateCharts} 
-                    />
+                    /> */}
                     
                     {/* Pie Chart - Sales by Product */}
                     <ProductStackedBarChart 

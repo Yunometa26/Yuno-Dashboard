@@ -20,9 +20,9 @@ export default function DemandPlanningPage() {
     },
     { 
       id: 3, 
-      title: "Store Inventory", 
+      title: "Raw material", 
       icon: <Store className="h-8 w-8 text-purple-500" />, 
-      path: "/inventory-position/store-inventory",
+      path: "/inventory-position/raw-material-1",
       borderColor: "bg-purple-500"
     }
   ];

@@ -1,5 +1,5 @@
 import React from 'react'
-import InventoryDashboard from '@/app/components/inventory-position/raw-material/store-inventory/InventoryDashboard'
+import InventoryDashboard from '@/app/components/inventory-position/raw-material/raw-material-1/InventoryDashboard'
 
 function page() {
   return (

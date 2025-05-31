@@ -280,7 +280,6 @@ const InventoryDashboard = () => {
                     <th className="px-4 py-3 text-left">Category</th>
                     <th className="px-4 py-3 text-left">ABC Class</th>
                     <th className="px-4 py-3 text-left">Closing Stock</th>
-                    <th className="px-4 py-3 text-left">Unit Price</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -298,7 +297,6 @@ const InventoryDashboard = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3">{item.closingStock.toFixed(2)}</td>
-                      <td className="px-4 py-3">₹{item.price.toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -387,9 +385,9 @@ const InventoryDashboard = () => {
       </div>
 
       {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         {/* Pie Chart */}
-        <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] border rounded-xl p-6">
+        {/* <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] border rounded-xl p-6">
           <h3 className="text-lg font-semibold text-white mb-4">Category-wise Item Distribution</h3>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
@@ -409,7 +407,7 @@ const InventoryDashboard = () => {
               </PieChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </div> */}
 
         {/* Bar Graph */}
         <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] border rounded-xl p-6">

@@ -215,9 +215,9 @@ export default function ShortfallCalculator() {
         </div>
 
         {/* Statistics Cards - Adjusted to two cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 gap-6 mb-8">
           {/* Revenue Loss (Units) Card */}
-          <div className="bg-gradient-to-br from-red-50 to-red-100 shadow-lg rounded-lg overflow-hidden">
+          {/* <div className="bg-gradient-to-br from-red-50 to-red-100 shadow-lg rounded-lg overflow-hidden">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center">
@@ -243,7 +243,7 @@ export default function ShortfallCalculator() {
               </div>
             </div>
             <div className="bg-red-600 h-1"></div>
-          </div>
+          </div> */}
 
           {/* Total Revenue Loss Card */}
           <div className="bg-gradient-to-br from-purple-50 to-purple-100 shadow-lg rounded-lg overflow-hidden">

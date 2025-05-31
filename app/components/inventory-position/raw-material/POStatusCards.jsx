@@ -41,7 +41,7 @@ const POStatusCards = ({ filtered }) => {
   }, [filtered]);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 mr-1 ml-1">
+    <div className="grid grid-cols-1 gap-4 mb-4 mr-1 ml-1">
       {/* Total PO Count Card */}
       <div className="bg-white rounded-xl shadow p-5">
         <div className="flex items-center">
@@ -56,7 +56,7 @@ const POStatusCards = ({ filtered }) => {
       </div>
       
       {/* Average Lead Time Card */}
-      <div className="bg-white rounded-xl shadow p-5">
+      {/* <div className="bg-white rounded-xl shadow p-5">
         <div className="flex items-center">
           <div className="bg-yellow-100 p-3 rounded-full">
             <Clock className="h-6 w-6 text-yellow-600" />
@@ -68,7 +68,7 @@ const POStatusCards = ({ filtered }) => {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };
