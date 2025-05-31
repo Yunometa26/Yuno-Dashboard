@@ -40,12 +40,12 @@ const POStatusDetailTable = ({ isOpen, onClose, data, selectedStatus }) => {
                   <th className="border border-black p-3 text-left font-semibold">
                     Vendor Name
                   </th>
-                  <th className="border border-black p-3 text-left font-semibold">
+                  {/* <th className="border border-black p-3 text-left font-semibold">
                     Raw Material
                   </th>
                   <th className="border border-black p-3 text-left font-semibold">
                     Daily Consumption
-                  </th>
+                  </th> */}
                   <th className="border border-black p-3 text-left font-semibold">
                     PO Status
                   </th>
@@ -63,12 +63,12 @@ const POStatusDetailTable = ({ isOpen, onClose, data, selectedStatus }) => {
                     <td className="p-3 text-white">
                       {item["Vendor Name"] || "-"}
                     </td>
-                    <td className="p-3 text-white">
+                    {/* <td className="p-3 text-white">
                       {item["Raw Material"] || "-"}
                     </td>
                     <td className="p-3 text-white">
                       {item["Daily Consumption"] || "-"}
-                    </td>
+                    </td> */}
                     <td className="p-3 text-white">
                       <span
                         className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
