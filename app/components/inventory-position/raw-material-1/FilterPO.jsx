@@ -2,11 +2,8 @@
 import React, { useState, useEffect } from "react";
 import Papa from "papaparse";
 import { Filter } from "lucide-react";
-import BarGraphComponent from "./BarGraphComponent";
-import DailyConsumptionGraph from "./DailyConsumptionGraph";
-import ConsumptionCards from "./ConsumptionCards";
-// import POStatusChart from "./POStatusChart";
-// import POStatusCards from "./POStatusCards";
+import POStatusCards from "../raw-material/POStatusCards";
+import POStatusChart from "../raw-material/POStatusChart";
 
 const FilterPage = () => {
   const [data, setData] = useState([]);
@@ -170,20 +167,6 @@ const FilterPage = () => {
   return (
     <div className="p-4 bg-gradient-to-br from-[#024673] to-[#5C99E3] min-h-screen">
       <div className="max-w mx-auto">
-        {/* Header */}
-        <div className="bg-opacity-15 backdrop-blur-sm m-1 rounded-xl bg-gradient-to-r from-[#024673] to-[#5C99E3]">
-          <div className="p-8 sm:p-12">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
-              {/* Left side with text content */}
-              <div className="flex-1 space-y-5 align-middle text-center">
-                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white leading-tight">
-                  <span className="text-white">Raw Material Inventory Analysis</span>
-                </h2>
-              </div>
-            </div>
-          </div>
-        </div>
-        
         {/* Filter Component */}
         <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] rounded-xl shadow p-4 mb-4 mt-4 mr-1 ml-1">
           <div className="flex items-center mb-3">
@@ -264,37 +247,8 @@ const FilterPage = () => {
           </div>
         </div>
 
-        {/* BarGraph Component */}
-        {loading ? (
-          <div className="text-center py-10">
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
-            <p className="mt-2 text-gray-600">Loading data...</p>
-          </div>
-        ) : (
-          <BarGraphComponent data={data} filtered={filtered} />
-        )}
-
-        {/* Consumption Cards Component */}
-        {loading ? (
-          <div className="text-center py-4">
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
-          </div>
-        ) : (
-          <ConsumptionCards filtered={filtered} />
-        )}
-
-        {/* Daily Consumption Graph */}
-        {loading ? (
-          <div className="text-center py-10">
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
-            <p className="mt-2 text-gray-600">Loading data...</p>
-          </div>
-        ) : (
-          <DailyConsumptionGraph data={data} filtered={filtered} />
-        )}
-
         {/* PO Status Section - New Addition */}
-        {/* <div className="mt-8 mb-2">
+        <div className="mt-8 mb-2">
           <h2 className="text-xl font-bold text-white mb-4 mr-1 ml-1">Purchase Order Status</h2>
           
           {loading ? (
@@ -304,22 +258,15 @@ const FilterPage = () => {
             </div>
           ) : (
             <>
+              {/* PO Status Cards */}
               <POStatusCards filtered={filtered} />
               
+              {/* PO Status Chart */}
               <div className="grid grid-cols-1 gap-4">
                 <POStatusChart filtered={filtered} />
               </div>
             </>
           )}
-        </div> */}
-        
-        <div className="mt-8 flex justify-center">
-          <button 
-            onClick={() => window.location.href = '/inventory-position'}
-            className="bg-gradient-to-r from-[#024673] to-[#5C99E3] hover:from-[#023d63] hover:to-[#4b88d2] text-white px-6 py-3 rounded-lg shadow-md transition-all duration-300 font-medium"
-          >
-            Back to Inventory position
-          </button>
         </div>
       </div>
     </div>

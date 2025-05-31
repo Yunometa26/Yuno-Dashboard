@@ -1,4 +1,5 @@
 'use client';
+import FilterPage from './FilterPO';
 
 import React, { useEffect, useState } from 'react';
 import Papa from 'papaparse';
@@ -447,6 +448,8 @@ const InventoryDashboard = () => {
           </div>
         </div>
       </div>
+
+      <FilterPage/>
 
       <div className="mt-8 flex justify-center">
           <button 
