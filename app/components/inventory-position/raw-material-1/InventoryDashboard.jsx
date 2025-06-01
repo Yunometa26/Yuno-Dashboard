@@ -37,6 +37,7 @@ const InventoryDashboard = () => {
             closingStock: parseFloat(row['Closing Stock']),
             consumption: parseFloat(row.Consumption),
             msl: parseFloat(row.MSL),
+            inventoryTurnoverRatio: parseFloat(row['Inventory Turnover ratio']) || 0,
           }));
         setData(parsed);
         setFiltered(parsed);
@@ -55,11 +56,17 @@ const InventoryDashboard = () => {
     setFiltered(temp);
   }, [filters, data]);
 
+  // Updated inventory turnover calculation using average method
   const inventoryTurnover = (() => {
-    const totalConsumption = filtered.reduce((sum, d) => sum + d.consumption, 0);
-    const avgInventory = filtered.length === 0 ? 0 :
-      filtered.reduce((sum, d) => sum + (d.openingStock + d.closingStock) / 2, 0) / filtered.length;
-    return avgInventory ? (totalConsumption / avgInventory).toFixed(2) : '0';
+    if (filtered.length === 0) return '0';
+    
+    const totalTurnoverRatio = filtered.reduce((sum, d) => {
+      const turnoverValue = parseFloat(d['Inventory Turnover ratio']) || 0;
+      return sum + turnoverValue;
+    }, 0);
+    
+    const averageTurnover = totalTurnoverRatio / filtered.length * 10;
+    return averageTurnover.toFixed(2);
   })();
 
   const handleFilterChange = (e) => {
@@ -311,8 +318,9 @@ const InventoryDashboard = () => {
       <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] border rounded-xl p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-white mb-2">Inventory Turnover</h2>
+            <h2 className="text-lg font-semibold text-white mb-2">Average Inventory Turnover Ratio</h2>
             <p className="text-4xl font-bold text-[#F57C00]">{inventoryTurnover}</p>
+            <p className="text-sm text-gray-200 mt-1">Based on {filtered.length} records</p>
           </div>
           <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center">
             <svg className="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -324,92 +332,69 @@ const InventoryDashboard = () => {
 
       {/* Line Graph */}
       <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] border rounded-xl p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-white">Average Closing Stock & MSL by Day</h3>
-          <div className="bg-red-500 text-white px-3 py-1 rounded-lg text-sm font-medium">
-            Below MSL: {(() => {
-              const chartData = Object.values(filtered.filter(d => d.date.isValid()).reduce((acc, row) => {
-                const day = row.date.format('DD-MM-YYYY');
-                if (!acc[day]) acc[day] = { day, closing: [], msl: [] };
-                acc[day].closing.push(row.closingStock);
-                acc[day].msl.push(row.msl);
-                return acc;
-              }, {})).map(d => ({
-                day: d.day,
-                avgClosing: d.closing.reduce((a, b) => a + b, 0) / d.closing.length,
-                avgMSL: d.msl.reduce((a, b) => a + b, 0) / d.msl.length,
-              }));
-              return chartData.filter(d => d.avgClosing < d.avgMSL).length;
-            })()}
-          </div>
-        </div>
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={Object.values(filtered.filter(d => d.date.isValid()).reduce((acc, row) => {
-                const day = row.date.format('DD-MM-YYYY');
-                if (!acc[day]) acc[day] = { day, closing: [], msl: [] };
-                acc[day].closing.push(row.closingStock);
-                acc[day].msl.push(row.msl);
-                return acc;
-              }, {})).map(d => ({
-                day: d.day,
-                avgClosing: d.closing.reduce((a, b) => a + b, 0) / d.closing.length,
-                avgMSL: d.msl.reduce((a, b) => a + b, 0) / d.msl.length,
-              }))}
-            >
-              <XAxis 
-                dataKey="day" 
-                tick={{ fill: '#ffffff', fontSize: 12 }}
-                axisLine={{ stroke: '#ffffff', strokeOpacity: 0.3 }}
-                tickLine={{ stroke: '#ffffff', strokeOpacity: 0.3 }}
-              />
-              <YAxis 
-                tick={{ fill: '#ffffff', fontSize: 12 }}
-                axisLine={{ stroke: '#ffffff', strokeOpacity: 0.3 }}
-                tickLine={{ stroke: '#ffffff', strokeOpacity: 0.3 }}
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'rgba(2, 70, 115, 0.95)', 
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  borderRadius: '8px',
-                  color: '#fff'
-                }}
-              />
-              <Legend wrapperStyle={{ color: '#ffffff' }} />
-              <Line type="monotone" dataKey="avgClosing" stroke="#F57C00" strokeWidth={3} name="Avg Closing" />
-              <Line type="monotone" dataKey="avgMSL" stroke="#ffffff" strokeWidth={3} name="Avg MSL" />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+  <div className="flex justify-between items-center mb-4">
+    <h3 className="text-lg font-semibold text-white">Total Closing Stock & MSL by Day</h3>
+    <div className="bg-red-500 text-white px-3 py-1 rounded-lg text-sm font-medium">
+      Below MSL: {(() => {
+        const chartData = Object.values(filtered.filter(d => d.date.isValid()).reduce((acc, row) => {
+          const day = row.date.format('DD-MM-YYYY');
+          if (!acc[day]) acc[day] = { day, closing: [], msl: [] };
+          acc[day].closing.push(row.closingStock);
+          acc[day].msl.push(row.msl);
+          return acc;
+        }, {})).map(d => ({
+          day: d.day,
+          totalClosing: d.closing.reduce((a, b) => a + b, 0), // Sum instead of average
+          totalMSL: d.msl.reduce((a, b) => a + b, 0), // Sum instead of average
+        }));
+        return chartData.filter(d => d.totalClosing < d.totalMSL).length;
+      })()}
+    </div>
+  </div>
+  <div className="h-80">
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart
+        data={Object.values(filtered.filter(d => d.date.isValid()).reduce((acc, row) => {
+          const day = row.date.format('DD-MM-YYYY');
+          if (!acc[day]) acc[day] = { day, closing: [], msl: [] };
+          acc[day].closing.push(row.closingStock);
+          acc[day].msl.push(row.msl);
+          return acc;
+        }, {})).map(d => ({
+          day: d.day,
+          totalClosing: d.closing.reduce((a, b) => a + b, 0), // Sum instead of average
+          totalMSL: d.msl.reduce((a, b) => a + b, 0), // Sum instead of average
+        }))}
+      >
+        <XAxis 
+          dataKey="day" 
+          tick={{ fill: '#ffffff', fontSize: 12 }}
+          axisLine={{ stroke: '#ffffff', strokeOpacity: 0.3 }}
+          tickLine={{ stroke: '#ffffff', strokeOpacity: 0.3 }}
+        />
+        <YAxis 
+          tick={{ fill: '#ffffff', fontSize: 12 }}
+          axisLine={{ stroke: '#ffffff', strokeOpacity: 0.3 }}
+          tickLine={{ stroke: '#ffffff', strokeOpacity: 0.3 }}
+        />
+        <Tooltip 
+          contentStyle={{ 
+            backgroundColor: 'rgba(2, 70, 115, 0.95)', 
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            borderRadius: '8px',
+            color: '#fff'
+          }}
+        />
+        <Legend wrapperStyle={{ color: '#ffffff' }} />
+        <Line type="monotone" dataKey="totalClosing" stroke="#F57C00" strokeWidth={3} name="Total Closing" />
+        <Line type="monotone" dataKey="totalMSL" stroke="#ffffff" strokeWidth={3} name="Total MSL" />
+      </LineChart>
+    </ResponsiveContainer>
+  </div>
+</div>
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 gap-6">
-        {/* Pie Chart */}
-        {/* <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] border rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Category-wise Item Distribution</h3>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={Object.entries(filtered.filter(d => d.date.isValid()).reduce((acc, row) => {
-                    acc[row.Category] = (acc[row.Category] || 0) + 1;
-                    return acc;
-                  }, {})).map(([key, value]) => ({ name: key, value }))}
-                  cx="50%" cy="50%" outerRadius={100}
-                  label={{ fill: '#ffffff', fontSize: 12 }}
-                  dataKey="value"
-                >
-                  {COLORS.map((color, idx) => <Cell key={idx} fill={color} />)}
-                </Pie>
-                <Legend wrapperStyle={{ color: '#94a3b8' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div> */}
-
         {/* Bar Graph */}
         <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] border rounded-xl p-6">
           <h3 className="text-lg font-semibold text-white mb-4">Daily Consumption</h3>
