@@ -299,7 +299,7 @@ const POStatusCards = ({ filtered }) => {
                 </div>
                 <button
                   onClick={closeModal}
-                  className="bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full p-2 transition-colors"
+                  className="bg-white text-black bg-opacity-20 hover:bg-opacity-30 rounded-full p-2 transition-colors"
                 >
                   <X className="h-5 w-5" />
                 </button>
