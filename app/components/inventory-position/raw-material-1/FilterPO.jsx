@@ -10,8 +10,8 @@ const FilterPage = () => {
   const [filtered, setFiltered] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [rawMaterials, setRawMaterials] = useState([]);
   const [vendors, setVendors] = useState([]);
+  const [items, setItems] = useState([]);
   const [years, setYears] = useState([]);
   const [days, setDays] = useState([
     { value: "", label: "All Days" },
@@ -34,7 +34,7 @@ const FilterPage = () => {
   ]);
 
   const [filters, setFilters] = useState({
-    rawMaterial: "All",
+    item: "All",
     vendor: "All",
     day: "",
     month: "",
@@ -42,34 +42,41 @@ const FilterPage = () => {
   });
 
   useEffect(() => {
-    Papa.parse("/RM Inventory Pos.csv", {
+    Papa.parse("/POstatus.csv", {
       header: true,
       download: true,
       dynamicTyping: true,
       skipEmptyLines: true,
+      delimitersToGuess: [',', ';', '\t'],
       complete: (results) => {
         const parsed = results.data
-          .filter((row) => row.Date)
+          .filter((row) => row["PO Date"])
           .map((row) => ({
             ...row,
-            Date: new Date(row.Date),
+            "PO Date": new Date(row["PO Date"]),
+            "Expected Delivery Date": row["Expected Delivery Date"] ? new Date(row["Expected Delivery Date"]) : null,
+            "Actual Delivery Date": row["Actual Delivery Date"] ? new Date(row["Actual Delivery Date"]) : null,
           }));
+        
         setData(parsed);
         setFiltered(parsed);
         setLoading(false);
 
-        setRawMaterials([
-          "All",
-          ...Array.from(new Set(parsed.map((d) => d["Raw Material"]))).filter(Boolean).sort(),
-        ]);
+        // Set unique vendors
         setVendors([
           "All",
-          ...Array.from(new Set(parsed.map((d) => d["Vendor Name"]))).filter(Boolean).sort(),
+          ...Array.from(new Set(parsed.map((d) => d["Vendor"]))).filter(Boolean).sort(),
         ]);
 
-        // Extract available years from the data
+        // Set unique items
+        setItems([
+          "All",
+          ...Array.from(new Set(parsed.map((d) => d["Item Description"]))).filter(Boolean).sort(),
+        ]);
+
+        // Extract available years from the PO Date
         const availableYears = Array.from(
-          new Set(parsed.map((d) => d.Date.getFullYear()))
+          new Set(parsed.map((d) => d["PO Date"].getFullYear()))
         ).sort();
         setYears([{ value: "", label: "All Years" }, 
           ...availableYears.map(year => ({ value: year.toString(), label: year.toString() }))
@@ -90,38 +97,38 @@ const FilterPage = () => {
   const applyFilters = () => {
     let filteredData = [...data];
 
-    // Raw material filter - for "All", we don't filter
-    if (filters.rawMaterial !== "All") {
+    // Item filter
+    if (filters.item !== "All") {
       filteredData = filteredData.filter(
-        (d) => d["Raw Material"] === filters.rawMaterial
+        (d) => d["Item Description"] === filters.item
       );
     }
 
     // Vendor filter
     if (filters.vendor !== "All") {
       filteredData = filteredData.filter(
-        (d) => d["Vendor Name"] === filters.vendor
+        (d) => d["Vendor"] === filters.vendor
       );
     }
 
     // Day filter
     if (filters.day) {
       filteredData = filteredData.filter(
-        (d) => d.Date.getDate() === parseInt(filters.day)
+        (d) => d["PO Date"].getDate() === parseInt(filters.day)
       );
     }
 
     // Month filter
     if (filters.month) {
       filteredData = filteredData.filter(
-        (d) => d.Date.getMonth() + 1 === parseInt(filters.month)
+        (d) => d["PO Date"].getMonth() + 1 === parseInt(filters.month)
       );
     }
 
     // Year filter
     if (filters.year) {
       filteredData = filteredData.filter(
-        (d) => d.Date.getFullYear() === parseInt(filters.year)
+        (d) => d["PO Date"].getFullYear() === parseInt(filters.year)
       );
     }
 
@@ -136,8 +143,8 @@ const FilterPage = () => {
   const getFilterSummary = () => {
     const parts = [];
     
-    if (filters.rawMaterial !== "All") {
-      parts.push(`Raw Material: ${filters.rawMaterial}`);
+    if (filters.item !== "All") {
+      parts.push(`Item: ${filters.item}`);
     }
     
     if (filters.vendor !== "All") {
@@ -158,15 +165,21 @@ const FilterPage = () => {
     }
     
     if (parts.length === 0) {
-      return "Showing all inventory data";
+      return "Showing all purchase order data";
     }
     
     return `Filtered by: ${parts.join(", ")}`;
   };
 
   return (
-    <div className="p-4 bg-gradient-to-br from-[#024673] to-[#5C99E3] min-h-screen">
+    <div className="p-4 bg-gradient-to-br from-[#024673] to-[#5C99E3] min-h-screen rounded-xl border">
       <div className="max-w mx-auto">
+        {/* Header */}
+        <div className="mb-6 mr-1 ml-1">
+          <h1 className="text-3xl font-bold text-white mb-2">Purchase Order Dashboard</h1>
+          <p className="text-blue-100">{getFilterSummary()}</p>
+        </div>
+
         {/* Filter Component */}
         <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] rounded-xl shadow p-4 mb-4 mt-4 mr-1 ml-1">
           <div className="flex items-center mb-3">
@@ -174,17 +187,17 @@ const FilterPage = () => {
             <h3 className="font-medium text-white">Filters</h3>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Raw Material dropdown */}
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {/* Item dropdown */}
             <div>
-              <label className="block text-sm font-medium text-white mb-1">Raw Material</label>
+              <label className="block text-sm font-medium text-white mb-1">Item</label>
               <select
-                value={filters.rawMaterial}
-                onChange={(e) => handleFilterChange('rawMaterial', e.target.value)}
+                value={filters.item}
+                onChange={(e) => handleFilterChange('item', e.target.value)}
                 className="w-full rounded-md border-gray-300 text-black shadow-sm px-3 py-2 text-sm border bg-white"
               >
-                {rawMaterials.map((rm) => (
-                  <option key={rm}>{rm}</option>
+                {items.map((item) => (
+                  <option key={item} value={item}>{item}</option>
                 ))}
               </select>
             </div>
@@ -198,7 +211,7 @@ const FilterPage = () => {
                 className="w-full rounded-md border-gray-300 text-black bg-white shadow-sm px-3 py-2 text-sm border"
               >
                 {vendors.map((v) => (
-                  <option key={v}>{v}</option>
+                  <option key={v} value={v}>{v}</option>
                 ))}
               </select>
             </div>
@@ -247,9 +260,9 @@ const FilterPage = () => {
           </div>
         </div>
 
-        {/* PO Status Section - New Addition */}
+        {/* PO Status Section */}
         <div className="mt-8 mb-2">
-          <h2 className="text-xl font-bold text-white mb-4 mr-1 ml-1">Purchase Order Status</h2>
+          <h2 className="text-xl font-bold text-white mb-4 mr-1 ml-1">Purchase Order Analytics</h2>
           
           {loading ? (
             <div className="text-center py-10">
