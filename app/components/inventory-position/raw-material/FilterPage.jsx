@@ -177,7 +177,7 @@ const FilterPage = () => {
               {/* Left side with text content */}
               <div className="flex-1 space-y-5 align-middle text-center">
                 <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white leading-tight">
-                  <span className="text-white">Raw Material Inventory Analysis</span>
+                  <span className="text-white">Store Inventory Dashboard</span>
                 </h2>
               </div>
             </div>

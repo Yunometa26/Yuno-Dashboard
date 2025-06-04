@@ -1,6 +1,4 @@
 'use client';
-import FilterPage from './FilterPO';
-
 import React, { useEffect, useState } from 'react';
 import Papa from 'papaparse';
 import dayjs from 'dayjs';
@@ -8,6 +6,7 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, PieChart, Pie, Cell,
   BarChart, Bar, Legend, ResponsiveContainer
 } from 'recharts';
+import FilterPage from './FilterPO';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
@@ -45,6 +44,36 @@ const InventoryDashboard = () => {
     });
   }, []);
 
+  // Get filtered data for cascading filters
+  const getFilteredDataForOptions = () => {
+    let temp = data;
+    
+    // Apply filters in order to create cascading effect
+    if (filters.category) {
+      temp = temp.filter(d => d.Category === filters.category);
+    }
+    if (filters.itemId) {
+      temp = temp.filter(d => d['Item ID'] === filters.itemId);
+    }
+    if (filters.month) {
+      temp = temp.filter(d => d.date.format('MM') === filters.month);
+    }
+    
+    return temp;
+  };
+
+  // Get unique values for each filter based on current selections
+  const getFilterOptions = () => {
+    const baseData = getFilteredDataForOptions();
+    
+    return {
+      categories: [...new Set(data.map(d => d.Category))], // Always show all categories
+      itemIds: [...new Set(baseData.map(d => d['Item ID']))], // Based on category selection
+      months: [...new Set(baseData.map(d => d.date.format('MM')))], // Based on category + itemId
+      days: [...new Set(baseData.map(d => d.date.format('DD')))] // Based on all previous filters
+    };
+  };
+
   useEffect(() => {
     let temp = data;
 
@@ -70,10 +99,28 @@ const InventoryDashboard = () => {
   })();
 
   const handleFilterChange = (e) => {
-    setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    
+    setFilters(prev => {
+      const newFilters = { ...prev, [name]: value };
+      
+      // Reset dependent filters when parent filter changes
+      if (name === 'category') {
+        newFilters.itemId = '';
+        newFilters.month = '';
+        newFilters.day = '';
+      } else if (name === 'itemId') {
+        newFilters.month = '';
+        newFilters.day = '';
+      } else if (name === 'month') {
+        newFilters.day = '';
+      }
+      
+      return newFilters;
+    });
   };
 
-  const unique = (key) => [...new Set(data.map((d) => d[key]))];
+  const filterOptions = getFilterOptions();
 
   // ABC Analysis data
   const abcAnalysisData = (() => {
@@ -148,17 +195,16 @@ const InventoryDashboard = () => {
     <div className="min-h-screen bg-gradient-to-br from-[#024673] to-[#5C99E3] text-white p-6 space-y-6">
       {/* Header */}
       <div className="bg-opacity-15 backdrop-blur-sm m-1 rounded-xl bg-gradient-to-r from-[#024673] to-[#5C99E3]">
-          <div className="p-8 sm:p-12">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
-              {/* Left side with text content */}
-              <div className="flex-1 space-y-5 align-middle text-center">
-                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white leading-tight">
-                  <span className="text-white">Store Inventory Dashboard</span>
-                </h2>
-              </div>
+        <div className="p-8 sm:p-12">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
+            <div className="flex-1 space-y-5 align-middle text-center">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white leading-tight">
+                <span className="text-white">Raw Material Inventory Analysis</span>
+              </h2>
             </div>
           </div>
         </div>
+      </div>
 
       {/* Filters */}
       <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] border rounded-xl mt-5 p-6">
@@ -168,56 +214,84 @@ const InventoryDashboard = () => {
             <label className="block text-sm font-medium text-white mb-2">Category</label>
             <select 
               name="category" 
+              value={filters.category}
               onChange={handleFilterChange} 
               className="w-full bg-white border text-black rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">All Categories</option>
-              {unique('Category').map((cat, idx) => (
+              {filterOptions.categories.map((cat, idx) => (
                 <option key={idx} value={cat}>{cat}</option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-white mb-2">Item ID</label>
+            <label className="block text-sm font-medium text-white mb-2">
+              Item ID 
+              {filters.category && (
+                <span className="text-xs text-gray-300 ml-1">
+                  ({filterOptions.itemIds.length} available)
+                </span>
+              )}
+            </label>
             <select 
               name="itemId" 
+              value={filters.itemId}
               onChange={handleFilterChange} 
               className="w-full bg-white text-black rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={filterOptions.itemIds.length === 0}
             >
               <option value="">All Item IDs</option>
-              {unique('Item ID').map((id, idx) => (
+              {filterOptions.itemIds.map((id, idx) => (
                 <option key={idx} value={id}>{id}</option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-white mb-2">Month</label>
+            <label className="block text-sm font-medium text-white mb-2">
+              Month
+              {(filters.category || filters.itemId) && (
+                <span className="text-xs text-gray-300 ml-1">
+                  ({filterOptions.months.length} available)
+                </span>
+              )}
+            </label>
             <select 
               name="month" 
+              value={filters.month}
               onChange={handleFilterChange} 
               className="w-full bg-white text-black rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={filterOptions.months.length === 0}
             >
               <option value="">All Months</option>
-              {[...Array(12)].map((_, i) => (
-                <option key={i} value={String(i + 1).padStart(2, '0')}>
-                  {dayjs().month(i).format('MMMM')}
+              {filterOptions.months.map((month, idx) => (
+                <option key={idx} value={month}>
+                  {dayjs().month(parseInt(month) - 1).format('MMMM')}
                 </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-white mb-2">Day</label>
+            <label className="block text-sm font-medium text-white mb-2">
+              Day
+              {(filters.category || filters.itemId || filters.month) && (
+                <span className="text-xs text-gray-300 ml-1">
+                  ({filterOptions.days.length} available)
+                </span>
+              )}
+            </label>
             <select 
               name="day" 
+              value={filters.day}
               onChange={handleFilterChange} 
               className="w-full bg-white text-black rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={filterOptions.days.length === 0}
             >
               <option value="">All Days</option>
-              {[...Array(31)].map((_, i) => (
-                <option key={i} value={String(i + 1).padStart(2, '0')}>{i + 1}</option>
+              {filterOptions.days.map((day, idx) => (
+                <option key={idx} value={day}>{parseInt(day)}</option>
               ))}
             </select>
           </div>
@@ -252,13 +326,12 @@ const InventoryDashboard = () => {
                   borderRadius: '8px',
                   color: '#fff',
                 }}
-                itemStyle={{ color: '#fff' }} // This changes the text color of each tooltip item
+                itemStyle={{ color: '#fff' }}
                 formatter={(value, name) => [
                   `${value} items (${abcAnalysisData.find(d => d.name === name)?.percentage}%)`,
                   name,
                 ]}
               />
-
               <Legend wrapperStyle={{ color: '#ffffff' }} />
             </PieChart>
           </ResponsiveContainer>
@@ -332,105 +405,102 @@ const InventoryDashboard = () => {
 
       {/* Line Graph */}
       <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] border rounded-xl p-6">
-  <div className="flex justify-between items-center mb-4">
-    <h3 className="text-lg font-semibold text-white">Total Closing Stock & MSL by Day</h3>
-    <div className="bg-red-500 text-white px-3 py-1 rounded-lg text-sm font-medium">
-      Below MSL: {(() => {
-        const chartData = Object.values(filtered.filter(d => d.date.isValid()).reduce((acc, row) => {
-          const day = row.date.format('DD-MM-YYYY');
-          if (!acc[day]) acc[day] = { day, closing: [], msl: [] };
-          acc[day].closing.push(row.closingStock);
-          acc[day].msl.push(row.msl);
-          return acc;
-        }, {})).map(d => ({
-          day: d.day,
-          totalClosing: d.closing.reduce((a, b) => a + b, 0), // Sum instead of average
-          totalMSL: d.msl.reduce((a, b) => a + b, 0), // Sum instead of average
-        }));
-        return chartData.filter(d => d.totalClosing < d.totalMSL).length;
-      })()}
-    </div>
-  </div>
-  <div className="h-80">
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart
-        data={Object.values(filtered.filter(d => d.date.isValid()).reduce((acc, row) => {
-          const day = row.date.format('DD-MM-YYYY');
-          if (!acc[day]) acc[day] = { day, closing: [], msl: [] };
-          acc[day].closing.push(row.closingStock);
-          acc[day].msl.push(row.msl);
-          return acc;
-        }, {})).map(d => ({
-          day: d.day,
-          totalClosing: d.closing.reduce((a, b) => a + b, 0), // Sum instead of average
-          totalMSL: d.msl.reduce((a, b) => a + b, 0), // Sum instead of average
-        }))}
-      >
-        <XAxis 
-          dataKey="day" 
-          tick={{ fill: '#ffffff', fontSize: 12 }}
-          axisLine={{ stroke: '#ffffff', strokeOpacity: 0.3 }}
-          tickLine={{ stroke: '#ffffff', strokeOpacity: 0.3 }}
-        />
-        <YAxis 
-          tick={{ fill: '#ffffff', fontSize: 12 }}
-          axisLine={{ stroke: '#ffffff', strokeOpacity: 0.3 }}
-          tickLine={{ stroke: '#ffffff', strokeOpacity: 0.3 }}
-        />
-        <Tooltip 
-          contentStyle={{ 
-            backgroundColor: 'rgba(2, 70, 115, 0.95)', 
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            borderRadius: '8px',
-            color: '#fff'
-          }}
-        />
-        <Legend wrapperStyle={{ color: '#ffffff' }} />
-        <Line type="monotone" dataKey="totalClosing" stroke="#F57C00" strokeWidth={3} name="Total Closing" />
-        <Line type="monotone" dataKey="totalMSL" stroke="#ffffff" strokeWidth={3} name="Total MSL" />
-      </LineChart>
-    </ResponsiveContainer>
-  </div>
-</div>
-
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 gap-6">
-        {/* Bar Graph */}
-        <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] border rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Daily Consumption</h3>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={Object.values(filtered.filter(d => d.date.isValid()).reduce((acc, row) => {
-                  const day = row.date.format('DD-MM-YYYY');
-                  acc[day] = acc[day] || { day, consumption: 0 };
-                  acc[day].consumption += row.consumption;
-                  return acc;
-                }, {}))}
-              >
-                <XAxis 
-                  dataKey="day" 
-                  tick={{ fill: '#ffffff', fontSize: 12 }}
-                  axisLine={{ stroke: '#ffffff' }}
-                  tickLine={{ stroke: '#ffffff' }}
-                />
-                <YAxis 
-                  tick={{ fill: '#ffffff', fontSize: 12 }}
-                  axisLine={{ stroke: '#ffffff' }}
-                  tickLine={{ stroke: '#ffffff' }}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(2, 70, 115, 0.95)', 
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    borderRadius: '8px',
-                    color: '#fff'
-                  }}
-                />
-                <Bar dataKey="consumption" fill="#F57C00" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold text-white">Total Closing Stock & MSL by Day</h3>
+          <div className="bg-red-500 text-white px-3 py-1 rounded-lg text-sm font-medium">
+            Below MSL: {(() => {
+              const chartData = Object.values(filtered.filter(d => d.date.isValid()).reduce((acc, row) => {
+                const day = row.date.format('DD-MM-YYYY');
+                if (!acc[day]) acc[day] = { day, closing: [], msl: [] };
+                acc[day].closing.push(row.closingStock);
+                acc[day].msl.push(row.msl);
+                return acc;
+              }, {})).map(d => ({
+                day: d.day,
+                totalClosing: d.closing.reduce((a, b) => a + b, 0),
+                totalMSL: d.msl.reduce((a, b) => a + b, 0),
+              }));
+              return chartData.filter(d => d.totalClosing < d.totalMSL).length;
+            })()}
           </div>
+        </div>
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={Object.values(filtered.filter(d => d.date.isValid()).reduce((acc, row) => {
+                const day = row.date.format('DD-MM-YYYY');
+                if (!acc[day]) acc[day] = { day, closing: [], msl: [] };
+                acc[day].closing.push(row.closingStock);
+                acc[day].msl.push(row.msl);
+                return acc;
+              }, {})).map(d => ({
+                day: d.day,
+                totalClosing: d.closing.reduce((a, b) => a + b, 0),
+                totalMSL: d.msl.reduce((a, b) => a + b, 0),
+              }))}
+            >
+              <XAxis 
+                dataKey="day" 
+                tick={{ fill: '#ffffff', fontSize: 12 }}
+                axisLine={{ stroke: '#ffffff', strokeOpacity: 0.3 }}
+                tickLine={{ stroke: '#ffffff', strokeOpacity: 0.3 }}
+              />
+              <YAxis 
+                tick={{ fill: '#ffffff', fontSize: 12 }}
+                axisLine={{ stroke: '#ffffff', strokeOpacity: 0.3 }}
+                tickLine={{ stroke: '#ffffff', strokeOpacity: 0.3 }}
+              />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'rgba(2, 70, 115, 0.95)', 
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '8px',
+                  color: '#fff'
+                }}
+              />
+              <Legend wrapperStyle={{ color: '#ffffff' }} />
+              <Line type="monotone" dataKey="totalClosing" stroke="#F57C00" strokeWidth={3} name="Total Closing" />
+              <Line type="monotone" dataKey="totalMSL" stroke="#ffffff" strokeWidth={3} name="Total MSL" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Bar Graph */}
+      <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] border rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-white mb-4">Daily Consumption</h3>
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={Object.values(filtered.filter(d => d.date.isValid()).reduce((acc, row) => {
+                const day = row.date.format('DD-MM-YYYY');
+                acc[day] = acc[day] || { day, consumption: 0 };
+                acc[day].consumption += row.consumption;
+                return acc;
+              }, {}))}
+            >
+              <XAxis 
+                dataKey="day" 
+                tick={{ fill: '#ffffff', fontSize: 12 }}
+                axisLine={{ stroke: '#ffffff' }}
+                tickLine={{ stroke: '#ffffff' }}
+              />
+              <YAxis 
+                tick={{ fill: '#ffffff', fontSize: 12 }}
+                axisLine={{ stroke: '#ffffff' }}
+                tickLine={{ stroke: '#ffffff' }}
+              />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'rgba(2, 70, 115, 0.95)', 
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '8px',
+                  color: '#fff'
+                }}
+              />
+              <Bar dataKey="consumption" fill="#F57C00" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
@@ -444,7 +514,7 @@ const InventoryDashboard = () => {
             Back to Inventory position
           </button>
         </div>
-        
+
     </div>
   );
 };

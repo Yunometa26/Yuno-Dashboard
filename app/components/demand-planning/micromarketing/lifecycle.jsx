@@ -64,7 +64,7 @@ export default function LifecyclePage() {
       setCsvError(null);
       
       try {
-        const response = await fetch('/Anonymized_Lifecycle.csv');
+        const response = await fetch('/lifecycle.csv');
         if (!response.ok) {
           throw new Error('Failed to fetch CSV file');
         }

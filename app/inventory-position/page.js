@@ -6,7 +6,7 @@ export default function DemandPlanningPage() {
   const cards = [
     { 
       id: 1, 
-      title: "Raw Material", 
+      title: "Store Inventory", 
       icon: <PackageOpen className="h-8 w-8 text-blue-500" />,  
       path: "/inventory-position/raw-material",
       borderColor: "bg-blue-500"
