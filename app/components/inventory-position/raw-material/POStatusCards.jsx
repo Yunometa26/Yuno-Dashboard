@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ClipboardCheck, Clock, AlertTriangle, X, Calendar, Package, Building, FileText, BarChart3 } from 'lucide-react';
+import { ClipboardCheck, Clock, CheckCircle, X, Calendar, Package, Building, FileText, BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 
 const POStatusCards = ({ filtered }) => {
@@ -26,31 +26,46 @@ const POStatusCards = ({ filtered }) => {
       }
     });
     
-    // Calculate average lead time using Delivery Delay
-    let totalLeadTime = 0;
-    let leadTimeCount = 0;
-    let urgentPurchases = 0;
-    let delayedDeliveries = 0;
+    // Calculate delivery performance for unique POs
+    const poDeliveryMap = new Map(); // Track delivery performance per PO
     
     filtered.forEach(item => {
-      // Lead time calculation
-      if (item["Delivery Delay (Days)"] !== undefined && !isNaN(item["Delivery Delay (Days)"])) {
-        totalLeadTime += Math.abs(item["Delivery Delay (Days)"]);
-        leadTimeCount++;
-      }
-      
-      // Count urgent purchases and delayed deliveries based on actual vs expected delivery dates
       if (item["Expected Delivery Date"] && item["Actual Delivery Date"]) {
+        const poIdentifier = item["PO Number"] || `po-${filtered.indexOf(item)}`;
         const expectedDate = new Date(item["Expected Delivery Date"]);
         const actualDate = new Date(item["Actual Delivery Date"]);
         
-        if (actualDate > expectedDate) {
-          // Actual delivery is after expected - this is delayed
-          delayedDeliveries++;
-        } else {
-          // Actual delivery is on time or early - this is urgent (good performance)
-          urgentPurchases++;
+        // Only add if we haven't already processed this PO
+        if (!poDeliveryMap.has(poIdentifier)) {
+          poDeliveryMap.set(poIdentifier, {
+            expectedDate,
+            actualDate,
+            isDelayed: actualDate > expectedDate
+          });
         }
+      }
+    });
+    
+    // Count unique POs that are on-time/early vs delayed
+    let urgentPurchases = 0; // On-time or early POs
+    let delayedDeliveries = 0; // Delayed POs
+    
+    poDeliveryMap.forEach((delivery) => {
+      if (delivery.isDelayed) {
+        delayedDeliveries++;
+      } else {
+        urgentPurchases++;
+      }
+    });
+    
+    // Calculate average lead time using Delivery Delay
+    let totalLeadTime = 0;
+    let leadTimeCount = 0;
+    
+    filtered.forEach(item => {
+      if (item["Delivery Delay (Days)"] !== undefined && !isNaN(item["Delivery Delay (Days)"])) {
+        totalLeadTime += Math.abs(item["Delivery Delay (Days)"]);
+        leadTimeCount++;
       }
     });
     
@@ -70,8 +85,35 @@ const POStatusCards = ({ filtered }) => {
 
     let relevantPOs = [];
     
-    // Filter POs based on metric type
+    // Create a map to track unique POs and their delivery performance
+    const poMap = new Map();
+    
     filtered.forEach(item => {
+      const poIdentifier = item["PO Number"] || `po-${filtered.indexOf(item)}`;
+      
+      // Only process if we have delivery dates
+      if (item["Expected Delivery Date"] && item["Actual Delivery Date"]) {
+        const expectedDate = new Date(item["Expected Delivery Date"]);
+        const actualDate = new Date(item["Actual Delivery Date"]);
+        const isDelayed = actualDate > expectedDate;
+        
+        // Only add if we haven't processed this PO yet
+        if (!poMap.has(poIdentifier)) {
+          poMap.set(poIdentifier, {
+            ...item,
+            isDelayed: isDelayed
+          });
+        }
+      } else if (metricType === 'totalPOs' && item["PO Status"] !== undefined) {
+        // For total POs, include all POs even without delivery dates
+        if (!poMap.has(poIdentifier)) {
+          poMap.set(poIdentifier, item);
+        }
+      }
+    });
+    
+    // Filter based on metric type
+    poMap.forEach((item, poIdentifier) => {
       let includeItem = false;
       
       switch (metricType) {
@@ -79,20 +121,12 @@ const POStatusCards = ({ filtered }) => {
           includeItem = item["PO Status"] !== undefined;
           break;
         case 'urgentPurchases':
-          // Urgent: Actual delivery date is on time or early
-          if (item["Expected Delivery Date"] && item["Actual Delivery Date"]) {
-            const expectedDate = new Date(item["Expected Delivery Date"]);
-            const actualDate = new Date(item["Actual Delivery Date"]);
-            includeItem = actualDate <= expectedDate;
-          }
+          // On-time or early deliveries
+          includeItem = item.hasOwnProperty('isDelayed') && !item.isDelayed;
           break;
         case 'delayedDeliveries':
-          // Delayed: Actual delivery date exceeds expected delivery date
-          if (item["Expected Delivery Date"] && item["Actual Delivery Date"]) {
-            const expectedDate = new Date(item["Expected Delivery Date"]);
-            const actualDate = new Date(item["Actual Delivery Date"]);
-            includeItem = actualDate > expectedDate;
-          }
+          // Delayed deliveries
+          includeItem = item.hasOwnProperty('isDelayed') && item.isDelayed;
           break;
         default:
           includeItem = false;
@@ -137,17 +171,13 @@ const POStatusCards = ({ filtered }) => {
       .map(monthKey => {
         const monthData = monthlyData[monthKey];
         
-        // Count unique POs in this month
-        const uniquePOs = new Set();
-        monthData.items.forEach(item => {
-          const poIdentifier = item["PO Number"] || `po-${item.id || Math.random()}`;
-          uniquePOs.add(poIdentifier);
-        });
+        // Count unique POs in this month (they're already unique in our data)
+        const uniquePOs = monthData.items.length;
 
         return {
           month: monthData.monthLabel,
           monthShort: new Date(`${monthKey}-01`).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-          count: uniquePOs.size,
+          count: uniquePOs,
           records: monthData.items.length
         };
       });
@@ -205,12 +235,8 @@ const POStatusCards = ({ filtered }) => {
   };
 
   const getTotalPOsInMonth = (monthData) => {
-    const uniquePOs = new Set();
-    monthData.items.forEach(item => {
-      const poIdentifier = item["PO Number"] || `po-${item.id || Math.random()}`;
-      uniquePOs.add(poIdentifier);
-    });
-    return uniquePOs.size;
+    // Items are already unique POs in our processed data
+    return monthData.items.length;
   };
 
   const calculateDeliveryPerformance = (item) => {
@@ -244,21 +270,21 @@ const POStatusCards = ({ filtered }) => {
           </div>
         </div>
 
-        {/* Urgent Purchases Card - Now shows on-time/early deliveries */}
+        {/* On-Time/Early Purchases Card - Changed icon to CheckCircle */}
         <div 
           className="bg-white rounded-xl shadow p-5 cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 transform"
           onClick={() => handleCardClick('urgentPurchases', 'On-Time/Early Deliveries')}
         >
           <div className="flex items-center">
             <div className="bg-green-100 p-3 rounded-full">
-              <AlertTriangle className="h-6 w-6 text-green-600" />
+              <CheckCircle className="h-6 w-6 text-green-600" />
             </div>
             <div className="ml-4">
               <h3 className="text-sm font-medium text-gray-500">On-Time/Early</h3>
               <div className="mt-1 flex items-center">
                 <span className="text-3xl font-semibold text-gray-900">{statsData.urgentPurchases}</span>
               </div>
-              <p className="text-xs text-gray-400 mt-1">Delivered as expected or early</p>
+              <p className="text-xs text-gray-400 mt-1">Distinct POs delivered on time or early</p>
               <p className="text-xs text-green-600 mt-1 font-medium">Click to View Details</p>
             </div>
           </div>
@@ -276,7 +302,7 @@ const POStatusCards = ({ filtered }) => {
             <div className="ml-4">
               <h3 className="text-sm font-medium text-gray-500">Delayed Deliveries</h3>
               <div className="mt-1 text-3xl font-semibold text-gray-900">{statsData.delayedDeliveries}</div>
-              <p className="text-xs text-gray-400 mt-1">Delivered after expected date</p>
+              <p className="text-xs text-gray-400 mt-1">Distinct POs delivered after expected date</p>
               <p className="text-xs text-orange-600 mt-1 font-medium">Click to View Details</p>
             </div>
           </div>
@@ -294,7 +320,7 @@ const POStatusCards = ({ filtered }) => {
                   <FileText className="h-6 w-6 mr-3" />
                   <div>
                     <h2 className="text-xl font-bold">{selectedMetric.title}</h2>
-                    <p className="text-blue-100 text-sm">Detailed Purchase Order Records by Month</p>
+                    <p className="text-blue-100 text-sm">Detailed Purchase Order Records by Month (Distinct POs)</p>
                   </div>
                 </div>
                 <button
@@ -314,7 +340,7 @@ const POStatusCards = ({ filtered }) => {
                   <div className="bg-gray-50 rounded-lg p-6">
                     <div className="flex items-center mb-4">
                       <BarChart3 className="h-5 w-5 text-gray-600 mr-2" />
-                      <h3 className="text-lg font-semibold text-gray-900">Month-wise PO Distribution</h3>
+                      <h3 className="text-lg font-semibold text-gray-900">Month-wise PO Distribution (Distinct POs)</h3>
                     </div>
                     
                     <div className="h-80 w-full">
@@ -331,7 +357,7 @@ const POStatusCards = ({ filtered }) => {
                             stroke="#6b7280"
                           />
                           <Tooltip 
-                            formatter={(value, name) => [value, name === 'count' ? 'Unique POs' : 'Total Records']}
+                            formatter={(value, name) => [value, name === 'count' ? 'Distinct POs' : 'Total Records']}
                             labelFormatter={(label) => {
                               const data = getChartData(selectedMetric.data).find(d => d.monthShort === label);
                               return data ? data.month : label;
@@ -340,62 +366,30 @@ const POStatusCards = ({ filtered }) => {
                               backgroundColor: '#f8fafc',
                               border: '1px solid #e2e8f0',
                               borderRadius: '8px',
-                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                              color: '#000000'
                             }}
                           />
                           <Bar 
                             dataKey="count" 
                             fill="#3b82f6" 
                             radius={[4, 4, 0, 0]}
-                            name="Unique POs"
+                            name="Distinct POs"
                           />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
-                    
-                    {/* Summary Stats */}
-                    {/* <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-white p-4 rounded-lg border">
-                        <div className="text-sm text-gray-500">Total Months</div>
-                        <div className="text-2xl font-semibold text-gray-900">
-                          {Object.keys(selectedMetric.data).length}
-                        </div>
-                      </div>
-                      <div className="bg-white p-4 rounded-lg border">
-                        <div className="text-sm text-gray-500">Peak Month</div>
-                        <div className="text-lg font-semibold text-gray-900">
-                          {(() => {
-                            const chartData = getChartData(selectedMetric.data);
-                            const maxMonth = chartData.reduce((max, current) => 
-                              current.count > max.count ? current : max, chartData[0] || { monthShort: 'N/A', count: 0 });
-                            return `${maxMonth.monthShort} (${maxMonth.count})`;
-                          })()}
-                        </div>
-                      </div>
-                      <div className="bg-white p-4 rounded-lg border">
-                        <div className="text-sm text-gray-500">Average per Month</div>
-                        <div className="text-2xl font-semibold text-gray-900">
-                          {(() => {
-                            const chartData = getChartData(selectedMetric.data);
-                            const avg = chartData.length > 0 
-                              ? (chartData.reduce((sum, d) => sum + d.count, 0) / chartData.length).toFixed(1)
-                              : '0';
-                            return avg;
-                          })()}
-                        </div>
-                      </div>
-                    </div> */}
                   </div>
 
                   {/* Table Section */}
-                  {Object.keys(selectedMetric.data)
+                  {/* {Object.keys(selectedMetric.data)
                     .sort((a, b) => b.localeCompare(a)) // Sort months in descending order (recent first)
                     .map(monthKey => {
                       const monthData = selectedMetric.data[monthKey];
                       return (
-                        <div key={monthKey} className="border border-gray-200 rounded-lg overflow-hidden">
+                        <div key={monthKey} className="border border-gray-200 rounded-lg overflow-hidden"> */}
                           {/* Month Header */}
-                          <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                          {/* <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center">
                                 <Calendar className="h-5 w-5 text-gray-600 mr-2" />
@@ -403,17 +397,14 @@ const POStatusCards = ({ filtered }) => {
                               </div>
                               <div className="flex items-center space-x-4">
                                 <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                                  {selectedMetric.type === 'totalPOs' 
-                                    ? `${getTotalPOsInMonth(monthData)} Unique POs`
-                                    : `${monthData.items.length} Records`
-                                  }
+                                  {getTotalPOsInMonth(monthData)} Distinct POs
                                 </span>
                               </div>
                             </div>
-                          </div>
+                          </div> */}
 
                           {/* PO Details Table */}
-                          <div className="overflow-x-auto">
+                          {/* <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
                               <thead className="bg-gray-50">
                                 <tr>
@@ -425,23 +416,17 @@ const POStatusCards = ({ filtered }) => {
                                   </th>
                                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Item Description
-                                  </th>
-                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  </th> */}
+                                  {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Expected Delivery
                                   </th>
                                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Actual Delivery
                                   </th>
-                                  {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Status
-                                  </th>
-                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Amount
-                                  </th> */}
                                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Performance
-                                  </th>
-                                </tr>
+                                  </th> */}
+                                {/* </tr>
                               </thead>
                               <tbody className="bg-white divide-y divide-gray-200">
                                 {monthData.items.map((item, index) => {
@@ -464,19 +449,13 @@ const POStatusCards = ({ filtered }) => {
                                         <div className="truncate" title={item["Item Description"]}>
                                           {item["Item Description"] || 'N/A'}
                                         </div>
-                                      </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                      </td> */}
+                                      {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                         {formatDate(item["Expected Delivery Date"])}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                         {formatDate(item["Actual Delivery Date"])}
                                       </td>
-                                      {/* <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                        {getStatusBadge(item["PO Status"])}
-                                      </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                                        {formatCurrency(item["PO Amount"] || item["Amount"])}
-                                      </td> */}
                                       <td className="px-6 py-4 whitespace-nowrap">
                                         {performanceDays !== null ? (
                                           <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -492,8 +471,8 @@ const POStatusCards = ({ filtered }) => {
                                             }
                                           </span>
                                         ) : 'N/A'}
-                                      </td>
-                                    </tr>
+                                      </td> */}
+                                    {/* </tr>
                                   );
                                 })}
                               </tbody>
@@ -501,7 +480,7 @@ const POStatusCards = ({ filtered }) => {
                           </div>
                         </div>
                       );
-                    })}
+                    })} */}
                 </div>
               ) : (
                 <div className="text-center py-12">
