@@ -1,92 +1,92 @@
 'use client';
+import React, { useEffect, useState } from 'react';
+import Papa from 'papaparse';
 
-import { TrendingUp, Award } from 'lucide-react';
+export default function ForecastingPage() {
+  const [data, setData] = useState([]);
+  const [latestForecast, setLatestForecast] = useState(0);
+  const [averageAccuracy, setAverageAccuracy] = useState(0);
+  const [showTable, setShowTable] = useState(false);
 
-export default function ForecastMetrics({ 
-  isLoading, 
-  totalFitted = 0, 
-  lastFittedValue = 0,
-  firstForecastValue = 0, // New prop to receive the first forecast value
-  accuracyRate = 0,
-  selectedMonth = 'All',
-  selectedYear = 'All',
-  hasFittedData = true // New prop to indicate if filtered data has fitted values
-}) {
-  // Helper function to determine if we're showing filtered data
-  const isFiltered = selectedMonth !== 'All' || selectedYear !== 'All';
-  
-  // Determine which value to display and what label to use
-  const displayValue = hasFittedData ? lastFittedValue : firstForecastValue;
-  const valueLabel = hasFittedData ? "Latest Forecast" : "Forecast";
-  const valueDescription = hasFittedData ? "Most Recent Value" : "Forecasted Value";
-  
+  useEffect(() => {
+    Papa.parse('/Synthetic Forecast Output-June.csv', {
+      download: true,
+      header: true,
+      complete: (result) => {
+        const parsed = result.data.filter(row => {
+          const forecast = Number(row.Forecast);
+          const accuracy = Number(row.Accuracy);
+          return !isNaN(forecast) && !isNaN(accuracy);
+        });
+
+        setData(parsed);
+
+        const totalForecast = parsed.reduce((sum, row) => sum + Number(row.Forecast), 0);
+        setLatestForecast(totalForecast);
+
+        const avgAccuracy = parsed.reduce((sum, row) => sum + Number(row.Accuracy), 0) / parsed.length;
+        setAverageAccuracy(avgAccuracy);
+      },
+    });
+  }, []);
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-      {/* Latest Fitted/Forecast Value Card */}
-      <div className="bg-gradient-to-br from-[#024673] to-[#5C99E3] rounded-xl shadow-sm p-6 border border-blue-400 border-opacity-20">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-sm font-medium text-white">
-              {valueLabel} {isFiltered && <span className="text-white ml-1">(Filtered)</span>}
-            </p>
-            {isLoading ? (
-              <div className="h-8 w-28 bg-blue-300 animate-pulse rounded-md mt-1"></div>
-            ) : (
-              <h3 className="text-3xl font-bold mt-1 text-white">{displayValue.toLocaleString()}</h3>
-            )}
-            
-            <div className="mt-4 flex items-center">
-              {isLoading ? (
-                <div className="h-5 w-16 bg-blue-300 animate-pulse rounded-md"></div>
-              ) : (
-                <>
-                  <div className="flex items-center text-white">
-                    <TrendingUp className="w-4 h-4 mr-1" />
-                    <span className="text-sm font-medium">{valueDescription}</span>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-          
-          <div className={`${hasFittedData ? 'bg-blue-50' : 'bg-amber-50'} p-3 rounded-lg`}>
-            <TrendingUp className={`w-8 h-8 ${hasFittedData ? 'text-blue-500' : 'text-amber-500'}`} />
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-[#024673] to-[#5C99E3] text-white p-6 space-y-6">
+      <h1 className="text-3xl font-bold">Demand Forecasting</h1>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white/10 rounded-xl p-6 shadow-md backdrop-blur-md">
+          <h3 className="text-white text-sm mb-1">Latest Forecast</h3>
+          <p className="text-3xl font-bold text-white">{latestForecast.toLocaleString()}</p>
+          <p className="text-green-300 text-xs mt-1">↑ Most Recent Value</p>
+          <button
+            onClick={() => setShowTable(prev => !prev)}
+            className="mt-4 text-sm text-blue-200 underline hover:text-blue-400 transition"
+          >
+            {showTable ? 'Hide Table' : 'Show Table'}
+          </button>
+        </div>
+
+        <div className="bg-white/10 rounded-xl p-6 shadow-md backdrop-blur-md">
+          <h3 className="text-white text-sm mb-1">Average Accuracy</h3>
+          <p className="text-3xl font-bold text-white">{averageAccuracy.toFixed(2)}%</p>
+          <p className="text-blue-300 text-xs mt-1">Forecast Accuracy</p>
         </div>
       </div>
-      
-      {/* Accuracy Card */}
-      <div className="bg-gradient-to-br from-[#024673] to-[#5C99E3] rounded-xl shadow-md p-6 border border-blue-400 border-opacity-20">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-sm font-medium text-white">
-              Average Accuracy {isFiltered && <span className="text-white ml-1">(Filtered)</span>}
-            </p>
-            {isLoading ? (
-              <div className="h-8 w-24 bg-blue-100 animate-pulse rounded-md mt-1"></div>
-            ) : (
-              <h3 className="text-3xl font-bold mt-1 text-white">{accuracyRate}%</h3>
-            )}
-            
-            <div className="mt-4 flex items-center">
-              {isLoading ? (
-                <div className="h-5 w-16 bg-blue-300 bg-opacity-20 animate-pulse rounded-md"></div>
-              ) : (
-                <>
-                  <div className="flex items-center text-white">
-                    <Award className="w-4 h-4 mr-1" />
-                    <span className="text-sm font-medium">Forecast Accuracy</span>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-          
-          <div className="bg-indigo-50 p-3 rounded-lg">
-            <Award className="w-8 h-8 text-indigo-500" />
+
+      {showTable && (
+        <div className="mt-6">
+          <h3 className="text-white font-semibold mb-2">Forecast Details</h3>
+          <div className="overflow-auto max-h-[500px] rounded-lg">
+            <table className="min-w-full bg-white/10 text-white rounded-xl shadow-md backdrop-blur-md">
+              <thead>
+                <tr>
+                  <th className="px-4 py-2 text-left">Month</th>
+                  <th className="px-4 py-2 text-left">Depot</th>
+                  <th className="px-4 py-2 text-left">SKU</th>
+                  <th className="px-4 py-2 text-left">Product</th>
+                  <th className="px-4 py-2 text-left">Forecast</th>
+                  <th className="px-4 py-2 text-left">Accuracy</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.map((row, index) => (
+                  <tr key={index} className="border-t border-white/10">
+                    <td className="px-4 py-2">{row.Month}</td>
+                    <td className="px-4 py-2">{row.Depot}</td>
+                    <td className="px-4 py-2">{row.SKU}</td>
+                    <td className="px-4 py-2">{row.Product}</td>
+                    <td className="px-4 py-2">{row.Forecast}</td>
+                    <td className="px-4 py-2">{row.Accuracy}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
+
+//Forecast Metrics with table added with button toggle 
