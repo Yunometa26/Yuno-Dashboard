@@ -11,6 +11,8 @@ import FilterPage from './FilterPO';
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
 const InventoryDashboard = () => {
+  const [showITRGraph, setShowITRGraph] = useState(false);
+
   const [data, setData] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [filters, setFilters] = useState({
@@ -396,7 +398,19 @@ const InventoryDashboard = () => {
             <p className="text-sm text-gray-200 mt-1">Based on {filtered.length} records</p>
           </div>
       {/* Avg Monthly Inventory Turnover Ratio Chart */}
-      <div className="w-full min-w-[900px] h-[450px] mt-6 overflow-x-auto">
+      
+        <div className="mt-4">
+          <button 
+            onClick={() => setShowITRGraph(!showITRGraph)}
+            className="bg-white text-blue-600 px-4 py-2 rounded-lg shadow hover:bg-gray-100 transition-all duration-300"
+          >
+            {showITRGraph ? 'Hide Graph' : 'Show Graph'}
+          </button>
+        </div>
+
+        {showITRGraph && (
+          <div className="w-full min-w-[900px] h-[450px] mt-6 overflow-x-auto">
+    
         <ResponsiveContainer>
           <BarChart
             data={Object.entries(
@@ -428,6 +442,7 @@ const InventoryDashboard = () => {
           </BarChart>
         </ResponsiveContainer>
       </div>
+    )}
 
           <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center">
             <svg className="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -555,4 +570,4 @@ const InventoryDashboard = () => {
 
 export default InventoryDashboard;
 
-//Inventory-Dashboard Change
+//Show Graph Button
