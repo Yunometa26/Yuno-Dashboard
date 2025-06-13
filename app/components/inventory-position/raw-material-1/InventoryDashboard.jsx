@@ -11,6 +11,8 @@ import FilterPage from './FilterPO';
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
 const InventoryDashboard = () => {
+  const [showITRGraph, setShowITRGraph] = useState(false);
+
   const [data, setData] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [filters, setFilters] = useState({
@@ -395,6 +397,53 @@ const InventoryDashboard = () => {
             <p className="text-4xl font-bold text-[#F57C00]">{inventoryTurnover}</p>
             <p className="text-sm text-gray-200 mt-1">Based on {filtered.length} records</p>
           </div>
+      {/* Avg Monthly Inventory Turnover Ratio Chart */}
+      
+        <div className="mt-4">
+          <button 
+            onClick={() => setShowITRGraph(!showITRGraph)}
+            className="bg-white text-blue-600 px-4 py-2 rounded-lg shadow hover:bg-gray-100 transition-all duration-300"
+          >
+            {showITRGraph ? 'Hide Graph' : 'Show Graph'}
+          </button>
+        </div>
+
+        {showITRGraph && (
+          <div className="w-full min-w-[900px] h-[450px] mt-6 overflow-x-auto">
+    
+        <ResponsiveContainer>
+          <BarChart
+            data={Object.entries(
+  filtered.filter(d => d.date.isValid()).reduce((acc, row) => {
+              const month = row.date.format('MMMM YYYY');
+              if (!acc[month]) acc[month] = { month, totalITR: 0, count: 0 };
+              acc[month].totalITR += row.inventoryTurnoverRatio || 0;
+              acc[month].count += 1;
+              return acc;
+            }, {})).map(([month, val]) => ({
+              month,
+              avgITR: parseFloat((val.totalITR / val.count).toFixed(2)),
+            }))}
+            barCategoryGap="20%"
+            barGap={5}
+          >
+            <XAxis dataKey="month" tick={{ fill: '#ffffff', fontSize: 12 }} />
+            <YAxis tick={{ fill: '#ffffff', fontSize: 12 }} />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'rgba(2, 70, 115, 0.95)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '8px',
+                color: '#fff'
+              }}
+            />
+            <Legend wrapperStyle={{ color: '#ffffff' }} />
+            <Bar dataKey="avgITR" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    )}
+
           <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center">
             <svg className="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -520,3 +569,5 @@ const InventoryDashboard = () => {
 };
 
 export default InventoryDashboard;
+
+//Show Graph Button

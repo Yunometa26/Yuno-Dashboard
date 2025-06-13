@@ -11,6 +11,7 @@ import ProductStackedBarChart from './ProductStackedBarChart';
 import FinancialYearBarChart from './FinancialYearBarChart';
 import DropdownFilters from '../forecasting/dropdownfiter';
 import TopPerformingSKUs from '../forecasting/topperforming';
+import SKUTrendGraph from './SKUTrendGraph';
 import SalesActivityMonthsChart from './SalesActivityMonthsChart';
 
 export default function LifecyclePage() {
@@ -631,7 +632,8 @@ export default function LifecyclePage() {
                   
                   {/* TopPerformingSKUs Component */}
                   {!forecastLoading && (
-                    <TopPerformingSKUs
+                    <>
+    <TopPerformingSKUs
                       data={forecastData}
                       selectedProduct={selectedForecastFilters.product}
                       selectedSKU={selectedForecastFilters.sku}
@@ -640,6 +642,8 @@ export default function LifecyclePage() {
                       selectedYear={selectedForecastFilters.year}
                       loading={forecastLoading}
                     />
+    <SKUTrendGraph />
+  </>
                   )}
                 </div>
               </>
@@ -656,3 +660,5 @@ export default function LifecyclePage() {
         </main>
   );
 }
+
+//Changed lifecycle file to accomodate SKU Graph Quarterly
