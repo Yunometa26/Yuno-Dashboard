@@ -1,19 +1,31 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
-
-import rawData from '@/public/sku_trend_data.json'; // Use JSON file
+import Papa from 'papaparse';
 
 export default function SKUTrendGraph() {
+  const [rawData, setRawData] = useState([]);
   const [viewMode, setViewMode] = useState('quarterly');
   const [selectedDepot, setSelectedDepot] = useState('All');
   const [selectedSKU, setSelectedSKU] = useState('All');
 
-  const depotOptions = [...new Set(['All', ...rawData.map(row => row.Depot)])];
-  const skuOptions = [...new Set(['All', ...rawData.map(row => row["New Code"])])];
+  useEffect(() => {
+    fetch('/sku_trend_data.csv')
+      .then(response => response.text())
+      .then(csvText => {
+        Papa.parse(csvText, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (result) => setRawData(result.data),
+        });
+      });
+  }, []);
+
+  const depotOptions = useMemo(() => [...new Set(['All', ...rawData.map(row => row.Depot)])], [rawData]);
+  const skuOptions = useMemo(() => [...new Set(['All', ...rawData.map(row => row["New Code"])])], [rawData]);
 
   const formattedData = useMemo(() => {
     const filtered = rawData.filter(row =>
@@ -33,7 +45,7 @@ export default function SKUTrendGraph() {
     });
 
     return Object.values(grouped).sort((a, b) => a.name.localeCompare(b.name));
-  }, [viewMode, selectedDepot, selectedSKU]);
+  }, [rawData, viewMode, selectedDepot, selectedSKU]);
 
   const lineColors = {
     '2021-2022': '#8884d8',
