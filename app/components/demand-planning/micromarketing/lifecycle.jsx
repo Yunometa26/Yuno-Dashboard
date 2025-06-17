@@ -760,6 +760,6 @@ export default function LifecyclePage() {
     </main>
   );
 }
-//added recency behavior graph.
+//added recency behavior graph
 
 
