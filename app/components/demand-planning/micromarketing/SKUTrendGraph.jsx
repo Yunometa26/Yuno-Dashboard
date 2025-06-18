@@ -91,3 +91,5 @@ export default function SKUTrendGraph() {
     </div>
   );
 }
+
+//Accomadated for new dataset
