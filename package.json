@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "chart.js": "^4.4.9",
+    "date-fns": "^4.1.0",
     "dayjs": "^1.11.13",
     "lucide-react": "^0.508.0",
     "next": "^15.3.2",
