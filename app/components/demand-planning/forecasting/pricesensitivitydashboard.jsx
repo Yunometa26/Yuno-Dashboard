@@ -3,15 +3,18 @@
 import React, { useState, useEffect } from 'react';
 import Papa from 'papaparse';
 import { parse } from 'date-fns';
-import { ChevronDown, Filter, Plus, Minus } from 'lucide-react';
+import { ChevronDown, Filter } from 'lucide-react';
 
 export default function PriceSensitivityDashboard() {
   const [csvData, setCsvData] = useState([]);
-  const [filters, setFilters] = useState({ region: 'All', sku: 'All', percentageChange: 'All' });
-  const [expandedYears, setExpandedYears] = useState({});
+  const [filters, setFilters] = useState({
+    region: 'All',
+    sku: 'All',
+    percentageRevenueChange: 'All',
+  });
 
   useEffect(() => {
-    fetch('/PriceSensitivityDashboard.csv')
+    fetch('/Percent Demand Projection_Revised.csv')
       .then(res => res.text())
       .then(text => {
         Papa.parse(text, {
@@ -20,18 +23,16 @@ export default function PriceSensitivityDashboard() {
           transformHeader: h => h.trim(),
           transform: val => val.trim(),
           complete: ({ data }) => {
-            const parsed = data.map(row => {
-              const date = parse(row.Month, 'dd-MMM-yy', new Date());
-              return {
-                ...row,
-                Date: date,
-                Year: date.getFullYear(),
-                Quantity: row.Quantity === '' ? '' : Number(row.Quantity),
-                ProjectedDemand: row['Projected Demand'] === '' ? '' : Number(row['Projected Demand']),
-              };
-            });
+            const parsed = data.map(row => ({
+              ...row,
+              Date: parse(row.Month, 'dd-MM-yyyy', new Date()),
+              Quantity: Number(row.Quantity),
+              ProjectedDemand: Number(row['Projected Demand']),
+              PercentageRevenueChange: Number(row['Percentage Revenue Change']),
+              PercentChangeInDemand: parseFloat(row['Percent Demand Change (%)'].replace('%', '')),
+            }));
             setCsvData(parsed);
-          }
+          },
         });
       });
   }, []);
@@ -39,34 +40,12 @@ export default function PriceSensitivityDashboard() {
   const filteredData = csvData.filter(row =>
     (filters.region === 'All' || row.Region === filters.region) &&
     (filters.sku === 'All' || row.SKU === filters.sku) &&
-    (filters.percentageChange === 'All' || String(row['Percentage Change']) === String(filters.percentageChange))
+    (filters.percentageRevenueChange === 'All' || row.PercentageRevenueChange === Number(filters.percentageRevenueChange))
   );
 
-  const groupedData = {};
-  filteredData.forEach(row => {
-    if (!groupedData[row.Year]) groupedData[row.Year] = [];
-    groupedData[row.Year].push(row);
-  });
-
-  const sortedYears = Object.keys(groupedData).sort();
-  useEffect(() => {
-    if (sortedYears.length > 0 && Object.keys(expandedYears).length === 0) {
-      const initExpanded = {};
-      sortedYears.forEach(year => initExpanded[year] = true);
-      setExpandedYears(initExpanded);
-    }
-  }, [sortedYears]);
-
-  const toggleYear = year => {
-    setExpandedYears(prev => ({ ...prev, [year]: !prev[year] }));
-  };
-
-  const totalQuantity = filteredData.reduce(
-    (sum, r) => typeof r.Quantity === 'number' ? sum + r.Quantity : sum, 0
-  );
-  const totalProjected = filteredData.reduce(
-    (sum, r) => typeof r.ProjectedDemand === 'number' ? sum + r.ProjectedDemand : sum, 0
-  );
+  const sortedSKUs = ['All', ...Array.from(new Set(csvData.map(d => d.SKU)))
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b))];
 
   return (
     <div className="p-6">
@@ -79,34 +58,50 @@ export default function PriceSensitivityDashboard() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {['Region', 'SKU', 'Percentage Change'].map((label) => (
-            <div key={label} className="relative">
-              <label className="block text-xs text-white mb-1">{label}</label>
-              <select
-                className="w-full appearance-none bg-white border border-gray-200 text-gray-700 py-2 px-3 pr-8 rounded-lg"
-                value={filters[label.toLowerCase().replace(/ /g, '')]}
-                onChange={e => {
-                  const value = e.target.value;
-                  const key = label.toLowerCase().replace(/ /g, '');
-                  setFilters(prev => ({
-                    ...prev,
-                    [key]: value
-                  }));
-                }}
-              >
-                {label === 'Region' && ['All', 'North', 'West', 'South'].map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-                {label === 'SKU' && ['All', 'A', 'B', 'C'].map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-                {label === 'Percentage Change' && ['All', ...Array.from({ length: 11 }, (_, i) => i - 5)].map(num => (
-                  <option key={num} value={num}>{num === 'All' ? 'All' : `${num}%`}</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4 pointer-events-none" />
-            </div>
-          ))}
+          <div className="relative">
+            <label className="block text-xs text-white mb-1">Region</label>
+            <select
+              className="w-full appearance-none bg-white border border-gray-200 text-gray-700 py-2 px-3 pr-8 rounded-lg"
+              value={filters.region}
+              onChange={(e) => setFilters(prev => ({ ...prev, region: e.target.value }))}
+            >
+              {['All', ...Array.from(new Set(csvData.map(d => d.Region)))].map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4 pointer-events-none" />
+          </div>
+
+          <div className="relative">
+            <label className="block text-xs text-white mb-1">SKU</label>
+            <select
+              className="w-full appearance-none bg-white border border-gray-200 text-gray-700 py-2 px-3 pr-8 rounded-lg"
+              value={filters.sku}
+              onChange={(e) => setFilters(prev => ({ ...prev, sku: e.target.value }))}
+            >
+              {sortedSKUs.map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4 pointer-events-none" />
+          </div>
+
+          <div className="relative">
+            <label className="block text-xs text-white mb-1">Percentage Revenue Change</label>
+            <select
+              className="w-full appearance-none bg-white border border-gray-200 text-gray-700 py-2 px-3 pr-8 rounded-lg"
+              value={filters.percentageRevenueChange}
+              onChange={(e) => setFilters(prev => ({ ...prev, percentageRevenueChange: e.target.value }))}
+            >
+              {['All', ...Array.from(new Set(csvData.map(d => d.PercentageRevenueChange)))
+                .filter(val => !isNaN(val))
+                .sort((a, b) => a - b)
+              ].map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4 pointer-events-none" />
+          </div>
         </div>
       </div>
 
@@ -119,50 +114,21 @@ export default function PriceSensitivityDashboard() {
               </th>
             </tr>
             <tr>
-              <th className="p-3 border border-blue-400 text-center">Month</th>
               <th className="p-3 border border-blue-400 text-center">Quantity</th>
               <th className="p-3 border border-blue-400 text-center">Projected Demand</th>
+              <th className="p-3 border border-blue-400 text-center">% Change in Demand</th>
             </tr>
           </thead>
           <tbody>
-            {sortedYears.map((year, yearIdx) => {
-              const yearData = groupedData[year];
-
-              const totals = yearData.reduce((acc, row) => ({
-                Quantity: typeof row.Quantity === 'number' ? acc.Quantity + row.Quantity : acc.Quantity,
-                ProjectedDemand: typeof row.ProjectedDemand === 'number' ? acc.ProjectedDemand + row.ProjectedDemand : acc.ProjectedDemand,
-              }), { Quantity: 0, ProjectedDemand: 0 });
-
-              return (
-                <React.Fragment key={year}>
-                  <tr
-                    className={`cursor-pointer font-semibold text-white ${yearIdx % 2 === 0 ? 'bg-[#024673]' : 'bg-[#03579E]'}`}
-                    onClick={() => toggleYear(year)}
-                  >
-                    <td className="p-3 border border-blue-400 text-center">
-                      <div className="inline-flex items-center justify-center border border-white px-2 py-1 rounded">
-                        {expandedYears[year] ? <Minus size={14} /> : <Plus size={14} />}
-                      </div>
-                      <span className="ml-2">{year}</span>
-                    </td>
-                    <td className="p-3 border border-blue-400 text-center">{totals.Quantity}</td>
-                    <td className="p-3 border border-blue-400 text-center">{totals.ProjectedDemand}</td>
-                  </tr>
-                  {expandedYears[year] && yearData.map((row, idx) => (
-                    <tr key={idx} className={`text-white ${idx % 2 === 0 ? 'bg-[#024673]' : 'bg-[#03579E]'}`}>
-                      <td className="p-3 border border-blue-400 text-center">{row.Month}</td>
-                      <td className="p-3 border border-blue-400 text-center">{row.Quantity === '' ? '' : row.Quantity}</td>
-                      <td className="p-3 border border-blue-400 text-center">{row.ProjectedDemand === '' ? '' : row.ProjectedDemand}</td>
-                    </tr>
-                  ))}
-                </React.Fragment>
-              );
-            })}
-            <tr className="bg-[#024673] text-white font-bold sticky bottom-0">
-              <td className="p-3 border border-blue-400 text-center">Total</td>
-              <td className="p-3 border border-blue-400 text-center">{totalQuantity}</td>
-              <td className="p-3 border border-blue-400 text-center">{totalProjected}</td>
-            </tr>
+            {filteredData.map((row, idx) => (
+              <tr key={idx} className={`text-white ${idx % 2 === 0 ? 'bg-[#024673]' : 'bg-[#03579E]'}`}>
+                <td className="p-3 border border-blue-400 text-center">{row.Quantity}</td>
+                <td className="p-3 border border-blue-400 text-center">{row.ProjectedDemand}</td>
+                <td className="p-3 border border-blue-400 text-center">
+                  {row.PercentChangeInDemand.toFixed(2)}%
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

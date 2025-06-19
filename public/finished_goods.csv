@@ -1,4 +1,4 @@
-Month,SKU,Demand,Opening Stock,Turnover Ratio,Inventory Days,Availability,No Stock,Low,Adequate,Excess,Bucket,nMonth,sMonth,nYear,MonthYear,Jan,Feb,Mar,Apr,May,Jun,MonthSold,Produt
+Month,SKU,Demand,Opening Stock,Turnover Ratio,Inventory Days,Availability,No Stock,Low,Adequate,Excess,Bucket,nMonth,sMonth,nYear,MonthYear,Jan,Feb,Mar,Apr,May,Jun,MonthSold,Product
 May-25,sku 1,0,0,,0,1,No Stock,,,,No Stock,May,May,2025,May-25,1,1,1,1,0,1,5,Product 1
 May-25,sku 2,0,0,,0,1,No Stock,,,,No Stock,May,May,2025,May-25,1,1,1,1,0,1,5,Product 1
 May-25,sku 3,0,0,,0,1,No Stock,,,,No Stock,May,May,2025,May-25,1,1,1,1,0,1,5,Product 1

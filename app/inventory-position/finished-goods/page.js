@@ -20,6 +20,7 @@ export default function FinishedGoodsPage() {
   });
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [filteredSKU, setFilteredSKU] = useState([]);
+  const [sortOrder, setSortOrder] = useState("asc");
 
   useEffect(() => {
     fetch("/finished_goods.csv")
@@ -31,9 +32,11 @@ export default function FinishedGoodsPage() {
           complete: (results) => {
             const processed = results.data.map((item) => ({
               ...item,
+              Product: item.Product?.trim() || "",
               formattedMonth: item.Month,
               Availability: Number(item.Availability) || 0,
-              Bucket: item.Bucket || "Uncategorized",
+              Bucket: item.Bucket?.trim() || "",
+              InventoryDays: Number(item["Inventory Days"]) || 0,
             }));
             setParsedData(processed);
           },
@@ -45,24 +48,50 @@ export default function FinishedGoodsPage() {
     setFilters((prev) => ({
       ...prev,
       [filterName]: value,
+      ...(filterName !== "products" && { products: "" }),
     }));
     setSelectedCategory(null);
     setFilteredSKU([]);
   };
 
+  const toggleSortOrder = () => {
+    const newOrder = sortOrder === "asc" ? "desc" : "asc";
+    setSortOrder(newOrder);
+    setFilteredSKU((prev) =>
+      [...prev].sort((a, b) =>
+        newOrder === "asc"
+          ? a.InventoryDays - b.InventoryDays
+          : b.InventoryDays - a.InventoryDays
+      )
+    );
+  };
+
   const uniqueMonths = useMemo(() => {
-    const monthOrder = [
-      "Jan-25", "Feb-25", "Mar-25", "Apr-25", "May-25", "Jun-25"
-    ];
+    const monthOrder = ["Jan-25", "Feb-25", "Mar-25", "Apr-25", "May-25", "Jun-25"];
     const presentMonths = new Set(parsedData.map((item) => item.formattedMonth));
     return ["All", ...monthOrder.filter((month) => presentMonths.has(month))];
   }, [parsedData]);
 
-  const products = [
-    "All", "Conduit", "EWD", "FAN", "Lighting", "MCB", "POP", "PVC Tapes", "RM", "VIMAR", "Wire"
-  ];
+  const dynamicProductOptions = useMemo(() => {
+    const filtered = parsedData.filter((item) => {
+      if (filters.months && filters.months !== "All") {
+        return item.formattedMonth === filters.months;
+      }
+      return true;
+    });
+    const productSet = new Set(filtered.map((item) => item.Product));
+    const sortedProducts = Array.from(productSet)
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+    return ["All", ...sortedProducts];
+  }, [parsedData, filters.months]);
 
-  const availabilities = ["All", "1", "2", "3", "4", "5", "6"];
+  const availabilities = useMemo(() => {
+    const values = Array.from(new Set(parsedData.map((item) => item.Availability)))
+      .filter((val) => !isNaN(val))
+      .sort((a, b) => a - b);
+    return ["All", ...values.map((val) => String(val))];
+  }, [parsedData]);
 
   const filteredData = useMemo(() => {
     return parsedData.filter((item) => {
@@ -80,30 +109,36 @@ export default function FinishedGoodsPage() {
   }, [parsedData, filters]);
 
   const barData = useMemo(() => {
-    const buckets = {};
+    const bucketMap = {
+      "No Stock": [],
+      "Low": [],
+      "Adequate": [],
+      "Excess": [],
+    };
+
     for (const item of filteredData) {
-      const bucket = item.Bucket || "Uncategorized";
-      if (!buckets[bucket]) {
-        buckets[bucket] = [];
+      if (bucketMap.hasOwnProperty(item.Bucket)) {
+        bucketMap[item.Bucket].push(item);
       }
-      buckets[bucket].push(item);
     }
 
-    const bucketOrder = ["No Stock", "Low", "Adequate", "Excess", "Uncategorized"];
-    return bucketOrder
-      .filter((bucket) => buckets[bucket])
-      .map((bucket) => ({
-        name: bucket,
-        count: buckets[bucket].length,
-        items: buckets[bucket],
-      }));
+    return Object.entries(bucketMap).map(([name, items]) => ({
+      name,
+      count: items.length,
+      items,
+    }));
   }, [filteredData]);
 
   const handleClick = (e) => {
     if (e && e.activePayload && e.activePayload.length > 0) {
       const data = e.activePayload[0].payload;
       setSelectedCategory(data.name);
-      setFilteredSKU(data.items);
+      const sortedItems = [...data.items].sort((a, b) =>
+        sortOrder === "asc"
+          ? a.InventoryDays - b.InventoryDays
+          : b.InventoryDays - a.InventoryDays
+      );
+      setFilteredSKU(sortedItems);
     }
   };
 
@@ -120,13 +155,11 @@ export default function FinishedGoodsPage() {
       <div className="flex justify-between items-end flex-wrap gap-4 mb-6">
         <div className="flex gap-4 flex-wrap">
           <div className="flex flex-col">
-            <label className="block text-sm font-semibold text-gray-100 mb-1">
-              Month
-            </label>
+            <label className="text-sm font-semibold mb-1">Month</label>
             <select
               value={filters.months}
               onChange={(e) => handleSelectChange("months", e.target.value)}
-              className="w-44 rounded-md border-gray-300 text-black bg-gray-100 shadow-sm px-3 py-2 text-sm border"
+              className="w-44 rounded-md border-gray-300 text-black bg-gray-100 px-3 py-2 text-sm"
             >
               {uniqueMonths.map((month) => (
                 <option key={month} value={month}>
@@ -137,15 +170,13 @@ export default function FinishedGoodsPage() {
           </div>
 
           <div className="flex flex-col">
-            <label className="block text-sm font-semibold text-gray-100 mb-1">
-              Product
-            </label>
+            <label className="text-sm font-semibold mb-1">Product</label>
             <select
               value={filters.products}
               onChange={(e) => handleSelectChange("products", e.target.value)}
-              className="w-44 rounded-md border-gray-300 text-black bg-gray-100 shadow-sm px-3 py-2 text-sm border"
+              className="w-44 rounded-md border-gray-300 text-black bg-gray-100 px-3 py-2 text-sm"
             >
-              {products.map((product) => (
+              {dynamicProductOptions.map((product) => (
                 <option key={product} value={product}>
                   {product}
                 </option>
@@ -154,19 +185,15 @@ export default function FinishedGoodsPage() {
           </div>
 
           <div className="flex flex-col">
-            <label className="block text-sm font-semibold text-gray-100 mb-1">
-              Availability
-            </label>
+            <label className="text-sm font-semibold mb-1">Availability</label>
             <select
               value={filters.availability}
-              onChange={(e) =>
-                handleSelectChange("availability", e.target.value)
-              }
-              className="w-44 rounded-md border-gray-300 text-black bg-gray-100 shadow-sm px-3 py-2 text-sm border"
+              onChange={(e) => handleSelectChange("availability", e.target.value)}
+              className="w-44 rounded-md border-gray-300 text-black bg-gray-100 px-3 py-2 text-sm"
             >
-              {availabilities.map((availability) => (
-                <option key={availability} value={availability}>
-                  {availability}
+              {availabilities.map((a) => (
+                <option key={a} value={a}>
+                  {a}
                 </option>
               ))}
             </select>
@@ -179,64 +206,66 @@ export default function FinishedGoodsPage() {
         </div>
       </div>
 
-      <div className="bg-white/10 rounded-2xl shadow-lg p-6 border border-blue-200 max-w-5xl mx-auto">
-        <h2 className="text-xl sm:text-2xl font-semibold mb-4 text-center text-white">
+      <div className="bg-white/10 rounded-2xl shadow-lg p-6 border border-blue-200 w-full min-h-[60vh]">
+        <h2 className="text-xl font-semibold mb-4 text-center text-white">
           Count of SKU by Bucket
         </h2>
 
-        <div className="w-full h-[350px] sm:h-[400px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={barData}
-              barGap={10}
-              barCategoryGap="20%"
-              maxBarSize={60}
-              onClick={handleClick}
-            >
-              <XAxis dataKey="name" stroke="#ffffff" />
-              <YAxis stroke="#ffffff" />
-              <Tooltip wrapperClassName="text-black" />
-              <Bar
-                dataKey="count"
-                fill="#ff704d"
-                radius={[10, 10, 0, 0]}
-                name="Count of SKU"
-                cursor="pointer"
-              />
-            </BarChart>
-          </ResponsiveContainer>
+        <div style={{ width: "100%", height: "400px" }}>
+          {barData.length > 0 && (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={barData}
+                layout="vertical"
+                barGap={4}
+                barCategoryGap="70%"
+                maxBarSize={100}
+                margin={{ bottom: 30, left: 50 }}
+                onClick={handleClick}
+              >
+                <XAxis type="number" stroke="#ffffff" />
+                <YAxis dataKey="name" type="category" stroke="#ffffff" width={100} />
+                <Tooltip wrapperClassName="text-black" />
+                <Bar
+                  dataKey="count"
+                  fill="#39FF14"
+                  radius={[0, 10, 10, 0]}
+                  name="Count of SKU"
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
-        <div className="text-center mt-4 text-white">
-          <span className="text-lg font-semibold">
-            Distribution of SKU across Categories
-          </span>
+        <div className="mt-6 text-center font-semibold text-white text-xl">
+          Distribution of SKU across Categories
         </div>
       </div>
 
       {selectedCategory && (
         <div className="overflow-y-auto mt-8 max-h-96 rounded-xl shadow-md">
-          <h2 className="text-2xl font-semibold mb-4">
-            {selectedCategory} SKUs
-          </h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-semibold">{selectedCategory} SKUs</h2>
+            <button
+              onClick={toggleSortOrder}
+              className="bg-blue-200 text-blue-900 text-sm font-semibold px-4 py-2 rounded-lg shadow hover:bg-blue-300 transition"
+            >
+              Sort by Inventory Days ({sortOrder === "asc" ? "Low → High" : "High → Low"})
+            </button>
+          </div>
           <table className="min-w-full text-gray-100">
             <thead className="bg-[#024673]">
               <tr>
-                <th className="px-4 py-2 font-semibold text-left">SKU</th>
-                <th className="px-4 py-2 font-semibold text-left">Demand</th>
-                <th className="px-4 py-2 font-semibold text-left">Opening Stock</th>
-                <th className="px-4 py-2 font-semibold text-left">Turnover Ratio</th>
-                <th className="px-4 py-2 font-semibold text-left">Inventory Days</th>
+                <th className="px-4 py-2 text-left">SKU</th>
+                <th className="px-4 py-2 text-left">Demand</th>
+                <th className="px-4 py-2 text-left">Opening Stock</th>
+                <th className="px-4 py-2 text-left">Turnover Ratio</th>
+                <th className="px-4 py-2 text-left">Inventory Days</th>
               </tr>
             </thead>
             <tbody>
               {filteredSKU?.map((item, idx) => (
-                <tr
-                  key={idx}
-                  className={`${
-                    idx % 2 === 0 ? "bg-[#024673]" : "bg-[#03579E]"
-                  } text-gray-100`}
-                >
+                <tr key={idx} className={`${idx % 2 === 0 ? "bg-[#024673]" : "bg-[#03579E]"}`}>
                   <td className="px-4 py-2 border-b border-gray-500">{item.SKU}</td>
                   <td className="px-4 py-2 border-b border-gray-500">{item.Demand}</td>
                   <td className="px-4 py-2 border-b border-gray-500">{item["Opening Stock"]}</td>
