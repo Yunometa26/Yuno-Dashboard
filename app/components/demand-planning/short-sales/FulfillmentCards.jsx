@@ -1,6 +1,6 @@
 import React from "react";
 
-const FulfillmentCards = ({ aggregatedData, colors }) => {
+const FulfillmentCards = ({ aggregatedData = [], colors = {} }) => {
   const totalOrders = aggregatedData.length;
   const totalRequired = aggregatedData.reduce((sum, item) => sum + item.required, 0);
   const totalFulfilled = aggregatedData.reduce((sum, item) => sum + item.fulfilled, 0);

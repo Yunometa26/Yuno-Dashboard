@@ -4,7 +4,7 @@ import { Check, ChevronsUpDown } from "lucide-react";
 const FilterSection = ({
   customers,
   financialYears,
-  selectedCustomers,
+  selectedCustomers = [],
   selectedFinancialYear,
   handleCustomerToggle,
   handleFinancialYearSelect
