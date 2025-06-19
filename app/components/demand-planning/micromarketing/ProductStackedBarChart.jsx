@@ -126,13 +126,6 @@ const ProductStackedBarChart = ({ pieData, animateCharts, activeProduct, handleP
               tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
             />
             <Tooltip content={customTooltip} />
-            <Legend 
-              wrapperStyle={{ 
-                paddingTop: '10px',
-                color: 'white'
-              }}
-              iconType="rect"
-            />
             
             {allProducts.map((product, index) => (
               <Bar
