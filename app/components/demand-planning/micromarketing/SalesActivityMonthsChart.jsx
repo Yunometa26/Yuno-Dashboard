@@ -1,82 +1,72 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
 
-const BuyingFrequencyDropdownChart = () => {
-  const [rawData, setRawData] = useState([]);
-  const [selectedCustomer, setSelectedCustomer] = useState('');
-  const [customers, setCustomers] = useState([]);
+const SalesActivityMonthsChart = ({
+  salesActivityData = [],
+  className = '',
+  axisStroke = '#fff',
+  labelColor = '#fff',
+}) => {
+  const chartData = useMemo(() => {
+    if (!salesActivityData || salesActivityData.length === 0) return [];
+    return salesActivityData;
+  }, [salesActivityData]);
 
-  useEffect(() => {
-    fetch('/buying_frequency.csv')
-      .then(res => res.text())
-      .then(text => {
-        const lines = text.split('\n').filter(Boolean);
-        const rows = lines.slice(1).map(line => {
-          const [Customer, FinancialYear, ActiveMonths] = line.split(',');
-          return {
-            Customer,
-            FinancialYear,
-            ActiveMonths: parseInt(ActiveMonths, 10)
-          };
-        });
+  if (!chartData || chartData.length === 0) {
+    return <div className="text-white">No data available.</div>;
+  }
 
-        setRawData(rows);
-        const uniqueCustomers = [...new Set(rows.map(r => r.Customer))];
-        setCustomers(uniqueCustomers);
-        setSelectedCustomer(uniqueCustomers[0]);
-      });
-  }, []);
-
-  const filteredData = rawData.filter(row => row.Customer === selectedCustomer);
-
-  const getColor = (months) => {
-    if (months >= 12) return '#22C55E';       // Excellent
-    if (months >= 9) return '#4ade80';        // Good
-    if (months >= 5) return '#facc15';        // Average
-    return '#f87171';                         // Poor
+  // Color logic for grouped ranges
+  const getBarColor = (val) => {
+    if (val === 0) return '#d1d5db'; // gray for 0
+    if ([1, 2, 3].includes(val)) return '#ef4444'; // red
+    if ([4, 5, 6].includes(val)) return '#facc15'; // yellow
+    if ([7, 8, 9].includes(val)) return '#4ade80'; // light green
+    if ([10, 11, 12].includes(val)) return '#22C55E'; // dark green
+    return '#d1d5db'; // fallback gray
   };
 
   return (
-    <div className="bg-gradient-to-br from-[#024673] to-[#5C99E3] rounded-xl shadow-md p-6 mt-8 mb-8 border border-blue-200">
-      <h2 className="text-white text-lg font-semibold mb-4">Buying Frequency by Year</h2>
-      <div className="mb-4">
-        <label className="text-white mr-2">Select Customer:</label>
-        <select
-          value={selectedCustomer}
-          onChange={(e) => setSelectedCustomer(e.target.value)}
-          className="px-2 py-1 rounded-md"
-        >
-          {customers.map((c, idx) => (
-            <option key={idx} value={c}>{c}</option>
-          ))}
-        </select>
-      </div>
+    <div className={`bg-gradient-to-br from-[#024673] to-[#5C99E3] p-4 rounded-lg border border-blue-200 shadow-sm ${className}`}>
+      <h2 className="font-semibold text-white mb-4">Sales Activity</h2>
       <ResponsiveContainer width="100%" height={350}>
-        <BarChart data={filteredData} margin={{ top: 20, right: 30, left: 20, bottom: 10 }}>
+        <BarChart
+          data={chartData}
+          margin={{ top: 20, right: 30, left: 20, bottom: 10 }}
+        >
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="FinancialYear" stroke="#fff" />
-          <YAxis stroke="#fff" domain={[0, 12]} ticks={[0, 3, 6, 9, 12]} />
+          <XAxis dataKey="FinancialYear" stroke={axisStroke} />
+          <YAxis stroke={axisStroke} domain={[0, 12]} ticks={[0, 3, 6, 9, 12]} label={{ value: 'Avg. Months Bought', angle: -90, position: 'insideLeft', fill: labelColor }} />
           <Tooltip />
-          <Bar dataKey="ActiveMonths" name="Active Months">
-            {filteredData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={getColor(entry.ActiveMonths)} />
-            ))}
+          <Bar
+            dataKey="AvgMonthsBought"
+            name="Avg. Months Bought"
+            radius={[4, 4, 0, 0]}
+            animationDuration={1200}
+            animationEasing="ease-in-out"
+          >
+            {chartData.map((entry, idx) => {
+              const val = typeof entry.AvgMonthsBought === 'number' && !isNaN(entry.AvgMonthsBought) ? Math.round(entry.AvgMonthsBought) : 0;
+              const fill = getBarColor(val);
+              console.log('Bar', idx, 'AvgMonthsBought:', entry.AvgMonthsBought, 'Rounded:', val, 'Color:', fill);
+              return <Cell key={`cell-${idx}`} fill={fill} />;
+            })}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-      <div className="mt-4 flex flex-wrap gap-4 text-sm text-white">
-        <div className="flex items-center gap-2"><span className="w-4 h-4 bg-[#22C55E] rounded-full"></span> Excellent (12 months)</div>
-        <div className="flex items-center gap-2"><span className="w-4 h-4 bg-[#4ade80] rounded-full"></span> Good (9–11 months)</div>
-        <div className="flex items-center gap-2"><span className="w-4 h-4 bg-[#facc15] rounded-full"></span> Average (5–8 months)</div>
-        <div className="flex items-center gap-2"><span className="w-4 h-4 bg-[#f87171] rounded-full"></span> Poor (1–4 months)</div>
+      <div className="mt-4 flex flex-wrap gap-4 text-sm text-white justify-center items-center">
+        <div className="flex items-center gap-2"><span className="w-4 h-4 rounded-none" style={{ background: '#ef4444', display: 'inline-block' }}></span> 1–3 months</div>
+        <div className="flex items-center gap-2"><span className="w-4 h-4 rounded-none" style={{ background: '#facc15', display: 'inline-block' }}></span> 4–6 months</div>
+        <div className="flex items-center gap-2"><span className="w-4 h-4 rounded-none" style={{ background: '#4ade80', display: 'inline-block' }}></span> 7–9 months</div>
+        <div className="flex items-center gap-2"><span className="w-4 h-4 rounded-none" style={{ background: '#22C55E', display: 'inline-block' }}></span> 10–12 months</div>
       </div>
+      <div className="mt-2 text-sm text-white">Y-axis: Average number of months each product was bought in that year (for selected customer)</div>
     </div>
   );
 };
 
-export default BuyingFrequencyDropdownChart;
-//New buying Frequency Chart Code
+export default SalesActivityMonthsChart;
