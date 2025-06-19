@@ -48,10 +48,9 @@ export default function SKUTrendGraph() {
   }, [rawData, selectedDepot, selectedSKU]);
 
   const colors = {
-    '2021-2022': '#004D4D',
     '2022-2023': '#22C55E',
-    '2023-2024': '#F59E0B',
-    '2024-2025': '#EF4444'
+    '2023-2024': '#FFD700',
+    '2024-2025': '#000000'
   };
 
   return (
@@ -74,8 +73,21 @@ export default function SKUTrendGraph() {
             <XAxis dataKey="name" stroke="#fff" />
             <YAxis stroke="#fff" />
             <Tooltip />
-            <Legend />
-            {Object.keys(colors).map(year => (
+
+            <Legend
+              content={() => (
+                <ul className="flex gap-4 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg shadow-sm text-white">
+                  {Object.keys(colors).filter(year => year !== '2021-2022').map(year => (
+                    <li key={year} className="flex items-center gap-2">
+                      <span className="w-4 h-4 rounded-sm inline-block" style={{ backgroundColor: colors[year] }}></span>
+                      {year}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            />
+
+            {Object.keys(colors).filter(year => year !== '2021-2022').map(year => (
               <Line
                 key={year}
                 type="monotone"
@@ -92,4 +104,4 @@ export default function SKUTrendGraph() {
   );
 }
 
-//Accomadated for new dataset
+//SKU GRAPH CHANGE.
