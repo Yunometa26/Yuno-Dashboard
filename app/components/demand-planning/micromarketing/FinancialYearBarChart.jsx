@@ -62,3 +62,4 @@ const FinancialYearBarChart = ({ yearlyData, animateCharts, handleYearClick }) =
 };
 
 export default FinancialYearBarChart;
+//
