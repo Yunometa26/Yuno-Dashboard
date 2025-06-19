@@ -36,7 +36,6 @@ export default function LifecyclePage() {
   const [csvLoaded, setCsvLoaded] = useState(false);
   const [csvLoading, setCsvLoading] = useState(false);
   const [csvError, setCsvError] = useState(null);
-  const [selectedCustomer, setSelectedCustomer] = useState('All Customers');
   const [selectedFinancialYear, setSelectedFinancialYear] = useState('');
   const [activeProduct, setActiveProduct] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -78,6 +77,18 @@ export default function LifecyclePage() {
     'All',
     ...Array.from(new Set(buyingFrequencyData.map(row => row.Category))).sort()
   ], [buyingFrequencyData]);
+
+  // Add selectedCustomers state
+  const [selectedCustomers, setSelectedCustomers] = useState(["All Customers"]);
+
+  // Update handleCustomerToggle to allow only one customer selection at a time
+  const handleCustomerToggle = (customer) => {
+    if (customer === "All Customers") {
+      setSelectedCustomers(["All Customers"]);
+    } else {
+      setSelectedCustomers([customer]);
+    }
+  };
 
   // Load buying frequency data
   useEffect(() => {
@@ -172,7 +183,7 @@ export default function LifecyclePage() {
               setSelectedFinancialYear("All Years"); // Ensure a default selection
               setProducts(productList);
               setMonths(monthList);
-              setSelectedCustomer('All Customers');
+              setSelectedCustomers(['All Customers']);
               setCsvLoaded(true);
             }
             setCsvLoading(false);
@@ -191,14 +202,17 @@ export default function LifecyclePage() {
     loadForecastData();
   }, []);
 
-  // Prepare yearly data for drill-down chart
+  // --- Prepare yearly data for drill-down chart ---
   const prepareYearlyData = useCallback(() => {
     if (!csvLoaded || data.length === 0) return;
 
+    // Always filter by selectedCustomers
     let filteredData = [...data];
-
-    if (selectedCustomer !== 'All Customers') {
-      filteredData = filteredData.filter(row => row.Customer === selectedCustomer);
+    if (
+      selectedCustomers.length > 0 &&
+      !(selectedCustomers.length === 1 && selectedCustomers[0] === "All Customers")
+    ) {
+      filteredData = filteredData.filter(row => selectedCustomers.includes(row.Customer));
     }
 
     if (activeProduct) {
@@ -206,7 +220,6 @@ export default function LifecyclePage() {
     }
 
     const yearlySalesMap = {};
-
     filteredData.forEach(row => {
       const year = row['Financial Year'];
       const sales = parseFloat(row.Sales || 0);
@@ -220,11 +233,11 @@ export default function LifecyclePage() {
       .sort((a, b) => a.year.localeCompare(b.year));
 
     setYearlyData(yearlySalesData);
-  }, [csvLoaded, data, selectedCustomer, activeProduct]);
+  }, [csvLoaded, data, selectedCustomers, activeProduct]);
 
   useEffect(() => {
     prepareYearlyData();
-  }, [prepareYearlyData, selectedCustomer, activeProduct, csvLoaded]);
+  }, [prepareYearlyData, selectedCustomers, activeProduct, csvLoaded]);
 
   const handleYearClick = useCallback((year) => {
     setDrillDownYear(year);
@@ -282,7 +295,7 @@ export default function LifecyclePage() {
     setAnimateCharts(false);
 
     const timer = setTimeout(() => {
-      updateCharts(selectedCustomer, selectedFinancialYear, activeProduct, selectedProduct, selectedMonth);
+      updateCharts(selectedCustomers, selectedFinancialYear, activeProduct, selectedProduct, selectedMonth);
       setLoading(false);
 
       setTimeout(() => {
@@ -291,7 +304,7 @@ export default function LifecyclePage() {
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [selectedCustomer, selectedFinancialYear, activeProduct, csvLoaded, isDrillingDown, drillDownYear, selectedProduct, selectedMonth]);
+  }, [selectedCustomers, selectedFinancialYear, activeProduct, csvLoaded, isDrillingDown, drillDownYear, selectedProduct, selectedMonth]);
 
   const handleForecastFilterChange = useCallback((filters) => {
     if (JSON.stringify(filters) === JSON.stringify(selectedForecastFilters)) {
@@ -344,7 +357,7 @@ export default function LifecyclePage() {
     setTimeout(updateFilteredLists, 100);
   }, [forecastData, selectedForecastFilters]);
 
-  const calculateTotalSales = useCallback((customer, financialYear, activeProduct) => {
+  const calculateTotalSales = useCallback((customers, financialYear, activeProduct) => {
     if (!csvLoaded || data.length === 0) return 0;
 
     let filteredData = [...data];
@@ -353,8 +366,11 @@ export default function LifecyclePage() {
       filteredData = filteredData.filter(row => row['Financial Year'] === financialYear);
     }
 
-    if (customer !== "All Customers") {
-      filteredData = filteredData.filter(row => row.Customer === customer);
+    if (
+      selectedCustomers.length > 0 &&
+      !(selectedCustomers.length === 1 && selectedCustomers[0] === "All Customers")
+    ) {
+      filteredData = filteredData.filter(row => customers.includes(row.Customer));
     }
 
     if (activeProduct) {
@@ -365,33 +381,36 @@ export default function LifecyclePage() {
       const sales = parseFloat(row.Sales || 0);
       return sum + (isNaN(sales) ? 0 : sales);
     }, 0);
-  }, [csvLoaded, data]);
+  }, [csvLoaded, data, selectedCustomers, customers, activeProduct]);
 
-  const updateCharts = useCallback((customer, financialYear, activeProduct, selectedProduct, selectedMonth) => {
+  const updateCharts = useCallback((customers, financialYear, activeProduct, selectedProduct, selectedMonth) => {
     if (!csvLoaded || data.length === 0) return;
 
-    let chartFilteredData = [...data];
+    // Always filter by selectedCustomers
+    let filteredData = [...data];
+    if (
+      selectedCustomers.length > 0 &&
+      !(selectedCustomers.length === 1 && selectedCustomers[0] === "All Customers")
+    ) {
+      filteredData = filteredData.filter(row => selectedCustomers.includes(row.Customer));
+    }
 
     if (financialYear !== "All Years") {
-      chartFilteredData = chartFilteredData.filter(row => row['Financial Year'] === financialYear);
-    }
-    if (customer !== "All Customers") {
-      chartFilteredData = chartFilteredData.filter(row => row.Customer === customer);
+      filteredData = filteredData.filter(row => row['Financial Year'] === financialYear);
     }
     if (activeProduct) {
-      chartFilteredData = chartFilteredData.filter(row => row.Product === activeProduct);
+      filteredData = filteredData.filter(row => row.Product === activeProduct);
     }
     if (selectedProduct !== 'All') {
-      chartFilteredData = chartFilteredData.filter(row => row.Product === selectedProduct);
+      filteredData = filteredData.filter(row => row.Product === selectedProduct);
     }
     if (selectedMonth !== 'All') {
-      chartFilteredData = chartFilteredData.filter(row => row.Month === selectedMonth);
+      filteredData = filteredData.filter(row => row.Month === selectedMonth);
     }
-    console.log('Sales Activity Months chart filtered data:', chartFilteredData);
 
     // --- SalesActivityMonthsChart data calculation (Average number of months bought per product per year for selected customer) ---
     const yearProductMonthsMap = new Map();
-    chartFilteredData.forEach(row => {
+    filteredData.forEach(row => {
       const fy = row['Financial Year'] || row.FinancialYear;
       const product = row.Product;
       const sales = parseFloat(row.Sales);
@@ -417,15 +436,25 @@ export default function LifecyclePage() {
     setActivityMonths(activityMonths);
     // --- END SalesActivityMonthsChart data calculation ---
 
-    const calculatedTotalSales = calculateTotalSales(customer, financialYear, activeProduct);
+    // --- Total Sales ---
+    const calculatedTotalSales = filteredData.reduce((sum, row) => {
+      const sales = parseFloat(row.Sales || 0);
+      return sum + (isNaN(sales) ? 0 : sales);
+    }, 0);
     setTotalSales(calculatedTotalSales);
 
+    // --- Previous Year Sales and Growth ---
     if (financialYear !== "All Years") {
       const currentYearIndex = financialYears.indexOf(financialYear);
       if (currentYearIndex > 1) {
         const prevYear = financialYears[currentYearIndex - 1];
         if (prevYear !== "All Years") {
-          const prevYearSalesValue = calculateTotalSales(customer, prevYear, activeProduct);
+          const prevYearSalesValue = filteredData
+            .filter(row => row['Financial Year'] === prevYear)
+            .reduce((sum, row) => {
+              const sales = parseFloat(row.Sales || 0);
+              return sum + (isNaN(sales) ? 0 : sales);
+            }, 0);
           setPrevYearSales(prevYearSalesValue);
 
           if (prevYearSalesValue > 0) {
@@ -444,25 +473,7 @@ export default function LifecyclePage() {
       setSalesGrowth(0);
     }
 
-    let filteredData = [...data];
-
-    if (financialYear !== "All Years") {
-      filteredData = filteredData.filter(row => row['Financial Year'] === financialYear);
-    }
-    if (customer !== "All Customers") {
-      filteredData = filteredData.filter(row => row.Customer === customer);
-    }
-    if (activeProduct) {
-      filteredData = filteredData.filter(row => row.Product === activeProduct);
-    }
-    // Add product and month filters for the chart
-    if (selectedProduct !== 'All') {
-      filteredData = filteredData.filter(row => row.Product === selectedProduct);
-    }
-    if (selectedMonth !== 'All') {
-      filteredData = filteredData.filter(row => row.Month === selectedMonth);
-    }
-
+    // --- Bar Chart Data (Customer Sales) ---
     const customerSalesMap = {};
     filteredData.forEach(row => {
       const customer = row.Customer;
@@ -471,12 +482,10 @@ export default function LifecyclePage() {
         customerSalesMap[customer] = (customerSalesMap[customer] || 0) + sales;
       }
     });
+    const barChartData = Object.entries(customerSalesMap).map(([name, sales]) => ({ name, sales }));
+    setBarData(barChartData);
 
-    const barChartData = Object.entries(customerSalesMap).map(([name, sales]) => ({
-      name,
-      sales
-    }));
-
+    // --- Monthly Bar Data ---
     const monthlySalesMap = {};
     filteredData.forEach(row => {
       if (!isDrillingDown || row['Financial Year'] === drillDownYear) {
@@ -487,17 +496,16 @@ export default function LifecyclePage() {
         }
       }
     });
-
-    // Financial year month order for Lifecycle Analytics section
     const monthlySalesChartOrder = {
       "April": 1, "May": 2, "June": 3, "July": 4, "August": 5, "September": 6,
       "October": 7, "November": 8, "December": 9, "January": 10, "February": 11, "March": 12
     };
-
     const monthlyBarData = Object.entries(monthlySalesMap)
       .map(([month, sales]) => ({ month, sales }))
       .sort((a, b) => (monthlySalesChartOrder[a.month] || 13) - (monthlySalesChartOrder[b.month] || 13));
+    setMonthlyData(monthlyBarData);
 
+    // --- Pie Chart Data (Product Sales) ---
     const productSalesMap = {};
     filteredData.forEach(row => {
       const product = row.Product;
@@ -506,7 +514,6 @@ export default function LifecyclePage() {
         productSalesMap[product] = (productSalesMap[product] || 0) + sales;
       }
     });
-
     const pieChartData = Object.entries(productSalesMap)
       .map(([product, sales]) => ({
         product,
@@ -514,24 +521,8 @@ export default function LifecyclePage() {
         percentage: (sales / calculatedTotalSales * 100).toFixed(1)
       }))
       .sort((a, b) => b.sales - a.sales);
-
-    setBarData(barChartData);
-    setMonthlyData(monthlyBarData);
     setPieData(pieChartData);
-  }, [csvLoaded, data, selectedProduct, selectedMonth]);
-
-  const handleCustomerSelect = useCallback((customer) => {
-    setSelectedCustomer(customer);
-  }, []);
-
-  const handleFinancialYearSelect = useCallback((year) => {
-    setSelectedFinancialYear(year);
-
-    if (isDrillingDown) {
-      setIsDrillingDown(false);
-      setDrillDownYear(null);
-    }
-  }, [isDrillingDown]);
+  }, [csvLoaded, data, selectedCustomers, selectedProduct, selectedMonth, activeProduct, financialYears, isDrillingDown, drillDownYear]);
 
   const handlePieClick = useCallback((product) => {
     if (activeProduct === product) {
@@ -540,6 +531,15 @@ export default function LifecyclePage() {
       setActiveProduct(product);
     }
   }, [activeProduct]);
+
+  // Add handleFinancialYearSelect function
+  const handleFinancialYearSelect = (year) => {
+    setSelectedFinancialYear(year);
+    if (isDrillingDown) {
+      setIsDrillingDown(false);
+      setDrillDownYear(null);
+    }
+  };
 
   return (
     <main className="p-4 overflow-y-auto" style={{ background: 'linear-gradient(135deg, #024673 0%, #5C99E3 50%, #756CE5 100%)' }}>
@@ -584,9 +584,9 @@ export default function LifecyclePage() {
               <FilterSection
                 customers={customers}
                 financialYears={financialYears}
-                selectedCustomer={selectedCustomer}
+                selectedCustomers={selectedCustomers}
                 selectedFinancialYear={selectedFinancialYear}
-                handleCustomerSelect={setSelectedCustomer}
+                handleCustomerToggle={handleCustomerToggle}
                 handleFinancialYearSelect={handleFinancialYearSelect}
                 className="bg-[#013554] rounded-lg p-4 mb-6"
                 textColor="text-white"
@@ -599,7 +599,7 @@ export default function LifecyclePage() {
                   totalSales={totalSales}
                   activeProduct={activeProduct}
                   selectedFinancialYear={selectedFinancialYear}
-                  selectedCustomer={selectedCustomer}
+                  selectedCustomers={selectedCustomers}
                   monthlyData={monthlyData}
                   animateCharts={animateCharts}
                   className="bg-[#013554] rounded-lg p-4 mb-6"
@@ -691,7 +691,7 @@ export default function LifecyclePage() {
                         ? data.filter(row => row['Financial Year'] === selectedFinancialYear)
                         : data
                     }
-                    selectedCustomer={selectedCustomer}
+                    selectedCustomers={selectedCustomers}
                     selectedFinancialYear={selectedFinancialYear}
                     className="bg-[#013554] rounded-lg p-4"
                     labelColor="#FFFFFF"
