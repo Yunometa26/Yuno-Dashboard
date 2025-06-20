@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-const ProductStackedBarChart = ({ pieData, animateCharts, activeProduct, handlePieClick, data, selectedCustomer, selectedFinancialYear }) => {
+const ProductStackedBarChart = ({ pieData, animateCharts, activeProduct, handlePieClick, data, selectedCustomers = ["All Customers"], selectedFinancialYear }) => {
   const [activeIndex, setActiveIndex] = useState(null);
   
   // Enhanced dark appealing colors for different products
@@ -34,6 +34,7 @@ const ProductStackedBarChart = ({ pieData, animateCharts, activeProduct, handleP
     let filteredData = [...data];
     
     // Filter by customer if not "All Customers"
+    const selectedCustomer = selectedCustomers[0];
     if (selectedCustomer && selectedCustomer !== "All Customers") {
       filteredData = filteredData.filter(row => row.Customer === selectedCustomer);
     }

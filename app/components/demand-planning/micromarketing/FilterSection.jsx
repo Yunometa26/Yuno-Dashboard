@@ -45,7 +45,9 @@ const FilterSection = ({
                 <div
                   className="flex items-center space-x-2 p-2 hover:bg-blue-50 rounded cursor-pointer transition-colors duration-200"
                   onClick={() => {
-                    handleCustomerToggle("All Customers");
+                    if (handleCustomerToggle && typeof handleCustomerToggle === 'function') {
+                      handleCustomerToggle("All Customers");
+                    }
                     setIsCustomerOpen(false);
                   }}
                 >
@@ -65,7 +67,9 @@ const FilterSection = ({
                     key={index}
                     className="flex items-center space-x-2 p-2 hover:bg-blue-50 rounded cursor-pointer transition-colors duration-200"
                     onClick={() => { 
-                      handleCustomerToggle(customer);
+                      if (handleCustomerToggle && typeof handleCustomerToggle === 'function') {
+                        handleCustomerToggle(customer);
+                      }
                       setIsCustomerOpen(false);
                     }}
                     style={{ animationDelay: `${index * 50}ms` }}
