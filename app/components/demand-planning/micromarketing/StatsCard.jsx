@@ -5,7 +5,7 @@ const SalesStatsCard = ({
   totalSales,
   activeProduct,
   selectedFinancialYear,
-  selectedCustomers,
+  selectedCustomers = [],
   animateCharts
 }) => {
   return (

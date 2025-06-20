@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { IndianRupee } from "lucide-react";
 import Papa from 'papaparse';
 import FilterSection from './FilterSection';
@@ -12,14 +12,11 @@ import DropdownFilters from '../forecasting/dropdownfiter';
 import TopPerformingSKUs from '../forecasting/topperforming';
 import SKUTrendGraph from './SKUTrendGraph';
 import SalesActivityMonthsChart from './SalesActivityMonthsChart';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function LifecyclePage() {
   // --- Buying Frequency Chart State ---
-  const [buyingFrequencyData, setBuyingFrequencyData] = useState([]);
   const [filteredFrequencyData, setFilteredFrequencyData] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [categories, setCategories] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState('All');
   const [tableColumns, setTableColumns] = useState([]);
 
   // --- Pagination State for Buying Frequency Table ---
@@ -27,7 +24,8 @@ export default function LifecyclePage() {
   const [rowsPerPage] = useState(10); // You can adjust this number
 
   // --- Month Filter for Buying Frequency ---
-  const [selectedMonth, setSelectedMonth] = useState('All');
+  const [selectedMonthTable, setSelectedMonthTable] = useState('All'); // For table only
+  const [selectedMonth, setSelectedMonth] = useState('All'); // For main analytics only
   const [months, setMonths] = useState([]); // To store unique months for the dropdown
 
   // --- Core Lifecycle Analytics State ---
@@ -38,7 +36,6 @@ export default function LifecyclePage() {
   const [csvLoaded, setCsvLoaded] = useState(false);
   const [csvLoading, setCsvLoading] = useState(false);
   const [csvError, setCsvError] = useState(null);
-  const [selectedCustomers, setSelectedCustomers] = useState(["All Customers"]);
   const [selectedFinancialYear, setSelectedFinancialYear] = useState('');
   const [activeProduct, setActiveProduct] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -53,8 +50,9 @@ export default function LifecyclePage() {
   const [drillDownYear, setDrillDownYear] = useState(null);
   const [isDrillingDown, setIsDrillingDown] = useState(false);
 
-  // --- Sales Activity Months Chart Data State (Reinstated) ---
+  // --- Sales Activity Months Chart Data State ---
   const [salesActivityMonthsChartData, setSalesActivityMonthsChartData] = useState([]);
+  const [activityMonths, setActivityMonths] = useState([]);
 
   // --- Forecast Data State ---
   const [forecastData, setForecastData] = useState([]);
@@ -69,6 +67,28 @@ export default function LifecyclePage() {
     month: 'All',
     year: 'All'
   });
+
+  // --- Customer Buying Frequency Section (restored from backup) ---
+  const [buyingFrequencyData, setBuyingFrequencyData] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('All');
+
+  // Place categories useMemo here, after data is defined
+  const categories = useMemo(() => [
+    'All',
+    ...Array.from(new Set(buyingFrequencyData.map(row => row.Category))).sort()
+  ], [buyingFrequencyData]);
+
+  // Add selectedCustomers state
+  const [selectedCustomers, setSelectedCustomers] = useState(["All Customers"]);
+
+  // Update handleCustomerToggle to allow only one customer selection at a time
+  const handleCustomerToggle = (customer) => {
+    if (customer === "All Customers") {
+      setSelectedCustomers(["All Customers"]);
+    } else {
+      setSelectedCustomers([customer]);
+    }
+  };
 
   // Load buying frequency data
   useEffect(() => {
@@ -88,9 +108,6 @@ export default function LifecyclePage() {
         if (parsedData.length > 0) {
           setTableColumns(Object.keys(parsedData[0]));
         }
-
-        const categorySet = Array.from(new Set(parsedData.map(row => row.Category)));
-        setCategories(['All', ...categorySet]);
 
         // --- Extract and Sort Months ---
         const monthSet = Array.from(new Set(parsedData.map(row => row.Month))).filter(Boolean); // Filter out any undefined/null months
@@ -117,8 +134,8 @@ export default function LifecyclePage() {
       tempFilteredData = tempFilteredData.filter(row => row.Category === selectedCategory);
     }
 
-    if (selectedMonth !== 'All') { // Filter by selectedMonth
-      tempFilteredData = tempFilteredData.filter(row => row.Month === selectedMonth);
+    if (selectedMonthTable !== 'All') { // Filter by selectedMonthTable
+      tempFilteredData = tempFilteredData.filter(row => row.Month === selectedMonthTable);
     }
 
     setFilteredFrequencyData(tempFilteredData);
@@ -128,9 +145,9 @@ export default function LifecyclePage() {
       setTableColumns([]); // Clear columns if no data
     }
     setCurrentPage(1); // Reset to first page on filter change
-  }, [selectedCategory, selectedMonth, buyingFrequencyData]); // Added selectedMonth to dependencies
+  }, [selectedCategory, selectedMonthTable, buyingFrequencyData]);
 
-  // Pagination Logic
+  // Pagination Logic for Customer Buying Frequency
   const indexOfLastRow = currentPage * rowsPerPage;
   const indexOfFirstRow = indexOfLastRow - rowsPerPage;
   const currentRows = filteredFrequencyData.slice(indexOfFirstRow, indexOfLastRow);
@@ -159,11 +176,14 @@ export default function LifecyclePage() {
               const customerNames = ["All Customers", ...new Set(result.data.map(row => row.Customer))];
               const years = ["All Years", ...new Set(result.data.map(row => row['Financial Year']))];
               const productList = [...new Set(result.data.map(row => row.Product))];
+              const monthList = ["All", ...Array.from(new Set(result.data.map(row => row.Month && row.Month.trim()).filter(Boolean)))];
 
               setCustomers(customerNames);
               setFinancialYears(years);
               setSelectedFinancialYear("All Years"); // Ensure a default selection
               setProducts(productList);
+              setMonths(monthList);
+              setSelectedCustomers(['All Customers']);
               setCsvLoaded(true);
             }
             setCsvLoading(false);
@@ -182,13 +202,16 @@ export default function LifecyclePage() {
     loadForecastData();
   }, []);
 
-  // Prepare yearly data for drill-down chart
+  // --- Prepare yearly data for drill-down chart ---
   const prepareYearlyData = useCallback(() => {
     if (!csvLoaded || data.length === 0) return;
 
+    // Always filter by selectedCustomers
     let filteredData = [...data];
-
-    if (!selectedCustomers.includes("All Customers")) {
+    if (
+      selectedCustomers.length > 0 &&
+      !(selectedCustomers.length === 1 && selectedCustomers[0] === "All Customers")
+    ) {
       filteredData = filteredData.filter(row => selectedCustomers.includes(row.Customer));
     }
 
@@ -197,7 +220,6 @@ export default function LifecyclePage() {
     }
 
     const yearlySalesMap = {};
-
     filteredData.forEach(row => {
       const year = row['Financial Year'];
       const sales = parseFloat(row.Sales || 0);
@@ -230,9 +252,8 @@ export default function LifecyclePage() {
   }, []);
 
   // Load forecast data
-  const loadForecastData = useCallback(() => {
+  const loadForecastData = () => {
     setForecastLoading(true);
-
     fetch('/Anonymized_LightingWireFiana1.csv')
       .then((response) => {
         if (!response.ok) {
@@ -247,14 +268,11 @@ export default function LifecyclePage() {
               const forecastDataArray = result.data.filter(row =>
                 row && row.product && row.SKU && row.Depot
               );
-
               setForecastData(forecastDataArray);
               const products = ['All', ...new Set(forecastDataArray.map(row => row.product))];
               setForecastProducts(products);
-
               const skus = ['All', ...new Set(forecastDataArray.map(row => row.SKU))];
               const depots = ['All', ...new Set(forecastDataArray.map(item => item.Depot))];
-
               setForecastDepots(depots);
             }
             setForecastLoading(false);
@@ -267,7 +285,7 @@ export default function LifecyclePage() {
         console.error('Error loading forecast data:', error);
         setForecastLoading(false);
       });
-  }, []);
+  };
 
   // Process data for charts when selections change
   useEffect(() => {
@@ -277,7 +295,7 @@ export default function LifecyclePage() {
     setAnimateCharts(false);
 
     const timer = setTimeout(() => {
-      updateCharts(selectedCustomers, selectedFinancialYear, activeProduct);
+      updateCharts(selectedCustomers, selectedFinancialYear, activeProduct, selectedProduct, selectedMonth);
       setLoading(false);
 
       setTimeout(() => {
@@ -286,7 +304,7 @@ export default function LifecyclePage() {
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [selectedCustomers, selectedFinancialYear, activeProduct, csvLoaded, isDrillingDown, drillDownYear]);
+  }, [selectedCustomers, selectedFinancialYear, activeProduct, csvLoaded, isDrillingDown, drillDownYear, selectedProduct, selectedMonth]);
 
   const handleForecastFilterChange = useCallback((filters) => {
     if (JSON.stringify(filters) === JSON.stringify(selectedForecastFilters)) {
@@ -348,7 +366,10 @@ export default function LifecyclePage() {
       filteredData = filteredData.filter(row => row['Financial Year'] === financialYear);
     }
 
-    if (!customers.includes("All Customers")) {
+    if (
+      selectedCustomers.length > 0 &&
+      !(selectedCustomers.length === 1 && selectedCustomers[0] === "All Customers")
+    ) {
       filteredData = filteredData.filter(row => customers.includes(row.Customer));
     }
 
@@ -360,20 +381,80 @@ export default function LifecyclePage() {
       const sales = parseFloat(row.Sales || 0);
       return sum + (isNaN(sales) ? 0 : sales);
     }, 0);
-  }, [csvLoaded, data]);
+  }, [csvLoaded, data, selectedCustomers, customers, activeProduct]);
 
-  const updateCharts = useCallback((customers, financialYear, activeProduct) => {
+  const updateCharts = useCallback((customers, financialYear, activeProduct, selectedProduct, selectedMonth) => {
     if (!csvLoaded || data.length === 0) return;
 
-    const calculatedTotalSales = calculateTotalSales(customers, financialYear, activeProduct);
+    // Always filter by selectedCustomers
+    let filteredData = [...data];
+    if (
+      selectedCustomers.length > 0 &&
+      !(selectedCustomers.length === 1 && selectedCustomers[0] === "All Customers")
+    ) {
+      filteredData = filteredData.filter(row => selectedCustomers.includes(row.Customer));
+    }
+
+    if (financialYear !== "All Years") {
+      filteredData = filteredData.filter(row => row['Financial Year'] === financialYear);
+    }
+    if (activeProduct) {
+      filteredData = filteredData.filter(row => row.Product === activeProduct);
+    }
+    if (selectedProduct !== 'All') {
+      filteredData = filteredData.filter(row => row.Product === selectedProduct);
+    }
+    if (selectedMonth !== 'All') {
+      filteredData = filteredData.filter(row => row.Month === selectedMonth);
+    }
+
+    // --- SalesActivityMonthsChart data calculation (Average number of months bought per product per year for selected customer) ---
+    const yearProductMonthsMap = new Map();
+    filteredData.forEach(row => {
+      const fy = row['Financial Year'] || row.FinancialYear;
+      const product = row.Product;
+      const sales = parseFloat(row.Sales);
+      if (fy && product) {
+        if (!yearProductMonthsMap.has(fy)) {
+          yearProductMonthsMap.set(fy, {});
+        }
+        if (!yearProductMonthsMap.get(fy)[product]) {
+          yearProductMonthsMap.get(fy)[product] = new Set();
+        }
+        if (!isNaN(sales) && sales > 0) {
+          yearProductMonthsMap.get(fy)[product].add(row.Month);
+        }
+      }
+    });
+    const processedSalesActivityData = Array.from(yearProductMonthsMap.entries()).map(([fy, productMap]) => {
+      const productMonthCounts = Object.values(productMap).map(monthSet => monthSet.size);
+      const avgMonths = productMonthCounts.length > 0 ? (productMonthCounts.reduce((a, b) => a + b, 0) / productMonthCounts.length) : 0;
+      return { FinancialYear: fy, AvgMonthsBought: parseFloat(avgMonths.toFixed(2)) };
+    });
+    setSalesActivityMonthsChartData(processedSalesActivityData);
+    setProducts([]); // Not needed for this chart type
+    setActivityMonths(activityMonths);
+    // --- END SalesActivityMonthsChart data calculation ---
+
+    // --- Total Sales ---
+    const calculatedTotalSales = filteredData.reduce((sum, row) => {
+      const sales = parseFloat(row.Sales || 0);
+      return sum + (isNaN(sales) ? 0 : sales);
+    }, 0);
     setTotalSales(calculatedTotalSales);
 
+    // --- Previous Year Sales and Growth ---
     if (financialYear !== "All Years") {
       const currentYearIndex = financialYears.indexOf(financialYear);
       if (currentYearIndex > 1) {
         const prevYear = financialYears[currentYearIndex - 1];
         if (prevYear !== "All Years") {
-          const prevYearSalesValue = calculateTotalSales(customers, prevYear, activeProduct);
+          const prevYearSalesValue = filteredData
+            .filter(row => row['Financial Year'] === prevYear)
+            .reduce((sum, row) => {
+              const sales = parseFloat(row.Sales || 0);
+              return sum + (isNaN(sales) ? 0 : sales);
+            }, 0);
           setPrevYearSales(prevYearSalesValue);
 
           if (prevYearSalesValue > 0) {
@@ -392,20 +473,7 @@ export default function LifecyclePage() {
       setSalesGrowth(0);
     }
 
-    let filteredData = [...data];
-
-    if (financialYear !== "All Years") {
-      filteredData = filteredData.filter(row => row['Financial Year'] === financialYear);
-    }
-
-    if (!customers.includes("All Customers")) {
-      filteredData = filteredData.filter(row => customers.includes(row.Customer));
-    }
-
-    if (activeProduct) {
-      filteredData = filteredData.filter(row => row.Product === activeProduct);
-    }
-
+    // --- Bar Chart Data (Customer Sales) ---
     const customerSalesMap = {};
     filteredData.forEach(row => {
       const customer = row.Customer;
@@ -414,12 +482,10 @@ export default function LifecyclePage() {
         customerSalesMap[customer] = (customerSalesMap[customer] || 0) + sales;
       }
     });
+    const barChartData = Object.entries(customerSalesMap).map(([name, sales]) => ({ name, sales }));
+    setBarData(barChartData);
 
-    const barChartData = Object.entries(customerSalesMap).map(([name, sales]) => ({
-      name,
-      sales
-    }));
-
+    // --- Monthly Bar Data ---
     const monthlySalesMap = {};
     filteredData.forEach(row => {
       if (!isDrillingDown || row['Financial Year'] === drillDownYear) {
@@ -430,17 +496,16 @@ export default function LifecyclePage() {
         }
       }
     });
-
-    // Financial year month order for Lifecycle Analytics section
     const monthlySalesChartOrder = {
       "April": 1, "May": 2, "June": 3, "July": 4, "August": 5, "September": 6,
       "October": 7, "November": 8, "December": 9, "January": 10, "February": 11, "March": 12
     };
-
     const monthlyBarData = Object.entries(monthlySalesMap)
       .map(([month, sales]) => ({ month, sales }))
       .sort((a, b) => (monthlySalesChartOrder[a.month] || 13) - (monthlySalesChartOrder[b.month] || 13));
+    setMonthlyData(monthlyBarData);
 
+    // --- Pie Chart Data (Product Sales) ---
     const productSalesMap = {};
     filteredData.forEach(row => {
       const product = row.Product;
@@ -449,7 +514,6 @@ export default function LifecyclePage() {
         productSalesMap[product] = (productSalesMap[product] || 0) + sales;
       }
     });
-
     const pieChartData = Object.entries(productSalesMap)
       .map(([product, sales]) => ({
         product,
@@ -457,67 +521,8 @@ export default function LifecyclePage() {
         percentage: (sales / calculatedTotalSales * 100).toFixed(1)
       }))
       .sort((a, b) => b.sales - a.sales);
-
-    // --- SalesActivityMonthsChart data calculation (Reinstated and adjusted) ---
-    const customerFinancialYearMap = new Map();
-    filteredData.forEach(row => {
-      const customer = row.Customer;
-      const fy = row['Financial Year'];
-      const sales = parseFloat(row.Sales); // Assuming Sales column indicates activity
-      if (customer && fy) {
-        const key = `${customer}-${fy}`;
-        if (!customerFinancialYearMap.has(key)) {
-          customerFinancialYearMap.set(key, {
-            Customer: customer,
-            FinancialYear: fy,
-            activeMonthsSet: new Set()
-          });
-        }
-        // Count a month as active if there's any sales activity
-        if (!isNaN(sales) && sales > 0) {
-          customerFinancialYearMap.get(key).activeMonthsSet.add(row.Month);
-        }
-      }
-    });
-    const processedSalesActivityData = Array.from(customerFinancialYearMap.values()).map(entry => ({
-      Customer: entry.Customer,
-      FinancialYear: entry.FinancialYear,
-      ActiveMonths: entry.activeMonthsSet.size
-    }));
-    setSalesActivityMonthsChartData(processedSalesActivityData);
-    // --- END SalesActivityMonthsChart data calculation ---
-
-
-    setBarData(barChartData);
-    setMonthlyData(monthlyBarData);
     setPieData(pieChartData);
-  }, [csvLoaded, data, calculateTotalSales, financialYears, isDrillingDown, drillDownYear]);
-
-  const handleCustomerToggle = useCallback((customer) => {
-    setSelectedCustomers(prev => {
-      if (customer === "All Customers") {
-        return ["All Customers"];
-      } else {
-        const newSelection = prev.filter(c => c !== "All Customers");
-
-        if (newSelection.includes(customer)) {
-          const result = newSelection.filter(c => c !== customer);
-          return result.length === 0 ? ["All Customers"] : result;
-        } else {
-          return [...newSelection, customer];
-        }
-      }
-    });
-  }, []);
-
-  const handleFinancialYearSelect = useCallback((year) => {
-    setSelectedFinancialYear(year);
-
-    if (isDrillingDown) {
-      setIsDrillingDown(false);
-      setDrillDownYear(null);
-    }
-  }, [isDrillingDown]);
+  }, [csvLoaded, data, selectedCustomers, selectedProduct, selectedMonth, activeProduct, financialYears, isDrillingDown, drillDownYear]);
 
   const handlePieClick = useCallback((product) => {
     if (activeProduct === product) {
@@ -526,6 +531,15 @@ export default function LifecyclePage() {
       setActiveProduct(product);
     }
   }, [activeProduct]);
+
+  // Add handleFinancialYearSelect function
+  const handleFinancialYearSelect = (year) => {
+    setSelectedFinancialYear(year);
+    if (isDrillingDown) {
+      setIsDrillingDown(false);
+      setDrillDownYear(null);
+    }
+  };
 
   return (
     <main className="p-4 overflow-y-auto" style={{ background: 'linear-gradient(135deg, #024673 0%, #5C99E3 50%, #756CE5 100%)' }}>
@@ -596,10 +610,10 @@ export default function LifecyclePage() {
 
               {/* SalesActivityMonthsChart with solid blue background - NOW WITH salesActivityData PROP */}
               <SalesActivityMonthsChart
+                salesActivityData={salesActivityMonthsChartData}
+                products={products}
+                activityMonths={activityMonths}
                 className="bg-[#013554] rounded-lg p-4 mb-6"
-                axisStroke="#FFFFFF"
-                labelColor="#FFFFFF"
-                salesActivityData={salesActivityMonthsChartData} // Pass the processed data
               />
 
               {/* Active Filters Display */}
@@ -642,7 +656,11 @@ export default function LifecyclePage() {
                   {/* FinancialYearBarChart with solid blue background */}
                   {!isDrillingDown ? (
                     <FinancialYearBarChart
-                      yearlyData={yearlyData}
+                      yearlyData={
+                        selectedFinancialYear && selectedFinancialYear !== 'All Years'
+                          ? yearlyData.filter(y => y.year === selectedFinancialYear)
+                          : yearlyData
+                      }
                       animateCharts={animateCharts}
                       handleYearClick={handleYearClick}
                       className="bg-[#013554] rounded-lg p-4"
@@ -668,7 +686,11 @@ export default function LifecyclePage() {
                     animateCharts={animateCharts}
                     activeProduct={activeProduct}
                     handlePieClick={handlePieClick}
-                    data={data}
+                    data={
+                      selectedFinancialYear && selectedFinancialYear !== 'All Years'
+                        ? data.filter(row => row['Financial Year'] === selectedFinancialYear)
+                        : data
+                    }
                     selectedCustomers={selectedCustomers}
                     selectedFinancialYear={selectedFinancialYear}
                     className="bg-[#013554] rounded-lg p-4"
@@ -729,11 +751,11 @@ export default function LifecyclePage() {
 
           <div className="flex flex-col md:flex-row gap-6">
             {/* Category Filter */}
-            <div className="w-full md:w-1/4">
+            <div className="w-full md:w-1/4 mb-4">
               <label className="block text-sm font-medium text-white mb-2">Select Category:</label>
               <select
                 value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
+                onChange={e => setSelectedCategory(e.target.value)}
                 className="w-full p-2 border border-white border-opacity-20 rounded-md text-white bg-[#013554]"
               >
                 {categories.map((category, idx) => (
@@ -746,8 +768,8 @@ export default function LifecyclePage() {
             <div className="w-full md:w-1/4">
               <label className="block text-sm font-medium text-white mb-2">Select Month:</label>
               <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
+                value={selectedMonthTable}
+                onChange={(e) => setSelectedMonthTable(e.target.value)}
                 className="w-full p-2 border border-white border-opacity-20 rounded-md text-white bg-[#013554]"
               >
                 {months.map((month, idx) => (
@@ -762,20 +784,24 @@ export default function LifecyclePage() {
 
           {/* Table - Added max-h-96 and overflow-y-auto for scrolling */}
           <div className="overflow-x-auto max-h-96 overflow-y-auto mt-6 rounded-lg">
-            <table className="min-w-full divide-y divide-blue-700">
-              <thead className="bg-[#013554] border-b border-blue-700 sticky top-0 z-10"><tr>
-                {tableColumns.map((column, idx) => (<th key={idx} className="px-6 py-3 text-left text-xs font-medium text-blue-100 uppercase tracking-wider">
-                  {column.replace(/([A-Z])/g, ' $1').trim()}
-                </th>))}
-              </tr></thead>
-              <tbody className="bg-[#013554] divide-y divide-blue-700">{
-                currentRows.map((row, idx) => (<tr key={idx} className="hover:bg-blue-700">
-                  {tableColumns.map((column, cellIdx) => (<td key={cellIdx} className="px-6 py-4 whitespace-nowrap text-sm text-blue-100">
-                    {row[column]}
-                  </td>))}
-                </tr>))
-              }</tbody>
-            </table>
+            {filteredFrequencyData.length > 0 && tableColumns.length > 0 ? (
+              <table className="min-w-full divide-y divide-blue-700">
+                <thead className="bg-[#013554] border-b border-blue-700 sticky top-0 z-10"><tr>
+                  {tableColumns.map((column, idx) => (<th key={idx} className="px-6 py-3 text-left text-xs font-medium text-blue-100 uppercase tracking-wider">
+                    {column.replace(/([A-Z])/g, ' $1').trim()}
+                  </th>))}
+                </tr></thead>
+                <tbody className="bg-[#013554] divide-y divide-blue-700">{
+                  currentRows.map((row, idx) => (<tr key={idx} className="hover:bg-blue-700">
+                    {tableColumns.map((column, cellIdx) => (<td key={cellIdx} className="px-6 py-4 whitespace-nowrap text-sm text-blue-100">
+                      {row[column]}
+                    </td>))}
+                  </tr>))
+                }</tbody>
+              </table>
+            ) : (
+              <div className="text-white p-4">No records found for the selected filters.</div>
+            )}
           </div>
 
           {/* Pagination Controls */}
@@ -816,5 +842,5 @@ export default function LifecyclePage() {
       </div>
     </main>
   );
-}
-
+} 
+// 
