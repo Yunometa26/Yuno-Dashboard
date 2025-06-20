@@ -20,12 +20,21 @@ export default function ProductionDashboardPage() {
     machine_id: "All",
     order_id: "All",
   });
+  const [tableFilters, setTableFilters] = useState({
+    status: "All",
+    priority: "All",
+  });
+
+  const filterOptionsMap = {
+    day: "days",
+    machine_id: "machine_ids",
+    order_id: "order_ids",
+  };
 
   useEffect(() => {
     const loadProductionData = async () => {
       const res = await fetch("/Production Planning_V1.csv");
       const csvText = await res.text();
-
       Papa.parse(csvText, {
         header: true,
         skipEmptyLines: true,
@@ -53,7 +62,6 @@ export default function ProductionDashboardPage() {
     const loadOrderDetails = async () => {
       const res = await fetch("/OrdersDataset.csv");
       const text = await res.text();
-
       Papa.parse(text, {
         header: true,
         skipEmptyLines: true,
@@ -64,8 +72,8 @@ export default function ProductionDashboardPage() {
             if (orderId) {
               map[orderId] = {
                 Quantity: row.Quantity,
-                Status: row.status,
-                Priority: row.Priority,
+                Status: row.status?.trim(),
+                Priority: row.Priority?.trim(),
               };
             }
           });
@@ -77,11 +85,13 @@ export default function ProductionDashboardPage() {
   }, []);
 
   const filteredData = useMemo(() => {
-    return rawData.filter((row) =>
-      (filters.day === "All" || row.Day === filters.day) &&
-      (filters.machine_id === "All" || row.Machine_ID === filters.machine_id) &&
-      (filters.order_id === "All" || row.Order_ID === filters.order_id)
-    );
+    return rawData.filter((row) => {
+      return (
+        (filters.day === "All" || row.Day === filters.day) &&
+        (filters.machine_id === "All" || row.Machine_ID === filters.machine_id) &&
+        (filters.order_id === "All" || row.Order_ID === filters.order_id)
+      );
+    });
   }, [rawData, filters]);
 
   const groupedFilteredData = useMemo(() => {
@@ -122,17 +132,19 @@ export default function ProductionDashboardPage() {
     const filteredByDay = filters.day === "All" ? rawData : rawData.filter(d => d.Day === filters.day);
     const filteredByMachine = filters.machine_id === "All" ? filteredByDay : filteredByDay.filter(d => d.Machine_ID === filters.machine_id);
     const filteredByOrder = filters.order_id === "All" ? filteredByMachine : filteredByMachine.filter(d => d.Order_ID === filters.order_id);
-
     const uniqueDays = Array.from(new Set(filteredByOrder.map(d => d.Day))).filter(Boolean).map(Number).sort((a, b) => a - b).map(String);
     const machineIDs = Array.from(new Set(filteredByOrder.map(d => d.Machine_ID))).sort();
     const orderIDs = Array.from(new Set(filteredByOrder.map(d => d.Order_ID)));
-
+    const statuses = Array.from(new Set(Object.values(orderDetailsMap).map(d => d.Status).filter(Boolean)));
+    const priorities = Array.from(new Set(Object.values(orderDetailsMap).map(d => d.Priority).filter(Boolean)));
     return {
       days: ["All", ...uniqueDays],
       machine_ids: ["All", ...machineIDs],
       order_ids: ["All", ...orderIDs],
+      statuses: ["All", ...statuses.sort()],
+      priorities: ["All", ...priorities.sort()],
     };
-  }, [rawData, filters]);
+  }, [rawData, filters.day, filters.machine_id, filters.order_id, orderDetailsMap]);
 
   useEffect(() => {
     setFilters((prev) => ({
@@ -148,7 +160,6 @@ export default function ProductionDashboardPage() {
     const avgUtil = groupedFilteredData.length
       ? groupedFilteredData.reduce((sum, d) => sum + parseFloat(d.Machine_Utilization), 0) / groupedFilteredData.length
       : 0;
-
     return {
       target: totalTarget,
       actual: totalActual,
@@ -168,10 +179,18 @@ export default function ProductionDashboardPage() {
     return Object.values(groupedByDay).sort((a, b) => Number(a.Day) - Number(b.Day));
   }, [filteredData]);
 
+  const tableFilteredData = useMemo(() => {
+    return groupedFilteredData.filter((row) => {
+      return (
+        (tableFilters.status === "All" || row.Status === tableFilters.status) &&
+        (tableFilters.priority === "All" || row.Priority === tableFilters.priority)
+      );
+    });
+  }, [groupedFilteredData, tableFilters]);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#024673] via-[#024673] to-[#024673] text-gray-100 p-6">
       <h1 className="text-3xl font-bold mb-6 text-center">Production Dashboard</h1>
-
       <div className="flex flex-wrap gap-4 mb-6">
         {["day", "machine_id", "order_id"].map((filterKey) => (
           <div className="flex flex-col" key={filterKey}>
@@ -181,14 +200,13 @@ export default function ProductionDashboardPage() {
               onChange={(e) => setFilters((prev) => ({ ...prev, [filterKey]: e.target.value }))}
               className="w-44 rounded-md border-gray-300 text-black bg-gray-100 px-3 py-2 text-sm"
             >
-              {availableOptions[`${filterKey}s`].map((val) => (
+              {(availableOptions[filterOptionsMap[filterKey]] || []).map((val) => (
                 <option key={val} value={val}>{val}</option>
               ))}
             </select>
           </div>
         ))}
       </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center mb-8">
         {[{ label: "Target Production", value: (totals.target / 1000).toFixed(1) + "K" },
           { label: "Actual Production", value: (totals.actual / 1000).toFixed(1) + "K" },
@@ -200,7 +218,6 @@ export default function ProductionDashboardPage() {
           </div>
         ))}
       </div>
-
       <div className="bg-white/10 rounded-xl shadow p-4 mb-6 border border-blue-200">
         <h2 className="text-white text-lg font-semibold mb-4 text-center">Target vs Actual Production by Day</h2>
         <div style={{ width: "100%", height: "400px" }}>
@@ -210,25 +227,50 @@ export default function ProductionDashboardPage() {
               <YAxis stroke="#ffffff" />
               <Tooltip wrapperClassName="text-black" />
               <Legend />
-              <Bar dataKey="Target_Production" fill="violet" />
-              <Bar dataKey="Actual_Production" fill="#39FF14" />
+              <Bar dataKey="Target_Production" fill="#00D9FF" />
+              <Bar dataKey="Actual_Production" fill="#32CD32" />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
-
       <div className="overflow-x-auto rounded-xl border border-blue-200 max-h-[576px] overflow-y-auto mb-10">
         <table className="min-w-full text-base text-white font-medium">
           <thead className="bg-[#024673] sticky top-0 z-10">
             <tr>
               <th className="px-4 py-2 text-left">Order_ID</th>
               <th className="px-4 py-2 text-left">Quantity</th>
-              <th className="px-4 py-2 text-left">Status</th>
-              <th className="px-4 py-2 text-left">Priority</th>
+              <th className="px-4 py-2 text-left">
+                <div className="flex flex-col">
+                  <span>Status</span>
+                  <select
+                    value={tableFilters.status}
+                    onChange={(e) => setTableFilters((prev) => ({ ...prev, status: e.target.value }))}
+                    className="w-32 rounded border border-gray-300 bg-white text-black mt-1 text-sm px-2 py-1 shadow"
+                  >
+                    {availableOptions.statuses.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+              </th>
+              <th className="px-4 py-2 text-left">
+                <div className="flex flex-col">
+                  <span>Priority</span>
+                  <select
+                    value={tableFilters.priority}
+                    onChange={(e) => setTableFilters((prev) => ({ ...prev, priority: e.target.value }))}
+                    className="w-48 rounded border border-gray-300 bg-white text-black mt-1 text-sm px-2 py-1 shadow"
+                  >
+                    {availableOptions.priorities.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+              </th>
             </tr>
           </thead>
           <tbody>
-            {groupedFilteredData.map((row, i) => (
+            {tableFilteredData.map((row, i) => (
               <tr key={i} className={i % 2 === 0 ? "bg-[#024673]" : "bg-[#03579E]"}>
                 <td className="px-4 py-2">{row.Order_ID}</td>
                 <td className="px-4 py-2">{row.Quantity}</td>
@@ -239,7 +281,6 @@ export default function ProductionDashboardPage() {
           </tbody>
         </table>
       </div>
-
       <div className="mt-10 flex justify-center">
         <button
           onClick={() => (window.location.href = "/production")}
