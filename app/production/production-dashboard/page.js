@@ -18,6 +18,7 @@ export default function ProductionDashboardPage() {
   const [filters, setFilters] = useState({
     day: "All",
     machine_id: "All",
+    order_id: "All",
   });
   const [tableFilters, setTableFilters] = useState({
     status: "All",
@@ -27,26 +28,30 @@ export default function ProductionDashboardPage() {
   const filterOptionsMap = {
     day: "days",
     machine_id: "machine_ids",
+    order_id: "order_ids",
   };
 
   useEffect(() => {
     const loadProductionData = async () => {
-      const res = await fetch("/Production Planning_V1.csv");
+      const res = await fetch("/Production-Planning_V2_Revised.csv");
       const csvText = await res.text();
       Papa.parse(csvText, {
         header: true,
         skipEmptyLines: true,
-        fastMode: true,
         complete: (results) => {
           const cleaned = results.data.map((row) => {
-            const day = row.Date?.trim()?.split("-")[0] ?? row.Date;
+            const utilization = row["Utilization (%)"]
+              ? parseFloat(row["Utilization (%)"].replace("%", ""))
+              : 0;
             return {
-              Day: day,
+              Day: row.Day?.trim(),
               Machine_ID: row.Machine_ID?.trim(),
               Order_ID: row.Order_ID?.trim(),
               Target_Production: +row.Target_Production || 0,
               Actual_Production: +row.Actual_Production || 0,
-              Machine_Utilization: parseFloat(row["Utilization (%)"]) || 0,
+              Machine_Utilization: utilization,
+              Status: row.Status_x?.trim(),
+              Priority: row.Priority?.trim(),
             };
           });
           setRawData(cleaned);
@@ -58,7 +63,7 @@ export default function ProductionDashboardPage() {
 
   useEffect(() => {
     const loadOrderDetails = async () => {
-      const res = await fetch("/OrdersDataset.csv");
+      const res = await fetch("/OrdersDatasetRevised.csv");
       const text = await res.text();
       Papa.parse(text, {
         header: true,
@@ -86,7 +91,8 @@ export default function ProductionDashboardPage() {
     return rawData.filter((row) => {
       return (
         (filters.day === "All" || row.Day === filters.day) &&
-        (filters.machine_id === "All" || row.Machine_ID === filters.machine_id)
+        (filters.machine_id === "All" || row.Machine_ID === filters.machine_id) &&
+        (filters.order_id === "All" || row.Order_ID === filters.order_id)
       );
     });
   }, [rawData, filters]);
@@ -94,16 +100,15 @@ export default function ProductionDashboardPage() {
   const groupedFilteredData = useMemo(() => {
     const grouped = {};
     filteredData.forEach((row) => {
-      const key = row.Machine_ID;
+      const key = row.Order_ID;
       if (!grouped[key]) {
         grouped[key] = {
-          Machine_ID: key,
+          Order_ID: key,
           Day: row.Day,
           Target_Production: 0,
           Actual_Production: 0,
           Machine_Utilization_Total: 0,
           Count: 0,
-          Order_ID: row.Order_ID,
         };
       }
       grouped[key].Target_Production += row.Target_Production;
@@ -129,22 +134,26 @@ export default function ProductionDashboardPage() {
   const availableOptions = useMemo(() => {
     const filteredByDay = filters.day === "All" ? rawData : rawData.filter(d => d.Day === filters.day);
     const filteredByMachine = filters.machine_id === "All" ? filteredByDay : filteredByDay.filter(d => d.Machine_ID === filters.machine_id);
-    const uniqueDays = Array.from(new Set(filteredByMachine.map(d => d.Day))).filter(Boolean).map(Number).sort((a, b) => a - b).map(String);
-    const machineIDs = Array.from(new Set(filteredByMachine.map(d => d.Machine_ID))).sort();
+    const filteredByOrder = filters.order_id === "All" ? filteredByMachine : filteredByMachine.filter(d => d.Order_ID === filters.order_id);
+    const uniqueDays = Array.from(new Set(filteredByOrder.map(d => d.Day))).filter(Boolean).map(Number).sort((a, b) => a - b).map(String);
+    const machineIDs = Array.from(new Set(filteredByOrder.map(d => d.Machine_ID))).sort();
+    const orderIDs = Array.from(new Set(filteredByOrder.map(d => d.Order_ID))).sort();
     const statuses = Array.from(new Set(Object.values(orderDetailsMap).map(d => d.Status).filter(Boolean)));
     const priorities = Array.from(new Set(Object.values(orderDetailsMap).map(d => d.Priority).filter(Boolean)));
     return {
       days: ["All", ...uniqueDays],
       machine_ids: ["All", ...machineIDs],
+      order_ids: ["All", ...orderIDs],
       statuses: ["All", ...statuses.sort()],
       priorities: ["All", ...priorities.sort()],
     };
-  }, [rawData, filters.day, filters.machine_id, orderDetailsMap]);
+  }, [rawData, filters.day, filters.machine_id, filters.order_id, orderDetailsMap]);
 
   useEffect(() => {
     setFilters((prev) => ({
       day: availableOptions.days.includes(prev.day) ? prev.day : "All",
       machine_id: availableOptions.machine_ids.includes(prev.machine_id) ? prev.machine_id : "All",
+      order_id: availableOptions.order_ids.includes(prev.order_id) ? prev.order_id : "All",
     }));
   }, [availableOptions]);
 
@@ -181,14 +190,15 @@ export default function ProductionDashboardPage() {
           (tableFilters.priority === "All" || row.Priority === tableFilters.priority)
         );
       })
-      .sort((a, b) => a.Machine_ID.localeCompare(b.Machine_ID)); // Sort by Machine ID
+      .sort((a, b) => a.Order_ID.localeCompare(b.Order_ID));
   }, [groupedFilteredData, tableFilters]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#024673] via-[#024673] to-[#024673] text-gray-100 p-6">
       <h1 className="text-3xl font-bold mb-6 text-center">Production Dashboard</h1>
+
       <div className="flex flex-wrap gap-4 mb-6">
-        {["day", "machine_id"].map((filterKey) => (
+        {["day", "machine_id", "order_id"].map((filterKey) => (
           <div className="flex flex-col" key={filterKey}>
             <label className="text-sm font-semibold mb-1 capitalize">{filterKey.replace("_", " ")}</label>
             <select
@@ -203,6 +213,7 @@ export default function ProductionDashboardPage() {
           </div>
         ))}
       </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center mb-8">
         {[{ label: "Target Production", value: (totals.target / 1000).toFixed(1) + "K" },
           { label: "Actual Production", value: (totals.actual / 1000).toFixed(1) + "K" },
@@ -214,6 +225,7 @@ export default function ProductionDashboardPage() {
           </div>
         ))}
       </div>
+
       <div className="bg-white/10 rounded-xl shadow p-4 mb-6 border border-blue-200">
         <h2 className="text-white text-lg font-semibold mb-4 text-center">Target vs Actual Production by Day</h2>
         <div style={{ width: "100%", height: "400px" }}>
@@ -229,11 +241,12 @@ export default function ProductionDashboardPage() {
           </ResponsiveContainer>
         </div>
       </div>
+
       <div className="overflow-x-auto rounded-xl border border-blue-200 max-h-[576px] overflow-y-auto mb-10">
         <table className="min-w-full text-base text-white font-medium">
           <thead className="bg-[#024673] sticky top-0 z-10">
             <tr>
-              <th className="px-4 py-2 text-left">Machine ID</th>
+              <th className="px-4 py-2 text-left">Order_ID</th>
               <th className="px-4 py-2 text-left">Quantity</th>
               <th className="px-4 py-2 text-left">
                 <div className="flex flex-col">
@@ -268,7 +281,7 @@ export default function ProductionDashboardPage() {
           <tbody>
             {tableFilteredData.map((row, i) => (
               <tr key={i} className={i % 2 === 0 ? "bg-[#024673]" : "bg-[#03579E]"}>
-                <td className="px-4 py-2">{row.Machine_ID}</td>
+                <td className="px-4 py-2">{row.Order_ID}</td>
                 <td className="px-4 py-2">{row.Quantity}</td>
                 <td className="px-4 py-2">{row.Status}</td>
                 <td className="px-4 py-2">{row.Priority}</td>
@@ -277,6 +290,7 @@ export default function ProductionDashboardPage() {
           </tbody>
         </table>
       </div>
+
       <div className="mt-10 flex justify-center">
         <button
           onClick={() => (window.location.href = "/production")}
