@@ -18,7 +18,6 @@ export default function ProductionDashboardPage() {
   const [filters, setFilters] = useState({
     day: "All",
     machine_id: "All",
-    order_id: "All",
   });
   const [tableFilters, setTableFilters] = useState({
     status: "All",
@@ -28,7 +27,6 @@ export default function ProductionDashboardPage() {
   const filterOptionsMap = {
     day: "days",
     machine_id: "machine_ids",
-    order_id: "order_ids",
   };
 
   useEffect(() => {
@@ -88,8 +86,7 @@ export default function ProductionDashboardPage() {
     return rawData.filter((row) => {
       return (
         (filters.day === "All" || row.Day === filters.day) &&
-        (filters.machine_id === "All" || row.Machine_ID === filters.machine_id) &&
-        (filters.order_id === "All" || row.Order_ID === filters.order_id)
+        (filters.machine_id === "All" || row.Machine_ID === filters.machine_id)
       );
     });
   }, [rawData, filters]);
@@ -97,15 +94,16 @@ export default function ProductionDashboardPage() {
   const groupedFilteredData = useMemo(() => {
     const grouped = {};
     filteredData.forEach((row) => {
-      const key = row.Order_ID;
+      const key = row.Machine_ID;
       if (!grouped[key]) {
         grouped[key] = {
-          Order_ID: key,
+          Machine_ID: key,
           Day: row.Day,
           Target_Production: 0,
           Actual_Production: 0,
           Machine_Utilization_Total: 0,
           Count: 0,
+          Order_ID: row.Order_ID,
         };
       }
       grouped[key].Target_Production += row.Target_Production;
@@ -131,26 +129,22 @@ export default function ProductionDashboardPage() {
   const availableOptions = useMemo(() => {
     const filteredByDay = filters.day === "All" ? rawData : rawData.filter(d => d.Day === filters.day);
     const filteredByMachine = filters.machine_id === "All" ? filteredByDay : filteredByDay.filter(d => d.Machine_ID === filters.machine_id);
-    const filteredByOrder = filters.order_id === "All" ? filteredByMachine : filteredByMachine.filter(d => d.Order_ID === filters.order_id);
-    const uniqueDays = Array.from(new Set(filteredByOrder.map(d => d.Day))).filter(Boolean).map(Number).sort((a, b) => a - b).map(String);
-    const machineIDs = Array.from(new Set(filteredByOrder.map(d => d.Machine_ID))).sort();
-    const orderIDs = Array.from(new Set(filteredByOrder.map(d => d.Order_ID)));
+    const uniqueDays = Array.from(new Set(filteredByMachine.map(d => d.Day))).filter(Boolean).map(Number).sort((a, b) => a - b).map(String);
+    const machineIDs = Array.from(new Set(filteredByMachine.map(d => d.Machine_ID))).sort();
     const statuses = Array.from(new Set(Object.values(orderDetailsMap).map(d => d.Status).filter(Boolean)));
     const priorities = Array.from(new Set(Object.values(orderDetailsMap).map(d => d.Priority).filter(Boolean)));
     return {
       days: ["All", ...uniqueDays],
       machine_ids: ["All", ...machineIDs],
-      order_ids: ["All", ...orderIDs],
       statuses: ["All", ...statuses.sort()],
       priorities: ["All", ...priorities.sort()],
     };
-  }, [rawData, filters.day, filters.machine_id, filters.order_id, orderDetailsMap]);
+  }, [rawData, filters.day, filters.machine_id, orderDetailsMap]);
 
   useEffect(() => {
     setFilters((prev) => ({
       day: availableOptions.days.includes(prev.day) ? prev.day : "All",
       machine_id: availableOptions.machine_ids.includes(prev.machine_id) ? prev.machine_id : "All",
-      order_id: availableOptions.order_ids.includes(prev.order_id) ? prev.order_id : "All",
     }));
   }, [availableOptions]);
 
@@ -180,19 +174,21 @@ export default function ProductionDashboardPage() {
   }, [filteredData]);
 
   const tableFilteredData = useMemo(() => {
-    return groupedFilteredData.filter((row) => {
-      return (
-        (tableFilters.status === "All" || row.Status === tableFilters.status) &&
-        (tableFilters.priority === "All" || row.Priority === tableFilters.priority)
-      );
-    });
+    return groupedFilteredData
+      .filter((row) => {
+        return (
+          (tableFilters.status === "All" || row.Status === tableFilters.status) &&
+          (tableFilters.priority === "All" || row.Priority === tableFilters.priority)
+        );
+      })
+      .sort((a, b) => a.Machine_ID.localeCompare(b.Machine_ID)); // Sort by Machine ID
   }, [groupedFilteredData, tableFilters]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#024673] via-[#024673] to-[#024673] text-gray-100 p-6">
       <h1 className="text-3xl font-bold mb-6 text-center">Production Dashboard</h1>
       <div className="flex flex-wrap gap-4 mb-6">
-        {["day", "machine_id", "order_id"].map((filterKey) => (
+        {["day", "machine_id"].map((filterKey) => (
           <div className="flex flex-col" key={filterKey}>
             <label className="text-sm font-semibold mb-1 capitalize">{filterKey.replace("_", " ")}</label>
             <select
@@ -237,7 +233,7 @@ export default function ProductionDashboardPage() {
         <table className="min-w-full text-base text-white font-medium">
           <thead className="bg-[#024673] sticky top-0 z-10">
             <tr>
-              <th className="px-4 py-2 text-left">Order_ID</th>
+              <th className="px-4 py-2 text-left">Machine ID</th>
               <th className="px-4 py-2 text-left">Quantity</th>
               <th className="px-4 py-2 text-left">
                 <div className="flex flex-col">
@@ -272,7 +268,7 @@ export default function ProductionDashboardPage() {
           <tbody>
             {tableFilteredData.map((row, i) => (
               <tr key={i} className={i % 2 === 0 ? "bg-[#024673]" : "bg-[#03579E]"}>
-                <td className="px-4 py-2">{row.Order_ID}</td>
+                <td className="px-4 py-2">{row.Machine_ID}</td>
                 <td className="px-4 py-2">{row.Quantity}</td>
                 <td className="px-4 py-2">{row.Status}</td>
                 <td className="px-4 py-2">{row.Priority}</td>

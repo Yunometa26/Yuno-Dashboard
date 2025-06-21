@@ -47,9 +47,9 @@ export default function SKUTrendGraph() {
   }, [rawData, selectedDepot, selectedSKU]);
 
   const colors = {
-    '2022-2023': '#22C55E',
-    '2023-2024': '#FFD700',
-    '2024-2025': '#000000'
+    '2022-2023': '#39FF14', // Neon green
+    '2023-2024': '#FFD700', // Gold
+    '2024-2025': '#000000'  // Black
   };
 
   return (
@@ -70,7 +70,7 @@ export default function SKUTrendGraph() {
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={formattedData}
-            margin={{ top: 20, right: 40, left: 50, bottom: 50 }} // Extra margin for axis labels
+            margin={{ top: 20, right: 40, left: 50, bottom: 50 }}
           >
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis
@@ -96,7 +96,6 @@ export default function SKUTrendGraph() {
                 </ul>
               )}
             />
-
             {Object.keys(colors).map(year => (
               <Line
                 key={year}
