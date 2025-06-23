@@ -183,7 +183,7 @@ const ForecastChart = ({
               <Legend
               iconType="square"
               iconSize={12}
-              wrapperStyle={{ paddingTop: 10 }} wrapperStyle={{ paddingTop: 10 }} formatter={(value) => <span className="text-white">{value}</span>} />
+              wrapperStyle={{ paddingTop: 10 }} formatter={(value) => <span className="text-white">{value}</span>} />
               <Line type="monotone" dataKey={(d) => d.Fitted > 0 ? d.Fitted : null} stroke="#FB923C" strokeWidth={2} dot={false} activeDot={{ r: 6, fill: "#FB923C" }} name="Fitted" />
               <Line type="monotone" dataKey={(d) => d.Actual > 0 ? d.Actual : null} stroke="#7C3AED" strokeWidth={2} dot={false} activeDot={{ r: 6, fill: "#7C3AED" }} name="Actual" />
               {showForecastLine && <Line type="monotone" dataKey={(d) => d.Forecast > 0 ? d.Forecast : null} stroke="#22C55E" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls={true} activeDot={{ r: 6, fill: "#22C55E" }} name="Forecast" />}

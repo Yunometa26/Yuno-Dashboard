@@ -58,49 +58,55 @@ export default function PriceSensitivityDashboard() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          <div className="relative">
+          <div className="relative flex flex-col justify-center">
             <label className="block text-xs text-white mb-1">Region</label>
-            <select
-              className="w-full appearance-none bg-white border border-gray-200 text-gray-700 py-2 px-3 pr-8 rounded-lg"
-              value={filters.region}
-              onChange={(e) => setFilters(prev => ({ ...prev, region: e.target.value }))}
-            >
-              {['All', ...Array.from(new Set(csvData.map(d => d.Region)))].map(opt => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4 pointer-events-none" />
+            <div className="relative">
+              <select
+                className="w-full appearance-none bg-white border border-gray-200 text-gray-700 py-2 px-3 pr-8 rounded-lg"
+                value={filters.region}
+                onChange={(e) => setFilters(prev => ({ ...prev, region: e.target.value }))}
+              >
+                {['All', ...Array.from(new Set(csvData.map(d => d.Region)))].map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4 pointer-events-none" />
+            </div>
           </div>
 
-          <div className="relative">
+          <div className="relative flex flex-col justify-center">
             <label className="block text-xs text-white mb-1">SKU</label>
-            <select
-              className="w-full appearance-none bg-white border border-gray-200 text-gray-700 py-2 px-3 pr-8 rounded-lg"
-              value={filters.sku}
-              onChange={(e) => setFilters(prev => ({ ...prev, sku: e.target.value }))}
-            >
-              {sortedSKUs.map(opt => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4 pointer-events-none" />
+            <div className="relative">
+              <select
+                className="w-full appearance-none bg-white border border-gray-200 text-gray-700 py-2 px-3 pr-8 rounded-lg"
+                value={filters.sku}
+                onChange={(e) => setFilters(prev => ({ ...prev, sku: e.target.value }))}
+              >
+                {sortedSKUs.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4 pointer-events-none" />
+            </div>
           </div>
 
-          <div className="relative">
+          <div className="relative flex flex-col justify-center">
             <label className="block text-xs text-white mb-1">Percentage Revenue Change</label>
-            <select
-              className="w-full appearance-none bg-white border border-gray-200 text-gray-700 py-2 px-3 pr-8 rounded-lg"
-              value={filters.percentageRevenueChange}
-              onChange={(e) => setFilters(prev => ({ ...prev, percentageRevenueChange: e.target.value }))}
-            >
-              {['All', ...Array.from(new Set(csvData.map(d => d.PercentageRevenueChange)))
-                .filter(val => !isNaN(val))
-                .sort((a, b) => a - b)
-              ].map(opt => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4 pointer-events-none" />
+            <div className="relative">
+              <select
+                className="w-full appearance-none bg-white border border-gray-200 text-gray-700 py-2 px-3 pr-8 rounded-lg"
+                value={filters.percentageRevenueChange}
+                onChange={(e) => setFilters(prev => ({ ...prev, percentageRevenueChange: e.target.value }))}
+              >
+                {['All', ...Array.from(new Set(csvData.map(d => d.PercentageRevenueChange)))
+                  .filter(val => !isNaN(val))
+                  .sort((a, b) => a - b)
+                ].map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4 pointer-events-none" />
+            </div>
           </div>
         </div>
       </div>

@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -48,9 +47,9 @@ export default function SKUTrendGraph() {
   }, [rawData, selectedDepot, selectedSKU]);
 
   const colors = {
-    '2022-2023': '#22C55E',
-    '2023-2024': '#FFD700',
-    '2024-2025': '#000000'
+    '2022-2023': '#39FF14', // Neon green
+    '2023-2024': '#FFD700', // Gold
+    '2024-2025': '#000000'  // Black
   };
 
   return (
@@ -66,18 +65,29 @@ export default function SKUTrendGraph() {
           {skuOptions.map((s, i) => <option key={i} value={s}>{s}</option>)}
         </select>
       </div>
+
       <div className="h-96">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={formattedData}>
+          <LineChart
+            data={formattedData}
+            margin={{ top: 20, right: 40, left: 50, bottom: 50 }}
+          >
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" stroke="#fff" />
-            <YAxis stroke="#fff" />
+            <XAxis
+              dataKey="name"
+              stroke="#fff"
+              angle={-25}
+              textAnchor="end"
+              interval={0}
+              dy={10}
+              height={60}
+            />
+            <YAxis stroke="#fff" tickMargin={10} />
             <Tooltip />
-
             <Legend
               content={() => (
                 <ul className="flex gap-4 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg shadow-sm text-white">
-                  {Object.keys(colors).filter(year => year !== '2021-2022').map(year => (
+                  {Object.keys(colors).map(year => (
                     <li key={year} className="flex items-center gap-2">
                       <span className="w-4 h-4 rounded-sm inline-block" style={{ backgroundColor: colors[year] }}></span>
                       {year}
@@ -86,8 +96,7 @@ export default function SKUTrendGraph() {
                 </ul>
               )}
             />
-
-            {Object.keys(colors).filter(year => year !== '2021-2022').map(year => (
+            {Object.keys(colors).map(year => (
               <Line
                 key={year}
                 type="monotone"
@@ -103,5 +112,3 @@ export default function SKUTrendGraph() {
     </div>
   );
 }
-
-//SKU GRAPH CHANGE.
