@@ -95,7 +95,7 @@ export default function LifecyclePage() {
 
         const cleanedColumns = parsedData.length > 0
           ? Object.keys(parsedData[0]).filter(col =>
-              col !== 'Invoice' && col !== 'Customer' && col !== 'Month'
+              col !== 'Invoice' && col !== 'Customer'
             )
           : [];
 
@@ -131,7 +131,7 @@ export default function LifecyclePage() {
 
     if (tempFilteredData.length > 0) {
       const cleanedColumns = Object.keys(tempFilteredData[0]).filter(col =>
-        col !== 'Invoice' && col !== 'Customer' && col !== 'Month'
+        col !== 'Invoice' && col !== 'Customer'
       );
       setTableColumns(cleanedColumns);
     } else {
