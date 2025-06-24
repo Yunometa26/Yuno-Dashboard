@@ -193,7 +193,7 @@ export default function ProductionPage() {
             />
             <YAxis stroke="#fff" tick={{ fill: '#fff', fontSize: 12 }} />
             <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="value" fill="#800080" />
+            <Bar dataKey="value" fill="#00FFFF" />
           </BarChart>
         </ResponsiveContainer>
       </div>
