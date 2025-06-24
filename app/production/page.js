@@ -15,7 +15,7 @@ export default function DemandPlanningPage() {
       id: 2, 
       title: "Production Target vs Actual", 
       icon: <BarChart3 className="h-8 w-8 text-green-500" />,
-      path: "/production/production-target",
+      path: "/production/production-dashboard",
       borderColor: "bg-green-500"
     },
   ];
