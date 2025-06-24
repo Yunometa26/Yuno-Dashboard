@@ -95,7 +95,7 @@ export default function LifecyclePage() {
 
         const cleanedColumns = parsedData.length > 0
           ? Object.keys(parsedData[0]).filter(col =>
-              col !== 'Invoice' && col !== 'Customer' && col !== 'Month'
+              col !== 'Invoice' && col !== 'Customer'
             )
           : [];
 
@@ -131,7 +131,7 @@ export default function LifecyclePage() {
 
     if (tempFilteredData.length > 0) {
       const cleanedColumns = Object.keys(tempFilteredData[0]).filter(col =>
-        col !== 'Invoice' && col !== 'Customer' && col !== 'Month'
+        col !== 'Invoice' && col !== 'Customer'
       );
       setTableColumns(cleanedColumns);
     } else {
@@ -401,29 +401,29 @@ export default function LifecyclePage() {
       filteredData = filteredData.filter(row => row.Month === selectedMonth);
     }
 
-    // --- SalesActivityMonthsChart data calculation (Average number of months bought per product per year for selected customer) ---
-    const yearProductMonthsMap = new Map();
+    // --- SalesActivityMonthsChart data calculation (Total sales by year for selected customer) ---
+    const yearlySalesMap = {};
     filteredData.forEach(row => {
       const fy = row['Financial Year'] || row.FinancialYear;
-      const product = row.Product;
-      const sales = parseFloat(row.Sales);
-      if (fy && product) {
-        if (!yearProductMonthsMap.has(fy)) {
-          yearProductMonthsMap.set(fy, {});
-        }
-        if (!yearProductMonthsMap.get(fy)[product]) {
-          yearProductMonthsMap.get(fy)[product] = new Set();
-        }
-        if (!isNaN(sales) && sales > 0) {
-          yearProductMonthsMap.get(fy)[product].add(row.Month);
-        }
+      const sales = parseFloat(row.Sales || 0);
+      if (fy && !isNaN(sales)) {
+        yearlySalesMap[fy] = (yearlySalesMap[fy] || 0) + sales;
       }
     });
-    const processedSalesActivityData = Array.from(yearProductMonthsMap.entries()).map(([fy, productMap]) => {
-      const productMonthCounts = Object.values(productMap).map(monthSet => monthSet.size);
-      const avgMonths = productMonthCounts.length > 0 ? (productMonthCounts.reduce((a, b) => a + b, 0) / productMonthCounts.length) : 0;
-      return { FinancialYear: fy, AvgMonthsBought: parseFloat(avgMonths.toFixed(2)) };
+    const processedSalesActivityData = Object.entries(yearlySalesMap)
+      .map(([fy, totalSales]) => ({ 
+        FinancialYear: fy, 
+        AvgMonthsBought: parseFloat(totalSales.toFixed(2)),
+        SalesValue: parseFloat(totalSales.toFixed(2))
+      }))
+      .sort((a, b) => a.FinancialYear.localeCompare(b.FinancialYear));
+    
+    // Normalize the values to 0-12 range for Y-axis display
+    const maxSales = Math.max(...processedSalesActivityData.map(d => d.SalesValue || 0));
+    processedSalesActivityData.forEach(item => {
+      item.AvgMonthsBought = maxSales > 0 ? (item.SalesValue / maxSales) * 12 : 0;
     });
+    
     setSalesActivityMonthsChartData(processedSalesActivityData);
     setProducts([]); // Not needed for this chart type
     setActivityMonths(activityMonths);
