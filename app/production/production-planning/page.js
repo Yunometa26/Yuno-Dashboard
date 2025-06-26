@@ -1217,5 +1217,5 @@ function GanttChart({ data }) {
       )}
     </div>
   )
-} 
-//Added Gantt chart\
+}
+//added gantt chart
