@@ -1,446 +1,487 @@
-"use client";
+'use client'
 
-import React, { useState, useEffect, useMemo } from "react";
-import Papa from "papaparse";
-import { format } from "date-fns";
+import { useState, useEffect, useMemo } from 'react'
+import Papa from 'papaparse'
 import {
-  ResponsiveContainer,
   BarChart,
   Bar,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
-} from "recharts";
-import { ResponsiveBar } from '@nivo/bar';
+  ResponsiveContainer,
+} from 'recharts'
 
 export default function ProductionPlanningPage() {
-  const [productionData, setProductionData] = useState([]);
-  const [selectedLine, setSelectedLine] = useState('All');
-  const [selectedSKU, setSelectedSKU] = useState('All');
-  const [selectedDate, setSelectedDate] = useState('All');
-  const [selectedMonth, setSelectedMonth] = useState('June'); // New month selector
-  const [isLineDropdownOpen, setIsLineDropdownOpen] = useState(false);
-  const [isSKUDropdownOpen, setIsSKUDropdownOpen] = useState(false);
-  const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, data: null });
-  const [selectedChartDate, setSelectedChartDate] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(true)
+  
+  // Filter states
+  const [selectedLine, setSelectedLine] = useState('All')
+  const [selectedSKU, setSelectedSKU] = useState('All')
+  const [selectedDate, setSelectedDate] = useState('All')
+  
+  // Month toggle states
+  const [selectedMonths, setSelectedMonths] = useState({
+    june: true,
+    july: true,
+    august: true
+  })
+  
+  // Filter options
+  const [lines, setLines] = useState(['All'])
+  const [skus, setSKUs] = useState(['All'])
+  const [dates, setDates] = useState(['All'])
+  
+  // Filtered data for Gantt chart
+  const [filteredData, setFilteredData] = useState([])
+  
+  // Additional state for new charts
+  const [selectedChartDate, setSelectedChartDate] = useState(null)
 
-  // Colors for priority
-  const PRIORITY_COLORS = {
-    High: "#ef4444",
-    Medium: "#f59e0b",
-    Low: "#10b981",
-    Normal: "#3b82f6"
-  };
-
-  // Get unique production lines
-  const productionLines = useMemo(() => {
-    const lines = new Set(productionData.map(item => item.ProductionLine));
-    const sortedLines = Array.from(lines).sort((a, b) => {
-      // Extract numbers from Line-X format and sort numerically
-      const numA = parseInt(a.replace('Line-', '')) || 0;
-      const numB = parseInt(b.replace('Line-', '')) || 0;
-      return numA - numB;
-    });
-    return ['All', ...sortedLines].filter(Boolean);
-  }, [productionData]);
-
-  // Get unique SKUs
-  const skuList = useMemo(() => {
-    const skus = new Set(productionData.map(item => item.SKU));
-    return ['All', ...Array.from(skus)].filter(Boolean).sort();
-  }, [productionData]);
-
-  // Sort production lines numerically
-  const sortedProductionLines = useMemo(() => {
-    const lines = productionLines.filter(line => line !== 'All');
-    return ['All', ...lines.sort((a, b) => {
-      const numA = parseInt(a.replace('Line-', ''));
-      const numB = parseInt(b.replace('Line-', ''));
-      return numA - numB;
-    })];
-  }, [productionLines]);
-
-  // Get unique dates for the date filter
-  const dates = useMemo(() => {
-    return Array.from(new Set(productionData.map(item => 
-      item.StartDate.toISOString().split('T')[0]
-    ))).sort();
-  }, [productionData]);
-
-  // Handle line filter changes
-  const handleLineFilterChange = (line) => {
-    setSelectedLine(line);
-    setIsLineDropdownOpen(false);
-  };
-
-  // Handle SKU filter changes
-  const handleSKUFilterChange = (sku) => {
-    setSelectedSKU(sku);
-    setIsSKUDropdownOpen(false);
-  };
-
-  // Handle tooltip show
-  const handleTooltipShow = (event, orderData) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    setTooltip({
-      visible: true,
-      x: event.clientX + 10,
-      y: event.clientY - 10,
-      data: orderData
-    });
-  };
-
-  // Handle tooltip hide
-  const handleTooltipHide = () => {
-    setTooltip({ visible: false, x: 0, y: 0, data: null });
-  };
-
-  // Handle chart bar click
-  const handleChartBarClick = (data, index) => {
-    if (data && data.activePayload && data.activePayload[0]) {
-      const clickedDate = data.activePayload[0].payload.fullDate;
-      setSelectedChartDate(clickedDate === selectedChartDate ? null : clickedDate);
-    }
-  };
-
-  // Close dropdowns when clicking outside
+  // Load CSV data
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      const lineDropdown = document.getElementById('line-filter-dropdown');
-      const skuDropdown = document.getElementById('sku-filter-dropdown');
-      
-      if (lineDropdown && !lineDropdown.contains(event.target)) {
-        setIsLineDropdownOpen(false);
-      }
-      if (skuDropdown && !skuDropdown.contains(event.target)) {
-        setIsSKUDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Load CSV data from 'Merged_FMCG_Production_Data.csv'
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('/Merged_FMCG_Production_Data.csv');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const csvText = await response.text();
-
+    fetch('/Merged_FMCG_Production_Data.csv')
+      .then(response => response.text())
+      .then(csvText => {
         Papa.parse(csvText, {
           header: true,
-          skipEmptyLines: true,
-          complete: (results) => {
-            console.log("Raw CSV Parse Results:", results.data);
-
-            // Remove duplicates and process data
-            const uniqueRows = [];
-            const seenKeys = new Set();
-
-            results.data.forEach(row => {
-              // Create a unique key for each production entry
-              const uniqueKey = `${row["Order ID"]}-${row.Line}-${row.SKU}-${row["Production Start DateTime"]}-${row["Production End DateTime"]}`;
-              
-              if (!seenKeys.has(uniqueKey)) {
-                seenKeys.add(uniqueKey);
-                uniqueRows.push(row);
+          complete: (result) => {
+            console.log('Production data loaded:', result.data.length, 'records')
+            setData(result.data)
+            
+            // Extract unique values for filters
+            const uniqueLines = [...new Set(result.data.map(item => item.Line).filter(Boolean))]
+            const uniqueSKUs = [...new Set(result.data.map(item => item.SKU).filter(Boolean))]
+            const uniqueDates = [...new Set(result.data.map(item => {
+              if (item['Production Start DateTime']) {
+                return item['Production Start DateTime'].split(' ')[0] // Extract date part
               }
-            });
-
-            const processed = uniqueRows.map(row => {
-              const line = row.Line || '';
-              const sku = row.SKU || '';
-              const quantity = parseFloat(row.Quantity || '0');
-              const plannedQuantity = parseFloat(row["Planned Quantity"] || '0');
-              const speed = parseFloat(row["Speed (Units/hr)"] || '0');
-              const startDateTime = row["Production Start DateTime"] || '';
-              const endDateTime = row["Production End DateTime"] || '';
-              const priority = row.Priority || 'Normal';
-              const orderId = row["Order ID"] || 'N/A';
-              const orderDateStr = row["Order Date"] || '';
-
-              // Clean up datetime strings - remove milliseconds if present
-              const cleanStartDateTime = startDateTime.replace(/\.\d+$/, '');
-              const cleanEndDateTime = endDateTime.replace(/\.\d+$/, '');
-
-              const startDate = new Date(cleanStartDateTime);
-              const endDate = new Date(cleanEndDateTime);
-              const orderDate = orderDateStr ? new Date(orderDateStr) : null;
-
-              return {
-                ProductionLine: line.trim(),
-                SKU: sku.trim(),
-                Quantity: quantity,
-                PlannedQuantity: plannedQuantity,
-                Speed: speed,
-                StartDate: isNaN(startDate.getTime()) ? null : startDate,
-                EndDate: isNaN(endDate.getTime()) ? null : endDate,
-                OrderDate: orderDate && !isNaN(orderDate.getTime()) ? orderDate : null,
-                Priority: priority.trim(),
-                OrderID: String(orderId).trim(),
-                line: line.trim(),
-                startDateTime: cleanStartDateTime,
-                endDateTime: cleanEndDateTime,
-                orderId: String(orderId).trim(),
-                priority: priority.trim(),
-                sku: sku.trim()
-              };
-            }).filter(item =>
-              item.StartDate !== null &&
-              item.ProductionLine !== '' &&
-              item.SKU !== ''
-            );
-
-            console.log("Processed data:", processed.slice(0, 5));
-            console.log("Total processed items:", processed.length);
-            setProductionData(processed);
-            setLoading(false);
+              return null
+            }).filter(Boolean))]
+            
+            console.log('Unique lines found:', uniqueLines)
+            console.log('Unique SKUs found:', uniqueSKUs.length, 'SKUs')
+            console.log('Unique dates found:', uniqueDates.length, 'dates')
+            
+            // Sort lines in numeric order (Line-1, Line-2, ..., Line-10, Line-11, etc.)
+            const sortedLines = uniqueLines.sort((a, b) => {
+              const numA = parseInt(a.replace('Line-', ''))
+              const numB = parseInt(b.replace('Line-', ''))
+              return numA - numB
+            })
+            setLines(['All', ...sortedLines])
+            setSKUs(['All', ...uniqueSKUs.sort()])
+            setDates(['All', ...uniqueDates.sort()])
+            setLoading(false)
           },
           error: (error) => {
-            console.error("Error parsing CSV:", error);
-            setLoading(false);
+            console.error('Error parsing CSV:', error)
+            setLoading(false)
           }
-        });
-      } catch (error) {
-        console.error("Error loading data:", error);
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, []);
-
-  // Month-based date range function
-  const getMonthDateRange = (month) => {
-    // Base year for consistency
-    const year = 2025;
-    
-    let startMonth, endMonth, startDay = 1, endDay;
-    
-    switch (month) {
-      case 'June':
-        startMonth = 5; // June is month 5 (0-indexed)
-        endMonth = 5;
-        endDay = 30;
-        break;
-      case 'July':
-        startMonth = 6; // July is month 6 (0-indexed)
-        endMonth = 6;
-        endDay = 31;
-        break;
-      case 'August':
-        startMonth = 7; // August is month 7 (0-indexed)
-        endMonth = 7;
-        endDay = 31;
-        break;
-      default:
-        startMonth = 5;
-        endMonth = 5;
-        endDay = 30;
-    }
-
-    // Scan the production data to find actual order dates within this month
-    const monthlyOrders = productionData.filter(order => {
-      if (!order.StartDate) return false;
-      const orderMonth = order.StartDate.getMonth();
-      const orderYear = order.StartDate.getFullYear();
-      return orderYear === year && orderMonth === startMonth;
-    });
-
-    if (monthlyOrders.length === 0) {
-      // If no orders found, return the default full month range
-      const firstDate = new Date(year, startMonth, startDay);
-      const lastDate = new Date(year, endMonth, endDay);
-      const totalDays = Math.ceil((lastDate - firstDate) / (1000 * 60 * 60 * 24)) + 1;
-      
-      return {
-        first: firstDate.toISOString().split('T')[0],
-        last: lastDate.toISOString().split('T')[0],
-        totalDays
-      };
-    }
-
-    // Find the actual range of order dates
-    const orderDates = monthlyOrders.map(order => order.StartDate);
-    const minDate = new Date(Math.min(...orderDates));
-    const maxDate = new Date(Math.max(...orderDates));
-    
-    // Ensure we show the complete range from first order through end of month
-    const firstOrderDate = minDate;
-    const endOfMonth = new Date(year, endMonth, endDay);
-    
-    const totalDays = Math.ceil((endOfMonth - firstOrderDate) / (1000 * 60 * 60 * 24)) + 1;
-    
-    return {
-      first: firstOrderDate.toISOString().split('T')[0],
-      last: endOfMonth.toISOString().split('T')[0],
-      totalDays
-    };
-  };
-
-  // Filter data based on selected month, line, SKU, and date
-  const filteredData = useMemo(() => {
-    let filtered = productionData;
-
-    // Filter by month first
-    const monthDateRange = getMonthDateRange(selectedMonth);
-    const startDate = new Date(monthDateRange.first);
-    const endDate = new Date(monthDateRange.last);
-    
-    filtered = filtered.filter(item => {
-      if (!item.StartDate) return false;
-      const itemDate = new Date(item.StartDate);
-      return itemDate >= startDate && itemDate <= endDate;
-    });
-
-    // Apply other filters
-    if (selectedLine !== 'All') {
-      filtered = filtered.filter(item => item.ProductionLine === selectedLine);
-    }
-    if (selectedSKU !== 'All') {
-      filtered = filtered.filter(item => item.SKU === selectedSKU);
-    }
-    if (selectedDate !== 'All') {
-      filtered = filtered.filter(item => 
-        item.StartDate && item.StartDate.toISOString().split('T')[0] === selectedDate
-      );
-    }
-    if (selectedChartDate) {
-      filtered = filtered.filter(item => 
-        item.StartDate && item.StartDate.toISOString().split('T')[0] === selectedChartDate
-      );
-    }
-
-    return filtered;
-  }, [productionData, selectedMonth, selectedLine, selectedSKU, selectedDate, selectedChartDate]);
-
-  // Generate schedule data for the selected month
-  const scheduleData = useMemo(() => {
-    if (!productionData || productionData.length === 0) {
-      return { dates: [], data: {}, totalDays: 0 };
-    }
-
-    const monthDateRange = getMonthDateRange(selectedMonth);
-    const startDate = new Date(monthDateRange.first);
-    const endDate = new Date(monthDateRange.last);
-    const totalDays = monthDateRange.totalDays;
-
-    console.log(`${selectedMonth} Schedule Data:`, {
-      selectedMonth,
-      dateRange: monthDateRange,
-      filteredDataCount: filteredData.length,
-      sampleOrders: filteredData.slice(0, 3).map(o => ({
-        id: o.OrderID,
-        line: o.ProductionLine,
-        start: o.StartDate?.toISOString(),
-        end: o.EndDate?.toISOString()
-      })),
-      allDatesShown: Array.from({ length: totalDays }, (_, i) => {
-        const date = new Date(startDate);
-        date.setDate(startDate.getDate() + i);
-        return date.toISOString().split('T')[0];
+        })
       })
-    });
+      .catch(error => {
+        console.error('Error fetching CSV:', error)
+        setLoading(false)
+      })
+  }, [])
 
-    // Generate all dates for the month range
-    const dates = [];
-    for (let i = 0; i < totalDays; i++) {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + i);
-      dates.push(date.toISOString().split('T')[0]);
+  // Filter data based on selected filters
+  useEffect(() => {
+    let filtered = [...data]
+    
+    if (selectedLine !== 'All') {
+      filtered = filtered.filter(item => item.Line === selectedLine)
+    }
+    
+    if (selectedSKU !== 'All') {
+      filtered = filtered.filter(item => item.SKU === selectedSKU)
+    }
+    
+    if (selectedDate !== 'All') {
+      filtered = filtered.filter(item => {
+        if (item['Production Start DateTime']) {
+          return item['Production Start DateTime'].split(' ')[0] === selectedDate
+        }
+        return false
+      })
+    }
+    
+    // Filter by selected months
+    const activeMonths = Object.keys(selectedMonths).filter(month => selectedMonths[month])
+    if (activeMonths.length > 0 && activeMonths.length < 3) {
+      filtered = filtered.filter(item => {
+        if (item['Production Start DateTime']) {
+          const date = new Date(item['Production Start DateTime'])
+          const month = date.getMonth() + 1 // getMonth() returns 0-11
+          
+          return (
+            (activeMonths.includes('june') && month === 6) ||
+            (activeMonths.includes('july') && month === 7) ||
+            (activeMonths.includes('august') && month === 8)
+          )
+        }
+        return false
+      })
+    }
+    
+    setFilteredData(filtered)
+  }, [data, selectedLine, selectedSKU, selectedDate, selectedMonths])
+
+  // Handle month toggle
+  const handleMonthToggle = (month) => {
+    setSelectedMonths(prev => ({
+      ...prev,
+      [month]: !prev[month]
+    }))
+  }
+
+  // Additional data processing for new charts
+  const isSameDate = (d1, d2) =>
+    d1.getDate() === d2.getDate() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getFullYear() === d2.getFullYear()
+
+  const chartFilteredData = selectedChartDate
+    ? data.filter((d) => {
+        const orderDate = new Date(d['Order Date'])
+        return !isNaN(orderDate) && isSameDate(orderDate, selectedChartDate)
+      })
+    : data
+
+  const totalOrders = new Set(chartFilteredData.map((d) => d['Order ID'])).size
+  const totalSKUs = new Set(chartFilteredData.map((d) => d['SKU'])).size
+  const totalQty = chartFilteredData.reduce((sum, d) => sum + (parseFloat(d.Quantity) || 0), 0)
+
+  const qtyByPriority = chartFilteredData.reduce((acc, row) => {
+    const p = row['Priority'] || 'Unknown'
+    const q = parseFloat(row.Quantity) || 0
+    acc[p] = (acc[p] || 0) + q
+    return acc
+  }, {})
+  const priorityTotal = Object.values(qtyByPriority).reduce((a, b) => a + b, 0)
+
+  const groupByDate = (arr, field, key) => {
+    const map = {}
+    arr.forEach((row) => {
+      const dateObj = new Date(row[field])
+      if (!dateObj || isNaN(dateObj)) return
+      const dateStr = dateObj.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
+      map[dateStr] = map[dateStr] || { dateStr, dateObj, value: 0 }
+      map[dateStr].value += parseFloat(row[key]) || 0
+    })
+    return Object.values(map)
+      .sort((a, b) => a.dateObj - b.dateObj)
+      .map(({ dateStr, value }) => ({ date: dateStr, value }))
+  }
+
+  const orderReceivedData = groupByDate(data, 'Order Date', 'Quantity')
+  const productionStartData = groupByDate(
+    chartFilteredData,
+    'Production Start DateTime',
+    'Planned Quantity'
+  )
+
+  const handleChartClick = (e) => {
+    if (!e || !e.activeLabel) return
+    const parts = e.activeLabel.split(' ')
+    const day = parseInt(parts[0], 10)
+    const month = new Date(`${parts[1]} 1`).getMonth()
+    const year = parseInt(parts[2], 10)
+    setSelectedChartDate(new Date(year, month, day))
+  }
+
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-blue-800 text-white p-2 rounded shadow text-sm">
+          <p className="font-semibold">{label}</p>
+          <p>Order Qty: {payload[0].value}</p>
+        </div>
+      )
+    }
+    return null
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#024673] to-[#5C99E3] flex items-center justify-center">
+        <div className="text-white text-xl">Loading Production Data...</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-[#024673] via-[#024673] to-[#024673]">
+      <div className="max-w-6xl mx-auto p-6">
+        {/* Header Section */}
+        <div className="mb-12 w-full overflow-hidden">
+          <div className="backdrop-blur-sm m-1 rounded-xl" style={{ backgroundColor: 'rgba(0, 31, 71, 0.8)' }}>
+            <div className="p-8 sm:p-12">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
+                <div className="flex-1 space-y-5 align-middle text-center">
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white leading-tight">
+                    Production Planning
+                  </h2>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+
+        {/* KPI Cards Section */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6 mb-6">
+          <div className="p-4 rounded-xl shadow flex flex-col justify-center items-center text-center" style={{ backgroundColor: 'rgba(0, 31, 71, 0.9)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+            <div className="text-3xl font-bold text-white">{totalOrders}</div>
+            <div className="text-sm text-gray-300">Total Orders</div>
+          </div>
+          <div className="p-4 rounded-xl shadow flex flex-col justify-center items-center text-center" style={{ backgroundColor: 'rgba(0, 31, 71, 0.9)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+            <div className="text-3xl font-bold text-white">{totalSKUs}</div>
+            <div className="text-sm text-gray-300">Total Number of SKU</div>
+          </div>
+          <div className="p-4 rounded-xl shadow flex flex-col justify-center items-center text-center" style={{ backgroundColor: 'rgba(0, 31, 71, 0.9)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+            <div className="text-3xl font-bold text-white">{(totalQty / 1_000).toFixed(1)}K</div>
+            <div className="text-sm text-gray-300">Sum of Quantity</div>
+          </div>
+          <div className="p-4 rounded-xl shadow" style={{ backgroundColor: 'rgba(0, 31, 71, 0.9)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+            <table className="text-sm w-full">
+              <thead>
+                <tr>
+                  <th className="text-left text-white">Priority</th>
+                  <th className="text-right text-white">Sum of Quantity</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(qtyByPriority).map(([p, sum]) => (
+                  <tr key={p}>
+                    <td className="text-gray-300">{p}</td>
+                    <td className="text-right text-gray-300">{sum.toLocaleString()}</td>
+                  </tr>
+                ))}
+                <tr className="font-bold border-t border-gray-600">
+                  <td className="text-white">Total</td>
+                  <td className="text-right text-white">{priorityTotal.toLocaleString()}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Orders Received Per Day Chart */}
+        <div className="rounded-lg shadow-md overflow-hidden mb-6" style={{ backgroundColor: 'rgba(0, 31, 71, 0.9)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+          <div className="p-6">
+            <h3 className="text-xl font-semibold text-white mb-4">
+              Orders Received Per Day
+            </h3>
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={orderReceivedData} onClick={handleChartClick}>
+                <XAxis
+                  dataKey="date"
+                  stroke="#fff"
+                  tick={{ fill: '#fff', fontSize: 12, angle: -45, textAnchor: 'end' }}
+                  interval={0}
+                  height={80}
+                />
+                <YAxis stroke="#fff" tick={{ fill: '#fff', fontSize: 12 }} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="value" fill="#39FF14" cursor="pointer" />
+              </BarChart>
+            </ResponsiveContainer>
+            <p
+              className="text-sm text-center mt-2 cursor-pointer underline text-white"
+              onClick={() => setSelectedChartDate(null)}
+            >
+              {selectedChartDate ? 'Reset to Total' : ''}
+            </p>
+          </div>
+          <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 100%)' }}></div>
+        </div>
+
+        {/* Orders Planned Per Day Chart */}
+        <div className="rounded-lg shadow-md overflow-hidden mb-6" style={{ backgroundColor: 'rgba(0, 31, 71, 0.9)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+          <div className="p-6">
+            <h3 className="text-xl font-semibold text-white mb-4">
+              Orders Planned Per Day
+            </h3>
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={productionStartData}>
+                <XAxis
+                  dataKey="date"
+                  stroke="#fff"
+                  tick={{ fill: '#fff', fontSize: 12, angle: -45, textAnchor: 'end' }}
+                  interval={0}
+                  height={80}
+                />
+                <YAxis stroke="#fff" tick={{ fill: '#fff', fontSize: 12 }} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="value" fill="#00FFFF" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 100%)' }}></div>
+        </div>
+
+        {/* Filter Section */}
+        <div className="rounded-lg shadow-md overflow-hidden mb-6" style={{ backgroundColor: 'rgba(0, 31, 71, 0.9)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+          <div className="p-6">
+            <h3 className="text-xl font-semibold text-white mb-4">Filters</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Line Filter */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-white">Line</label>
+                <select
+                  value={selectedLine}
+                  onChange={(e) => setSelectedLine(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#024673] focus:border-[#024673]"
+                >
+                  {lines.map(line => (
+                    <option key={line} value={line}>{line}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* SKU Filter */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-white">SKU</label>
+                <select
+                  value={selectedSKU}
+                  onChange={(e) => setSelectedSKU(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#024673] focus:border-[#024673]"
+                >
+                  {skus.map(sku => (
+                    <option key={sku} value={sku}>{sku}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Date Filter */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-white">Production Start Date</label>
+                <select
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#024673] focus:border-[#024673]"
+                >
+                  {dates.map(date => (
+                    <option key={date} value={date}>{date}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+          <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 100%)' }}></div>
+        </div>
+
+        {/* Gantt Chart Section */}
+        <div className="rounded-lg shadow-md overflow-hidden" style={{ backgroundColor: 'rgba(0, 31, 71, 0.9)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+          <div className="p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+              <h3 className="text-xl font-semibold text-white">Production Schedule - Gantt Chart</h3>
+              
+              {/* Month Toggle Controls */}
+              <div className="flex gap-6 items-center">
+                {[
+                  { key: 'june', label: 'June', color: '#10b981' },
+                  { key: 'july', label: 'July', color: '#3b82f6' },
+                  { key: 'august', label: 'August', color: '#8b5cf6' }
+                ].map(({ key, label, color }) => (
+                  <div key={key} className="flex items-center gap-3">
+                    <span className="text-white text-sm font-medium">{label}</span>
+                    <button
+                      onClick={() => handleMonthToggle(key)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white/20 focus:ring-offset-2 focus:ring-offset-transparent ${
+                        selectedMonths[key]
+                          ? 'shadow-lg'
+                          : 'bg-gray-600/40'
+                      }`}
+                      style={{
+                        backgroundColor: selectedMonths[key] ? color : undefined,
+                        boxShadow: selectedMonths[key] 
+                          ? `0 4px 12px ${color}40, 0 0 0 1px rgba(255, 255, 255, 0.1)` 
+                          : '0 2px 4px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.1)'
+                      }}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-all duration-300 ease-in-out ${
+                          selectedMonths[key] ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                        style={{
+                          boxShadow: selectedMonths[key]
+                            ? '0 2px 4px rgba(0, 0, 0, 0.3)'
+                            : '0 2px 4px rgba(0, 0, 0, 0.2)'
+                        }}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <GanttChart data={filteredData} />
+          </div>
+          <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 100%)' }}></div>
+        </div>
+
+        {/* Production Summary Table */}
+        <div className="rounded-lg shadow-md overflow-hidden mt-6" style={{ backgroundColor: 'rgba(0, 31, 71, 0.9)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+          <div className="p-6">
+            <h3 className="text-xl font-semibold text-white mb-4">Scheduling of SKU (Quantity)</h3>
+            <ProductionSummaryTable data={filteredData} />
+          </div>
+          <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 100%)' }}></div>
+        </div>
+
+        {/* Top SKUs Chart */}
+        <div className="rounded-lg shadow-md overflow-hidden mt-6" style={{ backgroundColor: 'rgba(0, 31, 71, 0.9)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+          <div className="p-6">
+            <h3 className="text-xl font-semibold text-white mb-4">Top SKUs by Quantity (Thousands)</h3>
+            <TopSKUsChart data={filteredData} />
+          </div>
+          <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 100%)' }}></div>
+        </div>
+
+      </div>
+    </div>
+  )
+} 
+
+// Production Summary Table Component
+function ProductionSummaryTable({ data }) {
+  // Generate filtered scheduling data like the reference code
+  const filteredSchedulingData = useMemo(() => {
+    if (!data || data.length === 0) {
+      return { dates: [], data: {} };
     }
 
-    // Group orders by production line
+    // Get all unique dates from the data
+    const allDates = [...new Set(data.map(item => {
+      if (item['Production Start DateTime']) {
+        return item['Production Start DateTime'].split(' ')[0];
+      }
+      return null;
+    }).filter(Boolean))].sort();
+
+    // Group orders by line
     const dataByLine = {};
-    filteredData.forEach(item => {
-      if (!item || !item.StartDate || !item.ProductionLine) return;
+    data.forEach(item => {
+      if (!item || !item['Production Start DateTime'] || !item.Line) return;
       
-      const line = item.ProductionLine;
+      const line = item.Line;
       if (!dataByLine[line]) {
         dataByLine[line] = [];
       }
       dataByLine[line].push(item);
     });
 
-    return { dates, data: dataByLine, totalDays };
-  }, [filteredData, selectedMonth, productionData]);
-
-  // Process data for Gantt chart visualization
-  const ganttData = useMemo(() => {
-    if (!scheduleData.dates || scheduleData.dates.length === 0) {
-      return [];
-    }
-
-    return Object.entries(scheduleData.data).map(([line, orders]) => {
-      return {
-        line,
-        orders: orders.map((order, idx) => {
-          const startTime = new Date(order.StartDate);
-          const endTime = new Date(order.EndDate);
-          
-          // Calculate position within the date range
-          const firstDate = new Date(scheduleData.dates[0]);
-          const lastDate = new Date(scheduleData.dates[scheduleData.dates.length - 1]);
-          
-          const totalRangeMs = lastDate.getTime() - firstDate.getTime();
-          const startOffsetMs = startTime.getTime() - firstDate.getTime();
-          const orderDurationMs = endTime.getTime() - startTime.getTime();
-          
-          const startPosition = (startOffsetMs / totalRangeMs) * scheduleData.totalDays;
-          const endPosition = ((startOffsetMs + orderDurationMs) / totalRangeMs) * scheduleData.totalDays;
-          
-          return {
-            ...order,
-            idx,
-            startTime,
-            endTime,
-            startPosition: Math.max(0, startPosition),
-            endPosition: Math.min(scheduleData.totalDays, endPosition),
-            totalDays: scheduleData.totalDays
-          };
-        })
-      };
-    });
-  }, [scheduleData]);
-
-  // Generate filtered SKU quantities
-  const skuQuantities = useMemo(() => {
-    const skuTotals = filteredData.reduce((acc, item) => {
-      if (!acc[item.SKU]) {
-        acc[item.SKU] = 0;
-      }
-      acc[item.SKU] += item.PlannedQuantity;
-      return acc;
-    }, {});
-
-    return Object.entries(skuTotals)
-      .map(([sku, quantity]) => ({
-        sku,
-        quantity: Math.round(quantity / 100000) // Convert to lakhs
-      }))
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 10); // Top 10 SKUs
-  }, [filteredData]);
-
-  // Generate filtered scheduling data
-  const filteredSchedulingData = useMemo(() => {
-    if (!scheduleData.dates || scheduleData.dates.length === 0) {
-      return null;
-    }
-
-    const data = {};
-    Object.entries(scheduleData.data).forEach(([line, orders]) => {
-      data[line] = {};
+    // Process data similar to reference code
+    const processedData = {};
+    Object.entries(dataByLine).forEach(([line, orders]) => {
+      processedData[line] = {};
       
       // Group orders by SKU for this line
       const skuOrders = {};
@@ -450,548 +491,730 @@ export default function ProductionPlanningPage() {
         }
         
         // For each day the order runs, add its quantity
-        const startDate = new Date(order.StartDate);
-        const endDate = new Date(order.EndDate);
+        const startDate = new Date(order['Production Start DateTime']);
+        const endDate = new Date(order['Production End DateTime']);
         
-        for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-          const dateStr = d.toISOString().split('T')[0];
-          if (scheduleData.dates.includes(dateStr)) {
-            if (!skuOrders[order.SKU][dateStr]) {
-              skuOrders[order.SKU][dateStr] = 0;
+        if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+          for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+            const dateStr = d.toISOString().split('T')[0];
+            if (allDates.includes(dateStr)) {
+              if (!skuOrders[order.SKU][dateStr]) {
+                skuOrders[order.SKU][dateStr] = 0;
+              }
+              // Distribute quantity evenly across the production days
+              const productionDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+              const plannedQuantity = parseFloat(order['Planned Quantity']) || 0;
+              skuOrders[order.SKU][dateStr] += plannedQuantity / productionDays;
             }
-            // Distribute quantity evenly across the production days
-            const productionDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-            skuOrders[order.SKU][dateStr] += order.PlannedQuantity / productionDays;
           }
         }
       });
       
-      data[line] = skuOrders;
+      processedData[line] = skuOrders;
     });
 
-    return { dates: scheduleData.dates, data };
-  }, [scheduleData]);
+    return { dates: allDates, data: processedData };
+  }, [data]);
 
-  if (!productionData || productionData.length === 0) {
+  const scheduleData = filteredSchedulingData;
+
+  if (!scheduleData.dates || scheduleData.dates.length === 0 || !scheduleData.data || Object.keys(scheduleData.data).length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#024673] via-[#024673] to-[#024673] text-gray-100 p-6 flex items-center justify-center">
-        <div className="text-xl">Loading production data...</div>
+      <div className="text-center py-8 text-gray-300">
+        No production data available for schedule table.
       </div>
-    );
+    )
+  }
+
+  // Function to format quantity values
+  const formatQuantity = (value) => {
+    if (!value || value === 0) return '-'
+    return value.toLocaleString()
+  }
+
+  // Function to get color for quantity values
+  const getQuantityColor = (value) => {
+    if (!value || value === 0) return 'text-gray-500'
+    return 'text-white'
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#024673] via-[#024673] to-[#024673] text-gray-100 p-6">
-      {/* Header */}
-      <div className="mb-6 text-center">
-        <h1 className="text-3xl font-bold">Production Planning</h1>
-      </div>
+    <div className="overflow-auto rounded-xl" style={{ 
+      backgroundColor: '#001F47',
+      border: '1px solid rgba(255, 255, 255, 0.1)',
+      backdropFilter: 'blur(10px)',
+      maxHeight: '400px'
+    }}>
+      <table className="w-full">
+        {/* Table Header */}
+        <thead>
+          <tr style={{ backgroundColor: '#002654', borderBottom: '2px solid rgba(59, 130, 246, 0.3)' }}>
+            <th className="text-left text-white font-semibold py-4 px-4 text-sm" style={{ 
+              backgroundColor: 'rgba(0, 31, 71, 0.9)',
+              borderRight: '1px solid rgba(59, 130, 246, 0.2)',
+              position: 'sticky',
+              left: 0,
+              zIndex: 10,
+              minWidth: '80px'
+            }}>
+              Line
+            </th>
+            <th className="text-left text-white font-semibold py-4 px-4 text-sm" style={{ 
+              backgroundColor: 'rgba(0, 31, 71, 0.9)',
+              borderRight: '1px solid rgba(59, 130, 246, 0.2)',
+              position: 'sticky',
+              left: '80px',
+              zIndex: 10,
+              minWidth: '100px'
+            }}>
+              SKU
+            </th>
+            {scheduleData.dates.map((date, index) => (
+              <th 
+                key={date} 
+                className="text-center text-white font-semibold py-4 px-3 text-xs"
+                style={{ 
+                  backgroundColor: '#002654',
+                  borderRight: index < scheduleData.dates.length - 1 ? '1px solid rgba(59, 130, 246, 0.2)' : 'none',
+                  minWidth: '100px'
+                }}
+              >
+                {date}
+              </th>
+            ))}
+          </tr>
+        </thead>
 
-      {/* Month Toggle */}
-      <div className="mb-6 flex justify-center">
-        <div className="relative bg-gray-700/50 backdrop-blur-sm rounded-xl p-1 border border-gray-600/50 shadow-lg">
-          <div 
-            className="absolute top-1 bottom-1 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg transition-all duration-300 ease-out shadow-md"
-            style={{
-              left: selectedMonth === 'June' ? '4px' : selectedMonth === 'July' ? '124px' : '244px',
-              width: '120px'
-            }}
-          />
-          {['June', 'July', 'August'].map((month) => (
-            <button
-              key={month}
-              onClick={() => setSelectedMonth(month)}
-              className={`relative z-10 px-6 py-3 min-w-[120px] text-sm font-semibold rounded-lg transition-all duration-300 ${
-                selectedMonth === month
-                  ? 'text-white'
-                  : 'text-gray-300 hover:text-white'
-              }`}
-            >
-              {month}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6 mb-6">
-        <div className="grid grid-cols-2 gap-4">
-          {/* Production Line Filter */}
-          <div className="relative" id="line-filter-dropdown">
-            <label className="block text-sm font-medium mb-2">Production Line</label>
-            <button
-              onClick={() => setIsLineDropdownOpen(!isLineDropdownOpen)}
-              className="w-full bg-[#1a365d] border border-gray-600 rounded-lg p-2 text-white text-left flex justify-between items-center"
-            >
-              <span>{selectedLine}</span>
-              <span className={`transform transition-transform ${isLineDropdownOpen ? 'rotate-180' : ''}`}>↓</span>
-            </button>
-            {isLineDropdownOpen && (
-              <div className="absolute z-10 w-full mt-1 bg-[#1a365d] border border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                {sortedProductionLines.map(line => (
-                  <div
-                    key={line}
-                    onClick={() => handleLineFilterChange(line)}
-                    className="px-3 py-2 hover:bg-blue-600 cursor-pointer text-white"
-                  >
-                    {line}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* SKU Filter */}
-          <div className="relative" id="sku-filter-dropdown">
-            <label className="block text-sm font-medium mb-2">SKU</label>
-            <button
-              onClick={() => setIsSKUDropdownOpen(!isSKUDropdownOpen)}
-              className="w-full bg-[#1a365d] border border-gray-600 rounded-lg p-2 text-white text-left flex justify-between items-center"
-            >
-              <span>{selectedSKU.length > 20 ? `${selectedSKU.substring(0, 20)}...` : selectedSKU}</span>
-              <span className={`transform transition-transform ${isSKUDropdownOpen ? 'rotate-180' : ''}`}>↓</span>
-            </button>
-            {isSKUDropdownOpen && (
-              <div className="absolute z-10 w-full mt-1 bg-[#1a365d] border border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                {skuList.map(sku => (
-                  <div
-                    key={sku}
-                    onClick={() => handleSKUFilterChange(sku)}
-                    className="px-3 py-2 hover:bg-blue-600 cursor-pointer text-white text-sm"
-                  >
-                    {sku}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Clear Filters */}
-        {(selectedLine !== 'All' || selectedSKU !== 'All' || selectedChartDate) && (
-          <div className="mt-4 flex gap-2">
-            <button
-              onClick={() => {
-                setSelectedLine('All');
-                setSelectedSKU('All');
-                setSelectedChartDate(null);
-              }}
-              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm"
-            >
-              Clear All Filters
-            </button>
-            {selectedChartDate && (
-              <span className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm">
-                Date: {selectedChartDate} 
-                <button 
-                  onClick={() => setSelectedChartDate(null)}
-                  className="ml-2 hover:text-red-300"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Production Timeline - Gantt Chart */}
-      <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Production Timeline ({selectedMonth})</h2>
-        
-        {/* Gantt Chart Container */}
-        <div className="relative">
-          {/* Date Headers */}
-          <div className="flex mb-2 overflow-x-auto">
-            <div className="min-w-[150px] p-2 bg-blue-900/50 border-r border-blue-600 font-semibold text-center">
-              Production Line
-            </div>
-            <div 
-              className="flex"
-              style={{ 
-                width: `${scheduleData.totalDays * 400}px`, // Dynamic width based on days
-                minWidth: `${scheduleData.totalDays * 400}px`
-              }}
-            >
-              {scheduleData.dates && scheduleData.dates.map(date => (
-                <div 
-                  key={date} 
-                  className="min-w-[400px] p-2 bg-blue-900/50 border-r border-blue-600 text-center font-semibold text-sm"
-                  style={{ 
-                    width: '400px',
-                    borderRight: '2px solid #2563eb'
-                  }}
-                >
-                  {format(new Date(date), 'MMM dd')}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Gantt Rows */}
-          <div className="overflow-x-auto">
-            {ganttData && ganttData.map(({ line, orders }) => {
+        {/* Table Body */}
+        <tbody>
+          {Object.entries(scheduleData.data).map(([line, skus], lineIndex) =>
+            Object.entries(skus).map(([sku, dates], skuIndex) => {
+              const itemIndex = lineIndex * Object.keys(skus).length + skuIndex;
               return (
-              <div key={line} className="flex border-b border-blue-600 min-h-[90px]">
-                <div className="min-w-[150px] p-3 bg-blue-950/80 border-r border-blue-600 flex items-center font-medium">
-                  {line}
-                </div>
-                <div 
-                  className="relative flex-1 bg-blue-900/30"
+                <tr 
+                  key={`${line}-${sku}`} 
+                  className="group hover:bg-blue-900/20 transition-all duration-200"
                   style={{ 
-                    width: `${scheduleData.totalDays * 400}px`,
-                    minWidth: `${scheduleData.totalDays * 400}px`
+                    backgroundColor: itemIndex % 2 === 0 ? 'rgba(0, 31, 71, 0.8)' : 'rgba(0, 31, 71, 0.6)',
+                    borderBottom: '1px solid rgba(59, 130, 246, 0.15)'
                   }}
-                  id={`gantt-row-${line}`}
                 >
-                  {/* Grid lines */}
-                  <div className="absolute inset-0 flex">
-                    {scheduleData.dates && scheduleData.dates.map(date => (
-                      <div 
+                  <td className="text-white font-semibold py-3 px-4 text-sm" style={{ 
+                    backgroundColor: itemIndex % 2 === 0 ? 'rgba(0, 31, 71, 0.9)' : 'rgba(0, 31, 71, 0.7)',
+                    borderRight: '1px solid rgba(59, 130, 246, 0.2)',
+                    position: 'sticky',
+                    left: 0,
+                    zIndex: 5
+                  }}>
+                    <span className="relative">
+                      {line}
+                      <div className="absolute -left-1 top-0 bottom-0 w-1 bg-blue-400 rounded-r opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+                    </span>
+                  </td>
+                  <td className="text-white font-semibold py-3 px-4 text-sm" style={{ 
+                    backgroundColor: itemIndex % 2 === 0 ? 'rgba(0, 31, 71, 0.9)' : 'rgba(0, 31, 71, 0.7)',
+                    borderRight: '1px solid rgba(59, 130, 246, 0.2)',
+                    position: 'sticky',
+                    left: '80px',
+                    zIndex: 5
+                  }}>
+                    {sku}
+                  </td>
+                  {scheduleData.dates.map((date, dateIndex) => {
+                    const quantity = dates[date] || 0
+                    return (
+                      <td 
                         key={date} 
-                        className="border-r border-blue-600/30"
-                        style={{ width: '400px' }}
-                      />
-                    ))}
-                  </div>
-                  
-                  {/* Order blocks */}
-                  <div className="relative h-full">
-                   {(() => {
-                     if (!orders || orders.length === 0) return null;
+                        className={`text-center py-3 px-3 text-xs font-medium ${getQuantityColor(quantity)}`}
+                        style={{ 
+                          borderRight: dateIndex < scheduleData.dates.length - 1 ? '1px solid rgba(59, 130, 246, 0.1)' : 'none'
+                        }}
+                      >
+                        {formatQuantity(quantity)}
+                      </td>
+                    )
+                  })}
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+    </div>
+  )
+}
 
-                     // Enhanced non-overlapping positioning algorithm
-                     const positionedOrders = [];
-                     const ROW_HEIGHT = 52; // Increased height for better horizontal boundary spacing
-                     const COLUMN_WIDTH = 400; // Column width constant
-                     const PADDING = 20; // Increased padding for better boundary spacing
-                     const MIN_GAP = 15; // Minimum gap between order blocks
-                     const rows = []; // Track occupied ranges in each row
-                     
-                     // Pre-calculate pixel positions for all orders with proper minimum width
-                     const ordersWithPixels = orders.map(item => {
-                       const startDayIndex = Math.floor(item.startPosition);
-                       const endDayIndex = Math.floor(item.endPosition);
-                       const idealLeftPx = (startDayIndex * COLUMN_WIDTH) + PADDING;
-                       const idealRightPx = Math.min(((endDayIndex + 1) * COLUMN_WIDTH) - PADDING, (item.totalDays * COLUMN_WIDTH) - PADDING);
-                       const idealWidthPx = idealRightPx - idealLeftPx;
-                       
-                       // Enforce minimum width and calculate actual dimensions
-                       const actualWidthPx = Math.max(idealWidthPx, 180);
-                       const actualRightPx = idealLeftPx + actualWidthPx;
-                       
-                       return {
-                         ...item,
-                         leftPx: idealLeftPx,
-                         rightPx: actualRightPx,
-                         widthPx: actualWidthPx
-                       };
-                     });
-                     
-                     // Sort orders by start position, then by end position for consistent placement
-                     const sortedOrders = ordersWithPixels.sort((a, b) => {
-                       if (a.leftPx === b.leftPx) {
-                         return a.rightPx - b.rightPx; // If same start, place shorter one first
-                       }
-                       return a.leftPx - b.leftPx;
-                     });
-                     
-                     sortedOrders.forEach((item, index) => {
-                       let assignedRow = -1;
-                       
-                       // Try to find an existing row where this order can fit
-                       for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
-                         let canFitInRow = true;
-                         
-                         // Check for overlap with ALL existing orders in this row
-                         for (let existingOrder of rows[rowIndex]) {
-                           // Check if there's overlap with sufficient gap
-                           const hasOverlap = !(
-                             item.rightPx + MIN_GAP <= existingOrder.leftPx || 
-                             item.leftPx >= existingOrder.rightPx + MIN_GAP
-                           );
-                           
-                           if (hasOverlap) {
-                             canFitInRow = false;
-                             break;
-                           }
-                         }
-                         
-                         if (canFitInRow) {
-                           assignedRow = rowIndex;
-                           rows[rowIndex].push({
-                             leftPx: item.leftPx,
-                             rightPx: item.rightPx,
-                             order: item.order
-                           });
-                           break;
-                         }
-                       }
-                       
-                       // If no existing row works, create a new row
-                       if (assignedRow === -1) {
-                         assignedRow = rows.length;
-                         rows.push([{
-                           leftPx: item.leftPx,
-                           rightPx: item.rightPx,
-                           order: item.order
-                         }]);
-                       }
-                       
-                       const verticalOffset = assignedRow * ROW_HEIGHT;
-                       positionedOrders.push({ ...item, verticalOffset, rowIndex: assignedRow });
-                     });
+// Top SKUs by Quantity Chart Component
+function TopSKUsChart({ data }) {
+  const [hoveredItem, setHoveredItem] = useState(null)
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 })
 
-                     // Calculate actual row height needed and update container with horizontal boundary padding
-                     const maxOffset = positionedOrders.length > 0 ? Math.max(...positionedOrders.map(o => o.verticalOffset)) : 0;
-                     const actualRowHeight = Math.max(90, maxOffset + 50); // Increased minimum height and bottom padding
-                     
-                     // Update the container height
-                     setTimeout(() => {
-                       const container = document.getElementById(`gantt-row-${line}`);
-                       if (container) {
-                         container.style.height = `${actualRowHeight}px`;
-                       }
-                     }, 0);
+  // Aggregate quantities by SKU and collect additional info
+  const skuData = data.reduce((acc, item) => {
+    const sku = item.SKU
+    const quantity = parseFloat(item['Planned Quantity']) || 0
+    
+    if (!sku || quantity === 0) return acc
+    
+    if (!acc[sku]) {
+      acc[sku] = {
+        totalQuantity: 0,
+        orders: [],
+        lines: new Set(),
+        avgSpeed: 0,
+        speedCount: 0
+      }
+    }
+    
+    acc[sku].totalQuantity += quantity
+    acc[sku].orders.push(item['Order ID'])
+    acc[sku].lines.add(item.Line)
+    
+    const speed = parseFloat(item['Speed (Units/hr)']) || 0
+    if (speed > 0) {
+      acc[sku].avgSpeed += speed
+      acc[sku].speedCount += 1
+    }
+    
+    return acc
+  }, {})
 
-                     return positionedOrders.map(({ order, idx, startTime, endTime, startPosition, endPosition, totalDays, verticalOffset, leftPx, rightPx, widthPx }) => {
-                       // Use pre-calculated pixel positions for accurate placement
-                       const containerWidthPx = totalDays * COLUMN_WIDTH;
-                       const leftPercent = (leftPx / containerWidthPx) * 100;
-                       const widthPercent = (widthPx / containerWidthPx) * 100;
-                    
-                                           // Calculate duration in days and hours
-                       const durationMs = endTime.getTime() - startTime.getTime();
-                       const durationDays = Math.floor(durationMs / (1000 * 60 * 60 * 24));
-                       const durationHours = Math.floor((durationMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                       
-                       return (
-                         <div
-                           key={`${order.OrderID}-${idx}`}
-                           className={`absolute rounded text-xs font-medium flex items-center justify-center text-center transition-all duration-200 hover:opacity-90 hover:scale-105 border-2 cursor-pointer shadow-sm ${
-                             (order.Priority || order.priority) === 'High' ? 'bg-red-500/95 text-white border-red-300/50' :
-                             (order.Priority || order.priority) === 'Medium' ? 'bg-yellow-500/95 text-black border-yellow-300/50' :
-                             'bg-green-500/95 text-white border-green-300/50'
-                           } ${widthPercent < 3 ? 'border-white/40' : ''}`}
-                           style={{
-                             left: `${Math.max(leftPercent, 0)}%`,
-                             width: `${widthPercent}%`,
-                             top: `${16 + verticalOffset}px`, // Increased top padding for horizontal boundaries
-                             height: '36px',
-                             minWidth: '180px',
-                           }}
-                           onMouseEnter={(e) => handleTooltipShow(e, {
-                             orderID: order.OrderID || order.orderId || 'N/A',
-                             sku: order.SKU || order.sku || 'N/A',
-                             priority: order.Priority || order.priority || 'Normal',
-                             productionLine: order.ProductionLine || order.line || 'N/A',
-                             plannedQuantity: order.PlannedQuantity || 0,
-                             speed: order.Speed || 0,
-                             startTime: startTime.toLocaleString(),
-                             endTime: endTime.toLocaleString(),
-                             durationDays,
-                             durationHours
-                           })}
-                           onMouseLeave={handleTooltipHide}
-                         >
-                           <span className="truncate px-1 text-xs font-medium whitespace-nowrap overflow-hidden">
-                             {widthPercent < 3 ? (order.OrderID || order.orderId || 'N/A').replace('ORD', '').slice(-3) : (order.OrderID || order.orderId || 'N/A').replace('ORD', '')}
-                           </span>
-                         </div>
-                       );
-                     });
-                   })()}
+  // Convert to array and sort by quantity (descending), take top 10
+  const topSKUs = Object.entries(skuData)
+    .sort(([,a], [,b]) => b.totalQuantity - a.totalQuantity)
+    .slice(0, 10)
+         .map(([sku, data]) => ({
+       sku,
+       quantity: (data.totalQuantity / 2) / 1000, // Divide by 2 for duplicates, then convert to thousands
+       orderCount: data.orders.length,
+       lines: Array.from(data.lines),
+       avgSpeed: data.speedCount > 0 ? Math.round(data.avgSpeed / data.speedCount) : 0,
+       totalQuantityRaw: data.totalQuantity / 2 // Divide by 2 for duplicates
+     }))
+
+  if (topSKUs.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-300">
+        No SKU data available for chart.
+      </div>
+    )
+  }
+
+  // Find max value and round up to a nice number for single Y-axis label
+  const actualMaxQuantity = Math.max(...topSKUs.map(item => item.quantity))
+  
+  // Round up to next nice number for single Y-axis label
+  const getRoundedMax = (maxVal) => {
+    if (maxVal <= 50) return 50
+    if (maxVal <= 100) return 100
+    if (maxVal <= 150) return 150
+    if (maxVal <= 200) return 200
+    if (maxVal <= 300) return 300
+    if (maxVal <= 400) return 400
+    if (maxVal <= 500) return 500
+    if (maxVal <= 600) return 600
+    if (maxVal <= 700) return 700
+    return 800
+  }
+  
+  const maxQuantity = getRoundedMax(actualMaxQuantity)
+  const chartHeight = 300
+
+  return (
+    <div className="w-full px-4">
+      <div className="relative bg-slate-800/30 rounded-lg p-6" style={{ height: `${chartHeight + 120}px` }}>
+        {/* Y-axis title */}
+        <div className="absolute left-6 top-2">
+          <span className="text-white text-sm font-medium">Quantity (Thousands)</span>
+        </div>
+
+        {/* Y-axis labels - Labels for all grid lines */}
+        <div className="absolute left-6 top-10 text-xs text-gray-300" style={{ height: `${chartHeight}px`, width: '60px' }}>
+          {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((index) => {
+            const value = Math.round(maxQuantity - (index / 8) * maxQuantity)
+            return (
+              <div 
+                key={index}
+                className="flex items-center justify-end pr-2 absolute"
+                style={{ top: `${(index / 8) * chartHeight}px` }}
+              >
+                <span>{value === 0 ? '0' : `${value}K`}</span>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Chart area */}
+        <div className="absolute left-20 top-10 right-6" style={{ height: `${chartHeight}px` }}>
+          {/* Grid lines - Top line and lines below */}
+          <div className="absolute inset-0">
+            {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((index) => (
+              <div
+                key={index}
+                className="absolute w-full border-t border-gray-600/30"
+                style={{ top: `${(index / 8) * chartHeight}px` }}
+              />
+            ))}
+          </div>
+
+          {/* Bars container */}
+          <div className="absolute bottom-0 left-0 right-0 flex items-end justify-evenly px-4" style={{ height: `${chartHeight}px` }}>
+            {topSKUs.map((item, index) => {
+              const barHeight = (item.quantity / maxQuantity) * chartHeight
+              return (
+                <div key={`${item.sku}-${index}`} className="flex flex-col items-center group" style={{ width: '80px' }}>
+                  {/* Bar */}
+                  <div
+                    className="w-12 rounded-t-md transition-all duration-300 hover:opacity-80 relative cursor-pointer"
+                    style={{
+                      height: `${Math.max(barHeight, 10)}px`,
+                      background: '#ff6600',
+                      boxShadow: '0 4px 12px rgba(255, 102, 0, 0.4)',
+                      marginBottom: '0px'
+                    }}
+                    onMouseEnter={(e) => {
+                      setHoveredItem(item)
+                      setTooltipPosition({ x: e.clientX, y: e.clientY })
+                    }}
+                    onMouseLeave={() => setHoveredItem(null)}
+                    onMouseMove={(e) => {
+                      if (hoveredItem) {
+                        setTooltipPosition({ x: e.clientX, y: e.clientY })
+                      }
+                    }}
+                  >
                   </div>
                 </div>
-              </div>
-              );
+              )
             })}
           </div>
         </div>
-      </div>
 
-      {/* SKU Scheduling Section */}
-      <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Scheduling of SKU (Quantity)</h2>
-        
-        {/* Scheduling Table */}
-        <div className="relative mb-6">
-          <div className="max-h-[500px] overflow-auto border-t border-b border-blue-600 rounded-lg">
-            <table className="w-full border-collapse">
-              <thead className="sticky top-0 z-10">
-                <tr>
-                  <th className="sticky left-0 z-20 border-t border-b border-blue-600 bg-blue-950/80 p-2 text-left min-w-[120px] font-semibold text-gray-200 text-sm uppercase tracking-wider">Line</th>
-                  <th className="sticky left-[120px] z-20 border-t border-b border-blue-600 bg-blue-950/80 p-2 text-left min-w-[150px] font-semibold text-gray-200 text-sm uppercase tracking-wider">SKU</th>
-                  {filteredSchedulingData && filteredSchedulingData.dates && filteredSchedulingData.dates.map(date => (
-                    <th key={date} className="border-t border-b border-blue-600 bg-blue-950/80 p-2 text-center min-w-[100px] whitespace-nowrap font-semibold text-gray-200 text-sm uppercase tracking-wider">
-                      {format(new Date(date), 'yyyy-MM-dd')}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredSchedulingData && filteredSchedulingData.data && Object.entries(filteredSchedulingData.data).map(([line, skus]) =>
-                  Object.entries(skus).map(([sku, dates]) => (
-                    <tr key={`${line}-${sku}`} className="bg-blue-950/80 hover:bg-blue-600/50 transition-colors duration-200 border-b border-blue-600">
-                      <td className="sticky left-0 z-10 border-b border-blue-600 bg-blue-950/80 p-2 min-w-[120px] text-white font-medium">{line}</td>
-                      <td className="sticky left-[120px] z-10 border-b border-blue-600 bg-blue-950/80 p-2 min-w-[150px] text-white font-medium">{sku}</td>
-                      {filteredSchedulingData && filteredSchedulingData.dates && filteredSchedulingData.dates.map(date => (
-                        <td key={date} className="border-b border-blue-600 p-2 text-right min-w-[100px] text-gray-200">
-                          {dates[date]?.toLocaleString() || '-'}
-                        </td>
-                      ))}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* SKU Quantities Bar Chart */}
-        <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6">
-          <h2 className="text-xl font-semibold mb-6">Top SKUs by Quantity (Lakhs)</h2>
-          <div className="h-80">
-            {skuQuantities && skuQuantities.length > 0 ? (
-            <ResponsiveBar
-              data={skuQuantities}
-              keys={['quantity']}
-              indexBy="sku"
-              margin={{ top: 30, right: 30, bottom: 70, left: 80 }}
-              padding={0.4}
-              valueScale={{ type: 'linear' }}
-              indexScale={{ type: 'band', round: true }}
-              colors={'#ff69b4'}
-              borderRadius={4}
-              borderColor={{
-                from: 'color',
-                modifiers: [['darker', 1.6]]
-              }}
-              axisTop={null}
-              axisRight={null}
-              axisBottom={{
-                tickSize: 5,
-                tickPadding: 12,
-                tickRotation: 0,
-                legend: 'SKU',
-                legendPosition: 'middle',
-                legendOffset: 45,
-                truncateTickAt: 0,
-                tickComponent: ({ x, y, value }) => (
-                  <g transform={`translate(${x},${y})`}>
-                    <text
-                      x={0}
-                      y={0}
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      style={{ fill: '#ffffff', fontSize: '10px' }}
-                    >
-                      {value}
-                    </text>
-                  </g>
-                )
-              }}
-              axisLeft={{
-                tickSize: 5,
-                tickPadding: 5,
-                tickRotation: 0,
-                legend: 'Quantity (Lakhs)',
-                legendPosition: 'middle',
-                legendOffset: -60,
-                tickValues: [0, 1, 2, 3, 4, 5, 6, 7],
-                format: value => value === 0 ? '0' : `${value}L`,
-              }}
-              enableGridY={true}
-              gridYValues={[0, 1, 2, 3, 4, 5, 6, 7]}
-              labelSkipWidth={12}
-              labelSkipHeight={12}
-              labelTextColor={{
-                from: 'color',
-                modifiers: [['darker', 3]]
-              }}
-              role="application"
-              ariaLabel="SKU quantities bar chart"
-              barAriaLabel={e => `${e.id}: ${e.formattedValue} lakh units`}
-              theme={{
-                axis: {
-                  domain: {
-                    line: {
-                      stroke: '#526488'
-                    }
-                  },
-                  ticks: {
-                    line: {
-                      stroke: '#526488',
-                      strokeWidth: 1
-                    },
-                    text: {
-                      fill: '#ffffff',
-                      fontSize: 11
-                    }
-                  },
-                  legend: {
-                    text: {
-                      fill: '#ffffff',
-                      fontSize: 12,
-                      fontWeight: 600
-                    }
-                  }
-                },
-                grid: {
-                  line: {
-                    stroke: '#526488',
-                    strokeWidth: 1
-                  }
-                },
-                legends: {
-                  text: {
-                    fill: '#ffffff'
-                  }
-                }
-              }}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <p className="text-gray-400">No data available for the selected filters</p>
+        {/* X-axis labels */}
+        <div className="absolute left-20 right-6 flex items-center justify-evenly px-4" style={{ bottom: '40px', height: '40px' }}>
+          {topSKUs.map((item, index) => (
+            <div key={`${item.sku}-${index}`} className="text-center" style={{ width: '80px' }}>
+              <span className="text-white text-xs font-medium block leading-tight">
+                {item.sku}
+              </span>
             </div>
-          )}
-          </div>
+          ))}
+        </div>
+
+        {/* X-axis label */}
+        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2">
+          <span className="text-white text-sm font-medium">SKU</span>
         </div>
       </div>
 
-      {/* Tooltip */}
-      {tooltip.visible && tooltip.data && (
+      {/* Custom Tooltip */}
+      {hoveredItem && (
         <div
-          className="fixed bg-gray-900 text-white p-3 rounded-lg shadow-lg border border-gray-600 z-50 max-w-xs"
+          className="fixed z-50 bg-gray-800 text-white p-3 rounded-lg shadow-lg border border-gray-600 pointer-events-none"
           style={{
-            left: `${tooltip.x}px`,
-            top: `${tooltip.y}px`,
-            transform: 'translate(-50%, -100%)'
+            left: tooltipPosition.x + 10,
+            top: tooltipPosition.y - 10,
+            transform: 'translateY(-100%)'
           }}
         >
-          <div className="text-sm space-y-1">
-            <div><strong>Order:</strong> {tooltip.data.orderID}</div>
-            <div><strong>SKU:</strong> {tooltip.data.sku}</div>
-            <div><strong>Priority:</strong> {tooltip.data.priority}</div>
-            <div><strong>Line:</strong> {tooltip.data.productionLine}</div>
-            <div><strong>Quantity:</strong> {tooltip.data.plannedQuantity?.toLocaleString()}</div>
-            <div><strong>Speed:</strong> {tooltip.data.speed} units/hr</div>
-            <div><strong>Start:</strong> {tooltip.data.startTime}</div>
-            <div><strong>End:</strong> {tooltip.data.endTime}</div>
-            <div><strong>Duration:</strong> {tooltip.data.durationDays}d {tooltip.data.durationHours}h</div>
+          <div className="text-sm font-semibold mb-2 text-blue-200">SKU Details</div>
+          <div className="space-y-1 text-xs">
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-300">SKU:</span>
+              <span className="font-medium">{hoveredItem.sku}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-300">Total Quantity:</span>
+              <span className="font-medium">{hoveredItem.totalQuantityRaw?.toLocaleString()} units</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-300">Quantity (Thousands):</span>
+              <span className="font-medium">{hoveredItem.quantity.toFixed(1)}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-300">Number of Orders:</span>
+              <span className="font-medium">{hoveredItem.orderCount}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-300">Production Lines:</span>
+              <span className="font-medium">{hoveredItem.lines.join(', ')}</span>
+            </div>
+            {hoveredItem.avgSpeed > 0 && (
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-300">Avg Speed:</span>
+                <span className="font-medium">{hoveredItem.avgSpeed} units/hr</span>
+              </div>
+            )}
           </div>
         </div>
       )}
-
-      {/* Back Button */}
-      <div className="mt-6 flex justify-center">
-        <button
-          onClick={() => window.location.href = "/production"}
-          className="bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-lg transition-colors"
-        >
-          Back to Production Dashboard
-        </button>
-      </div>
     </div>
-  );
+  )
+}
+
+// Simple Gantt Chart Component
+function GanttChart({ data }) {
+  const [hoveredItem, setHoveredItem] = useState(null)
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 })
+
+  // First group by Order ID to consolidate duplicate orders (same order with multiple SKUs)
+  const orderMap = data.reduce((acc, item) => {
+    const orderId = item['Order ID']
+    if (!acc[orderId]) {
+      acc[orderId] = {
+        ...item,
+        skus: [item.SKU],
+        totalQuantity: parseFloat(item.Quantity) || 0
+      }
+    } else {
+      // Add SKU to list and sum quantities
+      if (!acc[orderId].skus.includes(item.SKU)) {
+        acc[orderId].skus.push(item.SKU)
+      }
+      acc[orderId].totalQuantity += parseFloat(item.Quantity) || 0
+    }
+    return acc
+  }, {})
+
+  // Convert back to array with consolidated orders
+  const consolidatedData = Object.values(orderMap)
+
+  // Group consolidated data by production line and sort lines numerically
+  const groupedData = consolidatedData.reduce((acc, item) => {
+    const line = item.Line
+    if (!acc[line]) {
+      acc[line] = []
+    }
+    acc[line].push(item)
+    return acc
+  }, {})
+
+  // Function to assign lanes to orders to prevent overlaps
+  const assignLanes = (orders) => {
+    const lanes = []
+    const ordersWithLanes = orders
+      .filter(item => item['Production Start DateTime'] && item['Production End DateTime'])
+      .map(order => {
+        const startDate = new Date(order['Production Start DateTime'])
+        const endDate = new Date(order['Production End DateTime'])
+        return { ...order, startDate, endDate, lane: -1 }
+      })
+      .sort((a, b) => {
+        // Sort by start date first, then by end date if start dates are the same
+        if (a.startDate.getTime() === b.startDate.getTime()) {
+          return a.endDate - b.endDate
+        }
+        return a.startDate - b.startDate
+      })
+
+    ordersWithLanes.forEach(order => {
+      // Find the first available lane
+      let assignedLane = 0
+      let laneFound = false
+
+      while (!laneFound) {
+        if (!lanes[assignedLane]) {
+          lanes[assignedLane] = []
+        }
+
+        // Enhanced overlap detection - check for any time intersection
+        const hasOverlap = lanes[assignedLane].some(existingOrder => {
+          // Two orders overlap if one starts before the other ends
+          const orderStart = order.startDate.getTime()
+          const orderEnd = order.endDate.getTime()
+          const existingStart = existingOrder.startDate.getTime()
+          const existingEnd = existingOrder.endDate.getTime()
+          
+          // Check for any overlap: orders overlap if they intersect at any point
+          return !(orderEnd < existingStart || orderStart > existingEnd)
+        })
+
+        if (!hasOverlap) {
+          lanes[assignedLane].push(order)
+          order.lane = assignedLane
+          laneFound = true
+        } else {
+          assignedLane++
+        }
+      }
+    })
+
+    return { ordersWithLanes, totalLanes: Math.max(lanes.length, 1) }
+  }
+
+  // Sort production lines in numeric order and filter out undefined/null lines
+  const sortedLines = Object.keys(groupedData)
+    .filter(line => line && line !== 'undefined' && line !== 'null')
+    .sort((a, b) => {
+      const numA = parseInt(a.replace('Line-', ''))
+      const numB = parseInt(b.replace('Line-', ''))
+      return numA - numB
+    })
+
+  // Get unique dates from the dataset (same as used in filter)
+  const uniqueDates = [...new Set(data.map(item => {
+    if (item['Production Start DateTime']) {
+      return item['Production Start DateTime'].split(' ')[0] // Extract date part
+    }
+    return null
+  }).filter(Boolean))].sort()
+
+  // If no dates available, return empty message
+  if (uniqueDates.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-500">
+        No production data to display. Please select filters to view the schedule.
+      </div>
+    )
+  }
+
+  const getTaskPosition = (startDateTime, endDateTime) => {
+    // Check for undefined or null values
+    if (!startDateTime || !endDateTime) {
+      return {
+        left: '0%',
+        width: '0%'
+      }
+    }
+    
+    // Extract date part from start and end datetime
+    const startDate = startDateTime.split(' ')[0] // Start date (YYYY-MM-DD)
+    const endDate = endDateTime.split(' ')[0]     // End date (YYYY-MM-DD)
+    
+    // Find the position of start and end dates in our timeline
+    const startIndex = uniqueDates.indexOf(startDate)
+    const endIndex = uniqueDates.indexOf(endDate)
+    
+    // If dates are not found in timeline, hide the task
+    if (startIndex === -1 || endIndex === -1) {
+      return {
+        left: '0%',
+        width: '0%'
+      }
+    }
+    
+    // Calculate position based on fixed column widths - ensure exact alignment
+    const fixedColumnWidth = columnWidth // Use the same columnWidth as header
+    const leftPosition = startIndex * fixedColumnWidth + 2 // 2px padding from column start
+    const dateSpan = Math.max(1, endIndex - startIndex + 1) // Span from start to end date
+    const widthSpan = dateSpan * fixedColumnWidth - 4 // Subtract 4px for padding between columns
+    
+    return {
+      left: `${leftPosition}px`,
+      width: `${widthSpan}px`
+    }
+  }
+
+  const getPriorityColor = (priority) => {
+    switch (priority?.toLowerCase()) {
+      case 'high': return 'bg-red-500'
+      case 'medium': return 'bg-yellow-500'
+      case 'low': return 'bg-green-500'
+      default: return 'bg-blue-500'
+    }
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-500">
+        No production data to display. Please select filters to view the schedule.
+      </div>
+    )
+  }
+
+  // Calculate minimum width based on number of dates for better scrolling
+  const minChartWidth = Math.max(1200, uniqueDates.length * 100) // Minimum 100px per date column
+  const columnWidth = Math.max(80, 100) // Fixed column width for consistency
+
+  return (
+    <div className="w-full">
+      <div className="overflow-x-auto rounded-xl shadow-2xl" style={{ 
+        backgroundColor: '#001F47',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(10px)'
+      }}>
+        <div style={{ minWidth: `${minChartWidth}px`, width: '100%' }}>
+        {/* Timeline Header */}
+        <div className="flex sticky top-0 z-10" style={{ 
+          backgroundColor: '#002654',
+          borderBottom: '2px solid rgba(59, 130, 246, 0.3)',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.3)'
+        }}>
+          <div className="text-sm font-semibold text-white py-4 px-4 flex-shrink-0 flex items-center" style={{ 
+            backgroundColor: 'rgba(0, 31, 71, 0.9)', 
+            width: '128px',
+            borderRight: '1px solid rgba(59, 130, 246, 0.2)'
+          }}>
+            Production Line
+          </div>
+          <div className="flex">
+            {uniqueDates.map((date, index) => (
+              <div 
+                key={index} 
+                className="text-xs text-white px-3 py-4 text-center font-semibold flex-shrink-0 transition-colors duration-200 hover:bg-blue-600/20"
+                style={{ 
+                  width: `${columnWidth}px`, 
+                  backgroundColor: '#002654',
+                  borderRight: index < uniqueDates.length - 1 ? '1px solid rgba(59, 130, 246, 0.2)' : 'none'
+                }}
+              >
+                {new Date(date).toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric',
+                  year: '2-digit'
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Gantt Rows */}
+        {sortedLines.map((line) => {
+          const lineData = groupedData[line]
+          const { ordersWithLanes, totalLanes } = assignLanes(lineData)
+          const rowHeight = Math.max(50, totalLanes * 32) // Minimum 50px, 32px per lane
+          
+          return (
+            <div key={line} className="flex group hover:bg-blue-900/20 transition-all duration-200" style={{ 
+              backgroundColor: '#001F47',
+              borderBottom: '1px solid rgba(59, 130, 246, 0.15)'
+            }}>
+              <div className="text-sm font-semibold text-white py-3 px-4 flex items-center flex-shrink-0" style={{ 
+                backgroundColor: 'rgba(0, 31, 71, 0.8)', 
+                width: '128px',
+                borderRight: '1px solid rgba(59, 130, 246, 0.2)'
+              }}>
+                <span className="relative">
+                  {line}
+                  <div className="absolute -left-1 top-0 bottom-0 w-1 bg-blue-400 rounded-r opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+                </span>
+              </div>
+              <div className="relative py-3" style={{ 
+                minHeight: `${rowHeight}px`, 
+                backgroundColor: 'rgba(0, 31, 71, 0.6)', 
+                width: `${uniqueDates.length * columnWidth}px`,
+                borderImage: 'linear-gradient(90deg, rgba(59, 130, 246, 0.1) 0%, transparent 100%) 1'
+              }}>
+                {ordersWithLanes.map((item, index) => {
+                  const position = getTaskPosition(
+                    item['Production Start DateTime'], 
+                    item['Production End DateTime']
+                  )
+                  const laneTop = item.lane * 28 + 4 // 28px spacing between lanes, 4px top margin
+                  
+                  return (
+                                                                <div
+                        key={index}
+                        className={`absolute h-6 rounded-md ${getPriorityColor(item.Priority)} opacity-95 hover:opacity-100 cursor-pointer border border-white/20 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200`}
+                        style={{
+                          ...position,
+                          minWidth: '30px',
+                          top: `${laneTop}px`,
+                          backdropFilter: 'blur(4px)',
+                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1) inset'
+                        }}
+                        onMouseEnter={(e) => {
+                          setHoveredItem(item)
+                          setTooltipPosition({ x: e.clientX, y: e.clientY })
+                        }}
+                        onMouseLeave={() => setHoveredItem(null)}
+                        onMouseMove={(e) => {
+                          if (hoveredItem) {
+                            setTooltipPosition({ x: e.clientX, y: e.clientY })
+                          }
+                        }}
+                      >
+                        <div className="text-xs text-white px-2 truncate font-semibold leading-6 tracking-wide text-center">
+                          {item['Order ID'].replace(/^ORD/i, '')}
+                        </div>
+                      </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+
+        </div>
+      </div>
+      
+      {/* Legend - Fixed outside scrollable area */}
+      <div className="mt-6 flex gap-6 text-sm justify-center">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ backgroundColor: 'rgba(0, 31, 71, 0.4)' }}>
+          <div className="w-4 h-4 bg-red-500 rounded-md shadow-sm"></div>
+          <span className="text-white font-medium">High Priority</span>
+        </div>
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ backgroundColor: 'rgba(0, 31, 71, 0.4)' }}>
+          <div className="w-4 h-4 bg-yellow-500 rounded-md shadow-sm"></div>
+          <span className="text-white font-medium">Medium Priority</span>
+        </div>
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ backgroundColor: 'rgba(0, 31, 71, 0.4)' }}>
+          <div className="w-4 h-4 bg-green-500 rounded-md shadow-sm"></div>
+          <span className="text-white font-medium">Low Priority</span>
+        </div>
+      </div>
+
+      {/* Custom Tooltip */}
+      {hoveredItem && (
+        <div
+          className="fixed z-50 bg-gray-800 text-white p-3 rounded-lg shadow-lg border border-gray-600 pointer-events-none"
+          style={{
+            left: tooltipPosition.x + 10,
+            top: tooltipPosition.y - 10,
+            transform: 'translateY(-100%)'
+          }}
+        >
+          <div className="text-sm font-semibold mb-2 text-blue-200">Order Details</div>
+          <div className="space-y-1 text-xs">
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-300">Order ID:</span>
+              <span className="font-medium">{hoveredItem['Order ID']}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-300">SKUs:</span>
+              <span className="font-medium">{hoveredItem.skus ? hoveredItem.skus.join(', ') : hoveredItem.SKU}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-300">Priority:</span>
+              <span className={`font-medium ${
+                hoveredItem.Priority === 'High' ? 'text-red-400' :
+                hoveredItem.Priority === 'Medium' ? 'text-yellow-400' :
+                hoveredItem.Priority === 'Low' ? 'text-green-400' : 'text-blue-400'
+              }`}>
+                {hoveredItem.Priority}
+              </span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-300">Total Quantity:</span>
+              <span className="font-medium">{(hoveredItem.totalQuantity || hoveredItem.Quantity)?.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-300">Planned Qty:</span>
+              <span className="font-medium">{hoveredItem['Planned Quantity']?.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-300">Speed:</span>
+              <span className="font-medium">{hoveredItem['Speed (Units/hr)']} Units/hr</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-300">Start Date:</span>
+              <span className="font-medium">{hoveredItem['Production Start DateTime']?.split(' ')[0]}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-300">Start Time:</span>
+              <span className="font-medium">{hoveredItem['Production Start DateTime']?.split(' ')[1]}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-300">End Date:</span>
+              <span className="font-medium">{hoveredItem['Production End DateTime']?.split(' ')[0]}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-300">End Time:</span>
+              <span className="font-medium">{hoveredItem['Production End DateTime']?.split(' ')[1]}</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 } 
