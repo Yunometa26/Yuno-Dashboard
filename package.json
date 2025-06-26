@@ -9,6 +9,13 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@devexpress/dx-react-core": "^4.0.11",
+    "@devexpress/dx-react-scheduler": "^4.0.11",
+    "@devexpress/dx-react-scheduler-material-ui": "^4.0.11",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/material": "^7.1.2",
+    "@nivo/bar": "^0.99.0",
     "chart.js": "^4.4.9",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.13",

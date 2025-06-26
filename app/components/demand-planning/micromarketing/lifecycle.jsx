@@ -49,6 +49,9 @@ export default function LifecyclePage() {
   const [salesActivityMonthsChartData, setSalesActivityMonthsChartData] = useState([]);
   const [activityMonths, setActivityMonths] = useState([]);
 
+  // Toggle state for chart visibility
+  const [activeChart, setActiveChart] = useState('sales-activity'); // 'sales-activity', 'financial-year', 'product-stacked'
+
   const [forecastData, setForecastData] = useState([]);
   const [forecastProducts, setForecastProducts] = useState(['All']);
   const [forecastSKUs, setForecastSKUs] = useState(['All']);
@@ -602,13 +605,53 @@ export default function LifecyclePage() {
                   />
                 )}
 
+                {/* Chart Toggle Buttons */}
+                <div className="mb-6">
+                  <div className="flex justify-center">
+                    <div className="bg-white/10 rounded-lg p-1 flex space-x-1">
+                      <button
+                        onClick={() => setActiveChart('sales-activity')}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                          activeChart === 'sales-activity'
+                            ? 'bg-blue-600 text-white shadow-md'
+                            : 'text-white hover:bg-white/10'
+                        }`}
+                      >
+                        Sales Activity
+                      </button>
+                      <button
+                        onClick={() => setActiveChart('financial-year')}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                          activeChart === 'financial-year'
+                            ? 'bg-blue-600 text-white shadow-md'
+                            : 'text-white hover:bg-white/10'
+                        }`}
+                      >
+                        Financial Year
+                      </button>
+                      <button
+                        onClick={() => setActiveChart('product-stacked')}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                          activeChart === 'product-stacked'
+                            ? 'bg-blue-600 text-white shadow-md'
+                            : 'text-white hover:bg-white/10'
+                        }`}
+                      >
+                        Product Analysis
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 {/* SalesActivityMonthsChart with solid blue background - NOW WITH salesActivityData PROP */}
-                <SalesActivityMonthsChart
-                  salesActivityData={salesActivityMonthsChartData}
-                  products={products}
-                  activityMonths={activityMonths}
-                  className="bg-[#013554] rounded-lg p-4 mb-6"
-                />
+                {activeChart === 'sales-activity' && (
+                  <SalesActivityMonthsChart
+                    salesActivityData={salesActivityMonthsChartData}
+                    products={products}
+                    activityMonths={activityMonths}
+                    className="bg-[#013554] rounded-lg p-4 mb-6"
+                  />
+                )}
 
                 {/* Active Filters Display */}
                 {activeProduct && (
@@ -648,48 +691,54 @@ export default function LifecyclePage() {
                 {!loading && selectedFinancialYear && (
                   <div className="grid grid-cols-1 gap-6">
                     {/* FinancialYearBarChart with solid blue background */}
-                    {!isDrillingDown ? (
-                      <FinancialYearBarChart
-                        yearlyData={
-                          selectedFinancialYear && selectedFinancialYear !== 'All Years'
-                            ? yearlyData.filter(y => y.year === selectedFinancialYear)
-                            : yearlyData
-                        }
-                        animateCharts={animateCharts}
-                        handleYearClick={handleYearClick}
-                        className="bg-[#013554] rounded-lg p-4"
-                        axisStroke="#FFFFFF"
-                        labelColor="#FFFFFF"
-                      />
-                    ) : (
-                      /* Monthly Bar Chart - With Drill-down View with solid blue background */
-                      <MonthlyBarChart
-                        monthlyData={monthlyData}
-                        animateCharts={animateCharts}
-                        selectedYear={drillDownYear}
-                        onBackClick={handleBackToYears}
-                        className="bg-[#013554] rounded-lg p-4"
-                        axisStroke="#FFFFFF"
-                        labelColor="#FFFFFF"
-                      />
+                    {activeChart === 'financial-year' && (
+                      <>
+                        {!isDrillingDown ? (
+                          <FinancialYearBarChart
+                            yearlyData={
+                              selectedFinancialYear && selectedFinancialYear !== 'All Years'
+                                ? yearlyData.filter(y => y.year === selectedFinancialYear)
+                                : yearlyData
+                            }
+                            animateCharts={animateCharts}
+                            handleYearClick={handleYearClick}
+                            className="bg-[#013554] rounded-lg p-4"
+                            axisStroke="#FFFFFF"
+                            labelColor="#FFFFFF"
+                          />
+                        ) : (
+                          /* Monthly Bar Chart - With Drill-down View with solid blue background */
+                          <MonthlyBarChart
+                            monthlyData={monthlyData}
+                            animateCharts={animateCharts}
+                            selectedYear={drillDownYear}
+                            onBackClick={handleBackToYears}
+                            className="bg-[#013554] rounded-lg p-4"
+                            axisStroke="#FFFFFF"
+                            labelColor="#FFFFFF"
+                          />
+                        )}
+                      </>
                     )}
 
                     {/* Pie Chart - Sales by Product with solid blue background */}
-                    <ProductStackedBarChart
-                      pieData={pieData}
-                      animateCharts={animateCharts}
-                      activeProduct={activeProduct}
-                      handlePieClick={handlePieClick}
-                      data={
-                        selectedFinancialYear && selectedFinancialYear !== 'All Years'
-                          ? data.filter(row => row['Financial Year'] === selectedFinancialYear)
-                          : data
-                      }
-                      selectedCustomers={selectedCustomers}
-                      selectedFinancialYear={selectedFinancialYear}
-                      className="bg-[#013554] rounded-lg p-4"
-                      labelColor="#FFFFFF"
-                    />
+                    {activeChart === 'product-stacked' && (
+                      <ProductStackedBarChart
+                        pieData={pieData}
+                        animateCharts={animateCharts}
+                        activeProduct={activeProduct}
+                        handlePieClick={handlePieClick}
+                        data={
+                          selectedFinancialYear && selectedFinancialYear !== 'All Years'
+                            ? data.filter(row => row['Financial Year'] === selectedFinancialYear)
+                            : data
+                        }
+                        selectedCustomers={selectedCustomers}
+                        selectedFinancialYear={selectedFinancialYear}
+                        className="bg-[#013554] rounded-lg p-4"
+                        labelColor="#FFFFFF"
+                      />
+                    )}
                   </div>
                 )}
 
