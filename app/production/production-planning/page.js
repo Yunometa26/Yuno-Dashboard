@@ -363,7 +363,7 @@ export default function ProductionPlanningPage() {
     // Group orders by production line
     const dataByLine = {};
     filteredData.forEach(item => {
-      if (!item.StartDate || !item.ProductionLine) return;
+      if (!item || !item.StartDate || !item.ProductionLine) return;
       
       const line = item.ProductionLine;
       if (!dataByLine[line]) {
@@ -769,8 +769,8 @@ export default function ProductionPlanningPage() {
                          <div
                            key={`${order.OrderID}-${idx}`}
                            className={`absolute rounded text-xs font-medium flex items-center justify-center text-center transition-all duration-200 hover:opacity-90 hover:scale-105 border-2 cursor-pointer shadow-sm ${
-                             order.Priority === 'High' ? 'bg-red-500/95 text-white border-red-300/50' :
-                             order.Priority === 'Medium' ? 'bg-yellow-500/95 text-black border-yellow-300/50' :
+                             (order.Priority || order.priority) === 'High' ? 'bg-red-500/95 text-white border-red-300/50' :
+                             (order.Priority || order.priority) === 'Medium' ? 'bg-yellow-500/95 text-black border-yellow-300/50' :
                              'bg-green-500/95 text-white border-green-300/50'
                            } ${widthPercent < 3 ? 'border-white/40' : ''}`}
                            style={{
@@ -781,12 +781,12 @@ export default function ProductionPlanningPage() {
                              minWidth: '180px',
                            }}
                            onMouseEnter={(e) => handleTooltipShow(e, {
-                             orderID: order.OrderID,
-                             sku: order.SKU,
-                             priority: order.Priority,
-                             productionLine: order.ProductionLine,
-                             plannedQuantity: order.PlannedQuantity,
-                             speed: order.Speed,
+                             orderID: order.OrderID || order.orderId || 'N/A',
+                             sku: order.SKU || order.sku || 'N/A',
+                             priority: order.Priority || order.priority || 'Normal',
+                             productionLine: order.ProductionLine || order.line || 'N/A',
+                             plannedQuantity: order.PlannedQuantity || 0,
+                             speed: order.Speed || 0,
                              startTime: startTime.toLocaleString(),
                              endTime: endTime.toLocaleString(),
                              durationDays,
@@ -795,7 +795,7 @@ export default function ProductionPlanningPage() {
                            onMouseLeave={handleTooltipHide}
                          >
                            <span className="truncate px-1 text-xs font-medium whitespace-nowrap overflow-hidden">
-                             {widthPercent < 3 ? order.OrderID.replace('ORD', '').slice(-3) : order.OrderID.replace('ORD', '')}
+                             {widthPercent < 3 ? (order.OrderID || order.orderId || 'N/A').replace('ORD', '').slice(-3) : (order.OrderID || order.orderId || 'N/A').replace('ORD', '')}
                            </span>
                          </div>
                        );
