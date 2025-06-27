@@ -44,7 +44,7 @@ export default function EfficiencyMetricsPage() {
               const processed = results.data.map(row => {
                 const orderStartDate = row["Order Start Date"] ? new Date(row["Order Start Date"]) : null;
                 const endDate = row["Sub Actual End Date"] ? new Date(row["Sub Actual End Date"]) : null;
-
+                // Add subActualStartDate and subActualEndDate as raw string fields
                 return {
                   orderID: row["Order ID"] || '',
                   orderState: row["Order State"] || '',
@@ -55,10 +55,12 @@ export default function EfficiencyMetricsPage() {
                   endDate: endDate && !isNaN(endDate.getTime()) ? endDate : null,
                   statusType: row["Status Type"] || '',
                   actualDays: parseFloat(row["Actual Days"]) || 0,
-                  monthName: row["Month"] || '', // Use explicit month name from CSV
-                  day: row["Day"] ? parseInt(row["Day"]) : null, // Use new Day column from CSV
-                  dayValue: row["Day"] ? parseInt(row["Day"]) : null, // Use new Day column for filtering
-                  subprocessSequence: parseInt(row['Subprocess Sequence']) || 9999
+                  monthName: row["Month"] || '',
+                  day: row["Day"] ? parseInt(row["Day"]) : null,
+                  dayValue: row["Day"] ? parseInt(row["Day"]) : null,
+                  subprocessSequence: parseInt(row['Subprocess Sequence']) || 9999,
+                  subActualStartDate: row["Sub Actual Start Date"] || '',
+                  subActualEndDate: row["Sub Actual End Date"] || ''
                 };
               }).filter(item => 
                 item.orderID && 
@@ -67,20 +69,15 @@ export default function EfficiencyMetricsPage() {
                 item.statusType
               );
 
-              console.log('Processed data sample:', processed.slice(0, 3));
-              console.log('Total processed records:', processed.length);
-
               setOrdersData(processed);
               setLoading(false);
             });
           },
           error: (error) => {
-            console.error('Error parsing CSV:', error);
             setLoading(false);
           }
         });
       } catch (error) {
-        console.error('Error loading CSV file:', error);
         setLoading(false);
       }
     };
@@ -88,77 +85,97 @@ export default function EfficiencyMetricsPage() {
     loadData();
   }, []);
 
-  // Get unique values for filters
+  // Dynamic filter options based on current selections
+  const dynamicFilteredData = useMemo(() => {
+    return ordersData.filter(order => {
+      let monthMatch = selectedMonth === 'All' || order.monthName === selectedMonth;
+      let dayMatch = selectedDay === 'All' || order.day === parseInt(selectedDay);
+      let orderStateMatch = selectedOrderState === 'All' || order.orderState === selectedOrderState;
+      let inventoryLocationMatch = selectedInventoryLocation === 'All' || order.inventoryLocation === selectedInventoryLocation;
+      let orderIDMatch = selectedOrderID === 'All' || order.orderID === selectedOrderID;
+      return monthMatch && dayMatch && orderStateMatch && inventoryLocationMatch && orderIDMatch;
+    });
+  }, [ordersData, selectedMonth, selectedDay, selectedOrderState, selectedInventoryLocation, selectedOrderID]);
+
+  // For each filter, options depend on the other filters' selections
   const months = useMemo(() => {
-    const uniqueMonths = [...new Set(ordersData.map(order => order.monthName).filter(month => month))];
+    const filtered = ordersData.filter(order => {
+      let dayMatch = selectedDay === 'All' || order.day === parseInt(selectedDay);
+      let orderStateMatch = selectedOrderState === 'All' || order.orderState === selectedOrderState;
+      let inventoryLocationMatch = selectedInventoryLocation === 'All' || order.inventoryLocation === selectedInventoryLocation;
+      let orderIDMatch = selectedOrderID === 'All' || order.orderID === selectedOrderID;
+      return dayMatch && orderStateMatch && inventoryLocationMatch && orderIDMatch;
+    });
+    const uniqueMonths = [...new Set(filtered.map(order => order.monthName).filter(month => month))];
     return ['All', ...uniqueMonths.sort()];
-  }, [ordersData]);
+  }, [ordersData, selectedDay, selectedOrderState, selectedInventoryLocation, selectedOrderID]);
 
   const days = useMemo(() => {
-    // Get unique day numbers from Day column
-    const dayValues = ordersData
-      .map(order => order.day)
-      .filter(day => day !== null && day !== undefined && !isNaN(day));
-    
+    const filtered = ordersData.filter(order => {
+      let monthMatch = selectedMonth === 'All' || order.monthName === selectedMonth;
+      let orderStateMatch = selectedOrderState === 'All' || order.orderState === selectedOrderState;
+      let inventoryLocationMatch = selectedInventoryLocation === 'All' || order.inventoryLocation === selectedInventoryLocation;
+      let orderIDMatch = selectedOrderID === 'All' || order.orderID === selectedOrderID;
+      return monthMatch && orderStateMatch && inventoryLocationMatch && orderIDMatch;
+    });
+    const dayValues = filtered.map(order => order.day).filter(day => day !== null && day !== undefined && !isNaN(day));
     const uniqueDays = [...new Set(dayValues)];
-    
-    // Sort days numerically
     const sortedDays = uniqueDays.sort((a, b) => a - b);
-    
     return ['All', ...sortedDays];
-  }, [ordersData]);
+  }, [ordersData, selectedMonth, selectedOrderState, selectedInventoryLocation, selectedOrderID]);
 
   const orderStates = useMemo(() => {
-    const uniqueStates = [...new Set(ordersData.map(order => order.orderState).filter(state => state))];
+    const filtered = ordersData.filter(order => {
+      let monthMatch = selectedMonth === 'All' || order.monthName === selectedMonth;
+      let dayMatch = selectedDay === 'All' || order.day === parseInt(selectedDay);
+      let inventoryLocationMatch = selectedInventoryLocation === 'All' || order.inventoryLocation === selectedInventoryLocation;
+      let orderIDMatch = selectedOrderID === 'All' || order.orderID === selectedOrderID;
+      return monthMatch && dayMatch && inventoryLocationMatch && orderIDMatch;
+    });
+    const uniqueStates = [...new Set(filtered.map(order => order.orderState).filter(state => state))];
     return ['All', ...uniqueStates.sort()];
-  }, [ordersData]);
+  }, [ordersData, selectedMonth, selectedDay, selectedInventoryLocation, selectedOrderID]);
 
   const inventoryLocations = useMemo(() => {
-    const uniqueLocations = [...new Set(ordersData.map(order => order.inventoryLocation).filter(location => location))];
+    const filtered = ordersData.filter(order => {
+      let monthMatch = selectedMonth === 'All' || order.monthName === selectedMonth;
+      let dayMatch = selectedDay === 'All' || order.day === parseInt(selectedDay);
+      let orderStateMatch = selectedOrderState === 'All' || order.orderState === selectedOrderState;
+      let orderIDMatch = selectedOrderID === 'All' || order.orderID === selectedOrderID;
+      return monthMatch && dayMatch && orderStateMatch && orderIDMatch;
+    });
+    const uniqueLocations = [...new Set(filtered.map(order => order.inventoryLocation).filter(location => location))];
     return ['All', ...uniqueLocations.sort()];
-  }, [ordersData]);
+  }, [ordersData, selectedMonth, selectedDay, selectedOrderState, selectedOrderID]);
 
   const orderIDs = useMemo(() => {
-    const uniqueIDs = [...new Set(ordersData.map(order => order.orderID).filter(id => id))];
-    return ['All', ...uniqueIDs.sort()];
-  }, [ordersData]);
-
-  // Filter data based on selected filters
-  const filteredData = useMemo(() => {
     const filtered = ordersData.filter(order => {
-      // Day filter logic - using numeric Day column
-      let dayMatches = selectedDay === 'All';
-      if (!dayMatches && selectedDay !== 'All') {
-        const orderDayValue = order.day; // This is now the numeric day from Day column
-        
-        // Direct numeric comparison for day values
-        dayMatches = orderDayValue === parseInt(selectedDay);
-      }
-      
-      return (selectedMonth === 'All' || order.monthName === selectedMonth) &&
-             dayMatches &&
-             (selectedOrderState === 'All' || order.orderState === selectedOrderState) &&
-             (selectedInventoryLocation === 'All' || order.inventoryLocation === selectedInventoryLocation) &&
-             (selectedOrderID === 'All' || order.orderID === selectedOrderID);
+      let monthMatch = selectedMonth === 'All' || order.monthName === selectedMonth;
+      let dayMatch = selectedDay === 'All' || order.day === parseInt(selectedDay);
+      let orderStateMatch = selectedOrderState === 'All' || order.orderState === selectedOrderState;
+      let inventoryLocationMatch = selectedInventoryLocation === 'All' || order.inventoryLocation === selectedInventoryLocation;
+      return monthMatch && dayMatch && orderStateMatch && inventoryLocationMatch;
     });
-    
-    console.log('Filtered data count:', filtered.length);
-    console.log('Selected filters:', { selectedMonth, selectedDay, selectedOrderState, selectedInventoryLocation, selectedOrderID });
-    
-    return filtered;
-  }, [ordersData, selectedMonth, selectedDay, selectedOrderState, selectedInventoryLocation, selectedOrderID]);
+    const uniqueIDs = [...new Set(filtered.map(order => order.orderID).filter(id => id))];
+    return ['All', ...uniqueIDs.sort()];
+  }, [ordersData, selectedMonth, selectedDay, selectedOrderState, selectedInventoryLocation]);
+
+  // Filter data based on selected filters (using dynamicFilteredData)
+  const filteredData = dynamicFilteredData;
 
   // Calculate metrics
   const totalOrders = useMemo(() => {
     return new Set(filteredData.map(order => order.orderID)).size;
   }, [filteredData]);
 
+  // Calculate total actual days and average days for all filtered data
+  const totalActualDaysAll = useMemo(() => filteredData.reduce((sum, d) => sum + (d.actualDays || 0), 0), [filteredData]);
+  const averageDaysAll = useMemo(() => filteredData.length === 0 ? 0 : (filteredData.reduce((sum, d) => sum + (d.actualDays || 0), 0) / filteredData.length).toFixed(2), [filteredData]);
+
   // Calculate clear order metrics
   const orderMetrics = useMemo(() => {
-    // Get unique subprocesses and locations for variety
     const uniqueSubprocesses = [...new Set(filteredData.map(order => order.subprocess))].length;
     const uniqueLocations = [...new Set(filteredData.map(order => order.inventoryLocation))].length;
-    
     return {
       subprocesses: uniqueSubprocesses,
       locations: uniqueLocations
@@ -168,10 +185,8 @@ export default function EfficiencyMetricsPage() {
   // Process data for new charts
   const processData = useMemo(() => {
     if (!filteredData || filteredData.length === 0) {
-      console.log('No filtered data available for process chart');
       return [];
     }
-    
     const preferredProcessOrder = ['Procurement', 'Production', 'Invoice', 'Dispatch', 'Payment'];
     const result = preferredProcessOrder.map(proc => {
       const sum = filteredData
@@ -179,8 +194,6 @@ export default function EfficiencyMetricsPage() {
         .reduce((acc, item) => acc + (item.actualDays || 0), 0);
       return { Process: proc, ActualDays: sum };
     }).filter(d => d.ActualDays > 0);
-    
-    console.log('Process data:', result);
     return result;
   }, [filteredData]);
 
@@ -194,10 +207,8 @@ export default function EfficiencyMetricsPage() {
   // Subprocess data with sequence ordering
   const subprocessDataNew = useMemo(() => {
     if (!displayData || displayData.length === 0) {
-      console.log('No display data available for subprocess chart');
       return [];
     }
-    
     const raw = displayData.reduce((acc, item) => {
       const key = item.subprocess;
       if (!key) return acc;
@@ -207,27 +218,20 @@ export default function EfficiencyMetricsPage() {
       acc[key].ActualDays += (item.actualDays || 0);
       return acc;
     }, {});
-    
     const result = Object.values(raw)
       .filter(item => item.ActualDays > 0)
       .sort((a, b) => (a.Sequence || 9999) - (b.Sequence || 9999));
-    
-    console.log('Subprocess data:', result);
     return result;
   }, [displayData]);
 
   // Additional metrics
-  const totalActualDays = displayData.reduce((sum, d) => sum + (d.actualDays || 0), 0);
   const formatThousands = (num) => num >= 1000 ? `${(num / 1000).toFixed(2)}K` : num;
 
   // Generate subprocess data from filtered results with fixed order
   const subprocessData = useMemo(() => {
     if (!filteredData || filteredData.length === 0) {
-      console.log('No filtered data available for subprocess status chart');
       return [];
     }
-    
-    // Fixed order of subprocesses to maintain consistent chart layout
     const fixedSubprocessOrder = [
       'Prepare PO',
       'Quality Check',
@@ -237,15 +241,12 @@ export default function EfficiencyMetricsPage() {
       'Send PO to Supplier',
       'Submit New Request'
     ];
-    
     const subprocessCounts = {};
-    
     filteredData.forEach(order => {
       if (order.subprocess) {
         if (!subprocessCounts[order.subprocess]) {
           subprocessCounts[order.subprocess] = { onTime: 0, delay: 0 };
         }
-        
         if (order.statusType === 'On Time') {
           subprocessCounts[order.subprocess].onTime++;
         } else if (order.statusType === 'Delay') {
@@ -253,8 +254,6 @@ export default function EfficiencyMetricsPage() {
         }
       }
     });
-    
-    // Return data in fixed order, showing 0 counts for subprocesses not in filtered data
     const result = fixedSubprocessOrder.map(subprocess => ({
       name: subprocess.length > 20 ? subprocess.substring(0, 17) + '...' : subprocess,
       fullName: subprocess,
@@ -262,122 +261,132 @@ export default function EfficiencyMetricsPage() {
       'Delay': subprocessCounts[subprocess]?.delay || 0,
       total: (subprocessCounts[subprocess]?.onTime || 0) + (subprocessCounts[subprocess]?.delay || 0)
     }));
-    
-    console.log('Subprocess status data:', result);
     return result;
   }, [filteredData]);
 
-  // Calculate average days
-  const averageDays = useMemo(() => {
-    if (filteredData.length === 0) return 0;
-    const totalDays = filteredData.reduce((sum, order) => sum + order.actualDays, 0);
-    const avg = (totalDays / filteredData.length).toFixed(2);
-    console.log('Average Days Calculation:', { 
-      filteredDataLength: filteredData.length, 
-      totalDays, 
-      averageDays: avg,
-      selectedFilters: { selectedMonth, selectedDay, selectedOrderState, selectedInventoryLocation, selectedOrderID }
+  // Calculate min, max, and average of process-level actual days sums for gauge meter
+  const processActualDaysStats = useMemo(() => {
+    if (!filteredData || filteredData.length === 0) {
+      return { min: 0, max: 0, avg: 0 };
+    }
+    // Group by process and sum actual days for each process
+    const processSums = {};
+    filteredData.forEach(order => {
+      if (!processSums[order.process]) processSums[order.process] = 0;
+      processSums[order.process] += order.actualDays || 0;
     });
-    return avg;
-  }, [filteredData, selectedMonth, selectedDay, selectedOrderState, selectedInventoryLocation, selectedOrderID]);
+    const sums = Object.values(processSums);
+    if (sums.length === 0) return { min: 0, max: 0, avg: 0 };
+    const min = Math.min(...sums);
+    const max = Math.max(...sums);
+    const avg = (sums.reduce((a, b) => a + b, 0) / sums.length).toFixed(2);
+    return { min, max, avg };
+  }, [filteredData]);
 
-  // Enhanced gauge chart component
-  const GaugeChart = ({ value, max = 10 }) => {
+  // Enhanced gauge chart component (crisp, dynamic, and visually impressive)
+  // For Order to Cash Credit Timeline, use processActualDaysStats
+  const GaugeChart = ({ value, min, max }) => {
     const [animatedValue, setAnimatedValue] = useState(0);
     const numValue = parseFloat(value) || 0;
-    const percentage = Math.min((numValue / max) * 100, 100); // Cap at 100%
-    const angle = (percentage / 100) * 180; // Convert to degrees for rotation
-    
-    // Calculate min and max from filtered data
-    const minDays = filteredData.length > 0 ? Math.min(...filteredData.map(order => order.actualDays)) : 0;
-    const maxDays = filteredData.length > 0 ? Math.max(...filteredData.map(order => order.actualDays)) : 0;
-    
-    console.log('Gauge Chart Min/Max:', { 
-      minDays, 
-      maxDays, 
-      filteredDataLength: filteredData.length,
-      value: numValue
-    });
-    
-    // Animate the gauge progress
+    // Use provided min and max for gauge
+    const gaugeMin = min;
+    const gaugeMax = max > min ? max : min + 1;
+    // Calculate the angle for the needle (0deg = left, 180deg = right)
+    const percentage = Math.max(0, Math.min(1, (numValue - gaugeMin) / (gaugeMax - gaugeMin)));
+    const angle = percentage * 180;
+    // Color stops for performance
+    const getNeedleColor = () => {
+      if (percentage < 0.33) return '#10b981'; // green
+      if (percentage < 0.66) return '#fbbf24'; // yellow
+      return '#ef4444'; // red
+    };
+    // Animate the needle
     useEffect(() => {
       const timer = setTimeout(() => {
         setAnimatedValue(numValue);
-      }, 200); // Small delay before animation starts
-      
+      }, 200);
       return () => clearTimeout(timer);
     }, [numValue]);
-    
-    // Calculate animated angle
-    const animatedPercentage = Math.min((animatedValue / max) * 100, 100);
-    const animatedAngle = (animatedPercentage / 100) * 180;
-    
+    // Animated needle angle
+    const animatedPercentage = Math.max(0, Math.min(1, (animatedValue - gaugeMin) / (gaugeMax - gaugeMin)));
+    const animatedAngle = animatedPercentage * 180;
+    // Needle position
+    const needleLength = 80;
+    const centerX = 120;
+    const centerY = 120;
+    const needleX = centerX + needleLength * Math.cos(Math.PI * (1 - animatedAngle / 180));
+    const needleY = centerY - needleLength * Math.sin(Math.PI * (1 - animatedAngle / 180));
     return (
       <div className="relative flex flex-col items-center">
-        {/* Gauge Container */}
-        <div className="relative mb-6">
+        <div className="relative mb-4">
           <svg width="240" height="140" viewBox="0 0 240 140" className="filter drop-shadow-lg">
-            {/* Background arc with gradient */}
+            {/* Arc background with gradient */}
             <defs>
-              <linearGradient id="backgroundGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#9ca3af" />
-                <stop offset="100%" stopColor="#6b7280" />
-              </linearGradient>
-              <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#ffd700" />
-                <stop offset="50%" stopColor="#ffb347" />
-                <stop offset="100%" stopColor="#ff8c00" />
+              <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#10b981" />
+                <stop offset="50%" stopColor="#fbbf24" />
+                <stop offset="100%" stopColor="#ef4444" />
               </linearGradient>
             </defs>
-            
-            {/* White border/outline */}
+            {/* Arc */}
             <path
               d="M 40,120 A 80,80 0 0,1 200,120"
               fill="none"
-              stroke="#ffffff"
-              strokeWidth="34"
-              strokeLinecap="butt"
-            />
-            
-            {/* Background arc */}
-            <path
-              d="M 40,120 A 80,80 0 0,1 200,120"
-              fill="none"
-              stroke="url(#backgroundGradient)"
+              stroke="url(#gaugeGradient)"
               strokeWidth="28"
-              strokeLinecap="butt"
+              strokeLinecap="round"
             />
-            
-            {/* Progress arc */}
-            <path
-              d="M 40,120 A 80,80 0 0,1 200,120"
-              fill="none"
-              stroke="url(#progressGradient)"
-              strokeWidth="28"
-              strokeLinecap="butt"
-              strokeDasharray="251.33"
-              strokeDashoffset={251.33 - (animatedAngle / 180) * 251.33}
-              style={{
-                transition: 'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)',
-              }}
-            />
-            
-                       </svg>
+            {/* Min/Max labels - small, subtle, precisely at arc start/end inside the gauge */}
+            {/* Min label (left, at arc start) */}
+            <g>
+              <circle cx="40" cy="120" r="11" fill="#10b981" stroke="#fff" strokeWidth="2" />
+              <text x="40" y="125" textAnchor="middle" fontSize="13" fontWeight="bold" fill="#fff">{gaugeMin}</text>
+            </g>
+            {/* Max label (right, at arc end) */}
+            <g>
+              <circle cx="200" cy="120" r="11" fill="#ef4444" stroke="#fff" strokeWidth="2" />
+              <text x="200" y="125" textAnchor="middle" fontSize="13" fontWeight="bold" fill="#fff">{gaugeMax}</text>
+            </g>
+            {/* Needle */}
+            <g style={{ transition: 'all 1.2s cubic-bezier(0.4,0,0.2,1)' }}>
+              <line
+                x1={centerX}
+                y1={centerY}
+                x2={needleX}
+                y2={needleY}
+                stroke={getNeedleColor()}
+                strokeWidth="6"
+                strokeLinecap="round"
+                filter="drop-shadow(0 0 6px #fff8)"
+              />
+              {/* Needle base circle */}
+              <circle cx={centerX} cy={centerY} r="10" fill="#22223b" stroke="#fff" strokeWidth="3" />
+              {/* Needle tip */}
+              <circle cx={needleX} cy={needleY} r="7" fill={getNeedleColor()} stroke="#fff" strokeWidth="2" />
+            </g>
+            {/* Value label (big, center) */}
+            <text x={centerX} y="90" textAnchor="middle" fontSize="32" fontWeight="bold" fill="#fff" style={{ filter: 'drop-shadow(0 2px 8px #000a)' }}>
+              {animatedValue.toFixed(2)}
+            </text>
+            {/* Label below value */}
+            <text x={centerX} y="112" textAnchor="middle" fontSize="14" fill="#a3e635" fontWeight="bold">
+              Avg Days
+            </text>
+          </svg>
         </div>
-        
-        {/* Stats Cards */}
-        <div className="grid grid-cols-3 gap-4 w-full max-w-sm">
-          <div className="bg-gradient-to-br from-blue-600/60 to-blue-800/60 backdrop-blur-sm rounded-xl p-4 text-center border-2 border-blue-400/50 shadow-lg transform transition-all duration-500 hover:scale-105 hover:shadow-blue-500/20">
-            <div className="text-2xl font-bold text-blue-100 transition-all duration-1000 mb-1">{minDays}</div>
-            <div className="text-sm text-blue-200 uppercase tracking-wider font-semibold">Min Days</div>
+        {/* Min/Avg/Max cards below gauge */}
+        <div className="grid grid-cols-3 gap-4 w-full max-w-sm mt-2">
+          <div className="bg-gradient-to-br from-blue-600/60 to-blue-800/60 backdrop-blur-sm rounded-xl p-3 text-center border-2 border-blue-400/50 shadow-lg">
+            <div className="text-lg font-bold text-blue-100 mb-1">{gaugeMin}</div>
+            <div className="text-xs text-blue-200 uppercase tracking-wider font-semibold">Min</div>
           </div>
-          <div className="bg-gradient-to-br from-green-600/60 to-green-800/60 backdrop-blur-sm rounded-xl p-4 text-center border-2 border-green-400/50 shadow-lg transform transition-all duration-500 hover:scale-105 hover:shadow-green-500/20 animate-pulse">
-            <div className="text-2xl font-bold text-green-100 transition-all duration-1000 mb-1">{animatedValue.toFixed(2)}</div>
-            <div className="text-sm text-green-200 uppercase tracking-wider font-semibold">Avg Days</div>
+          <div className="bg-gradient-to-br from-green-600/60 to-green-800/60 backdrop-blur-sm rounded-xl p-3 text-center border-2 border-green-400/50 shadow-lg animate-pulse">
+            <div className="text-lg font-bold text-green-100 mb-1">{animatedValue.toFixed(2)}</div>
+            <div className="text-xs text-green-200 uppercase tracking-wider font-semibold">Avg</div>
           </div>
-          <div className="bg-gradient-to-br from-purple-600/60 to-purple-800/60 backdrop-blur-sm rounded-xl p-4 text-center border-2 border-purple-400/50 shadow-lg transform transition-all duration-500 hover:scale-105 hover:shadow-purple-500/20">
-            <div className="text-2xl font-bold text-purple-100 transition-all duration-1000 mb-1">{maxDays}</div>
-            <div className="text-sm text-purple-200 uppercase tracking-wider font-semibold">Max Days</div>
+          <div className="bg-gradient-to-br from-purple-600/60 to-purple-800/60 backdrop-blur-sm rounded-xl p-3 text-center border-2 border-purple-400/50 shadow-lg">
+            <div className="text-lg font-bold text-purple-100 mb-1">{gaugeMax}</div>
+            <div className="text-xs text-purple-200 uppercase tracking-wider font-semibold">Max</div>
           </div>
         </div>
       </div>
@@ -387,24 +396,98 @@ export default function EfficiencyMetricsPage() {
   // Generate table data from filtered results
   const tableData = useMemo(() => {
     const uniqueOrderIDs = [...new Set(filteredData.map(order => order.orderID))];
-    
     return uniqueOrderIDs.map(orderID => {
       const orderRecords = filteredData.filter(order => order.orderID === orderID);
-      const startDates = orderRecords.map(order => order.startDate).filter(date => date);
-      const endDates = orderRecords.map(order => order.endDate).filter(date => date);
+      // Use Sub Actual Start Date and Sub Actual End Date for date columns
+      const subActualStartDates = orderRecords.map(order => order.startDate).filter(date => date);
+      const subActualEndDates = orderRecords.map(order => order.endDate).filter(date => date);
       const actualDays = Math.max(...orderRecords.map(order => order.actualDays));
-      
-      const earliestStart = startDates.length > 0 ? new Date(Math.min(...startDates)) : null;
-      const latestEnd = endDates.length > 0 ? new Date(Math.max(...endDates)) : null;
-      
+      const earliestStart = subActualStartDates.length > 0 ? new Date(Math.min(...subActualStartDates)) : null;
+      const latestEnd = subActualEndDates.length > 0 ? new Date(Math.max(...subActualEndDates)) : null;
       return {
         orderID,
         startDate: earliestStart ? format(earliestStart, 'dd MMM yyyy') : 'N/A',
         endDate: latestEnd ? format(latestEnd, 'dd MMM yyyy') : 'N/A',
         actualDays
       };
-    }).sort((a, b) => a.orderID.localeCompare(b.orderID)); // Sort by Order ID for consistency
+    }).sort((a, b) => a.orderID.localeCompare(b.orderID));
   }, [filteredData]);
+
+  // Procurement-specific filtered data
+  const procurementData = useMemo(() => filteredData.filter(d => d.process === 'Procurement'), [filteredData]);
+
+  // Procurement metrics
+  const procurementTotalOrders = useMemo(() => new Set(procurementData.map(order => order.orderID)).size, [procurementData]);
+  const procurementTotalActualDays = useMemo(() => procurementData.reduce((sum, d) => sum + (d.actualDays || 0), 0), [procurementData]);
+  const procurementAverageDays = useMemo(() => procurementData.length === 0 ? 0 : (procurementData.reduce((sum, d) => sum + (d.actualDays || 0), 0) / procurementData.length).toFixed(2), [procurementData]);
+
+  // Procurement order details table (Procurement only, at bottom of page)
+  const procurementTableData = useMemo(() => {
+    const uniqueOrderIDs = [...new Set(procurementData.map(order => order.orderID))];
+    return uniqueOrderIDs.map(orderID => {
+      const orderRecords = procurementData.filter(order => order.orderID === orderID);
+      // Start Date: earliest valid Sub Actual Start Date from original CSV field
+      const subStartDates = orderRecords
+        .map(order => {
+          if (!order.subActualStartDate || order.subActualStartDate === 'N/A') return null;
+          const d = new Date(order.subActualStartDate);
+          return isNaN(d) ? null : d;
+        })
+        .filter(date => date);
+      // End Date: latest valid Sub Actual End Date from original CSV field
+      const subEndDates = orderRecords
+        .map(order => {
+          if (!order.subActualEndDate || order.subActualEndDate === 'N/A') return null;
+          const d = new Date(order.subActualEndDate);
+          return isNaN(d) ? null : d;
+        })
+        .filter(date => date);
+      // Actual Days: sum of 'Actual Days' for all subprocesses of that order
+      const actualDaysSum = orderRecords.reduce((sum, order) => sum + (order.actualDays || 0), 0);
+      const earliestSubStart = subStartDates.length > 0 ? new Date(Math.min(...subStartDates)) : null;
+      const latestSubEnd = subEndDates.length > 0 ? new Date(Math.max(...subEndDates)) : null;
+      return {
+        orderID,
+        startDate: earliestSubStart ? format(earliestSubStart, 'dd MMM yyyy') : 'N/A',
+        endDate: latestSubEnd ? format(latestSubEnd, 'dd MMM yyyy') : 'N/A',
+        actualDays: actualDaysSum
+      };
+    }).sort((a, b) => a.orderID.localeCompare(b.orderID));
+  }, [procurementData]);
+
+  // Procurement subprocess bar chart data (ordered by Subprocess Sequence from CSV)
+  const procurementSubprocessData = useMemo(() => {
+    if (!procurementData || procurementData.length === 0) return [];
+    // Group by subprocess and get min sequence for each
+    const subprocessMap = {};
+    procurementData.forEach(order => {
+      if (order.subprocess) {
+        if (!subprocessMap[order.subprocess]) {
+          subprocessMap[order.subprocess] = {
+            name: order.subprocess.length > 20 ? order.subprocess.substring(0, 17) + '...' : order.subprocess,
+            fullName: order.subprocess,
+            'On Time': 0,
+            'Delay': 0,
+            total: 0,
+            sequence: order.subprocessSequence || 9999
+          };
+        }
+        if (order.statusType === 'On Time') {
+          subprocessMap[order.subprocess]['On Time']++;
+        } else if (order.statusType === 'Delay') {
+          subprocessMap[order.subprocess]['Delay']++;
+        }
+        subprocessMap[order.subprocess].total++;
+        // Always keep the minimum sequence for this subprocess
+        if (order.subprocessSequence && order.subprocessSequence < subprocessMap[order.subprocess].sequence) {
+          subprocessMap[order.subprocess].sequence = order.subprocessSequence;
+        }
+      }
+    });
+    // Sort by sequence
+    return Object.values(subprocessMap)
+      .sort((a, b) => (a.sequence || 9999) - (b.sequence || 9999));
+  }, [procurementData]);
 
   if (loading) {
     return (
@@ -421,86 +504,127 @@ export default function EfficiencyMetricsPage() {
         <h1 className="text-3xl font-bold">Efficiency Metrics</h1>
       </div>
 
-      {/* Filters */}
-      <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6 mb-6">
-        <div className="grid grid-cols-5 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">Month</label>
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="w-full bg-[#1a365d] border border-gray-600 rounded-lg p-2 text-white"
-            >
-              {months.map(month => (
-                <option key={month} value={month}>
-                  {month}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-2">Day</label>
-            <select
-              value={selectedDay}
-              onChange={(e) => setSelectedDay(e.target.value)}
-              className="w-full bg-[#1a365d] border border-gray-600 rounded-lg p-2 text-white"
-            >
-              {days.map(day => (
-                <option key={day} value={day}>
-                  {day === 'All' ? 'All' : `Day ${day}`}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-2">Order State</label>
-            <select
-              value={selectedOrderState}
-              onChange={(e) => setSelectedOrderState(e.target.value)}
-              className="w-full bg-[#1a365d] border border-gray-600 rounded-lg p-2 text-white"
-            >
-              {orderStates.map(state => (
-                <option key={state} value={state}>{state}</option>
-              ))}
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-2">Inventory Location</label>
-            <select
-              value={selectedInventoryLocation}
-              onChange={(e) => setSelectedInventoryLocation(e.target.value)}
-              className="w-full bg-[#1a365d] border border-gray-600 rounded-lg p-2 text-white"
-            >
-              {inventoryLocations.map(location => (
-                <option key={location} value={location}>{location}</option>
-              ))}
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-2">Order ID</label>
-            <select
-              value={selectedOrderID}
-              onChange={(e) => setSelectedOrderID(e.target.value)}
-              className="w-full bg-[#1a365d] border border-gray-600 rounded-lg p-2 text-white"
-            >
-              {orderIDs.slice(0, 100).map(id => (
-                <option key={id} value={id}>{id}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Order to Cash Credit Timeline Section */}
+      {/* Order to Cash Credit Timeline Section (title) */}
       <div className="mb-8">
         <h2 className="text-2xl font-bold mb-6 text-left text-white">
           Order to Cash Credit Timeline
         </h2>
-        
+
+        {/* Filters (dynamic, below Order to Cash Credit Timeline title) */}
+        <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6 mb-6">
+          <div className="grid grid-cols-5 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Month</label>
+              <select
+                value={selectedMonth}
+                onChange={(e) => {
+                  setSelectedMonth(e.target.value);
+                  setSelectedDay('All');
+                  setSelectedOrderState('All');
+                  setSelectedInventoryLocation('All');
+                  setSelectedOrderID('All');
+                }}
+                className="w-full bg-[#1a365d] border border-gray-600 rounded-lg p-2 text-white"
+              >
+                {months.map(month => (
+                  <option key={month} value={month}>
+                    {month}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Day</label>
+              <select
+                value={selectedDay}
+                onChange={(e) => {
+                  setSelectedDay(e.target.value);
+                  setSelectedOrderState('All');
+                  setSelectedInventoryLocation('All');
+                  setSelectedOrderID('All');
+                }}
+                className="w-full bg-[#1a365d] border border-gray-600 rounded-lg p-2 text-white"
+              >
+                {days.map(day => (
+                  <option key={day} value={day}>
+                    {day === 'All' ? 'All' : `Day ${day}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Order State</label>
+              <select
+                value={selectedOrderState}
+                onChange={(e) => {
+                  setSelectedOrderState(e.target.value);
+                  setSelectedInventoryLocation('All');
+                  setSelectedOrderID('All');
+                }}
+                className="w-full bg-[#1a365d] border border-gray-600 rounded-lg p-2 text-white"
+              >
+                {orderStates.map(state => (
+                  <option key={state} value={state}>{state}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Inventory Location</label>
+              <select
+                value={selectedInventoryLocation}
+                onChange={(e) => {
+                  setSelectedInventoryLocation(e.target.value);
+                  setSelectedOrderID('All');
+                }}
+                className="w-full bg-[#1a365d] border border-gray-600 rounded-lg p-2 text-white"
+              >
+                {inventoryLocations.map(location => (
+                  <option key={location} value={location}>{location}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Order ID</label>
+              <select
+                value={selectedOrderID}
+                onChange={(e) => setSelectedOrderID(e.target.value)}
+                className="w-full bg-[#1a365d] border border-gray-600 rounded-lg p-2 text-white"
+              >
+                {orderIDs.slice(0, 100).map(id => (
+                  <option key={id} value={id}>{id}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Metrics Cards Row (copy of Procurement Timeline metrics, now below filters) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {/* Number of Orders Card */}
+          <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6 flex flex-col items-center justify-center text-center">
+            <h3 className="text-lg font-bold mb-3 bg-gradient-to-r from-blue-300 to-cyan-300 bg-clip-text text-transparent">
+              Number of Orders
+            </h3>
+            <div className="text-4xl font-bold text-blue-400 mb-2">{totalOrders}</div>
+            <div className="text-xs text-gray-300 uppercase tracking-wider">Total Orders</div>
+          </div>
+          {/* Actual Days Card (total sum for all filtered data) */}
+          <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6 flex flex-col items-center justify-center text-center">
+            <h3 className="text-lg font-bold mb-3 bg-gradient-to-r from-green-300 to-emerald-300 bg-clip-text text-transparent">
+              Actual Days
+            </h3>
+            <div className="text-4xl font-bold text-green-400 mb-2">{formatThousands(totalActualDaysAll)}</div>
+            <div className="text-xs text-gray-300 uppercase tracking-wider">Total Days</div>
+          </div>
+          {/* Average Days Gauge (average for all filtered data) */}
+          <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6">
+            <h3 className="text-xl font-bold mb-6 text-center bg-gradient-to-r from-blue-300 to-cyan-300 bg-clip-text text-transparent">
+              Average Days Analysis
+            </h3>
+            <GaugeChart value={processActualDaysStats.avg} min={processActualDaysStats.min} max={processActualDaysStats.max} />
+          </div>
+        </div>
+
         {/* Process Chart */}
         <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6 mb-6">
           <div className="flex justify-between items-center mb-4">
@@ -553,7 +677,6 @@ export default function EfficiencyMetricsPage() {
             </ResponsiveContainer>
           </div>
         </div>
-
         {/* Subprocess Chart */}
         <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6 mb-6">
           <h3 className="text-xl font-semibold mb-4 text-white">
@@ -590,47 +713,6 @@ export default function EfficiencyMetricsPage() {
             </ResponsiveContainer>
           </div>
         </div>
-
-        {/* Order Details Table */}
-        <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6">
-          <div className="mb-4 flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Order Details</h3>
-            <div className="text-sm text-gray-300">
-              Showing {tableData.length} orders
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <div className="max-h-96 overflow-y-auto border-t border-b border-blue-600 rounded-lg">
-              <table className="w-full border-collapse">
-                <thead className="sticky top-0 z-10">
-                  <tr className="bg-blue-950/80 backdrop-blur-sm border-b border-blue-600">
-                    <th className="text-left py-4 px-6 font-semibold text-gray-200 text-sm uppercase tracking-wider border-b border-blue-600">Order ID</th>
-                    <th className="text-left py-4 px-6 font-semibold text-gray-200 text-sm uppercase tracking-wider border-b border-blue-600">Start Date</th>
-                    <th className="text-left py-4 px-6 font-semibold text-gray-200 text-sm uppercase tracking-wider border-b border-blue-600">End Date</th>
-                    <th className="text-left py-4 px-6 font-semibold text-gray-200 text-sm uppercase tracking-wider border-b border-blue-600">Actual Days</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tableData.map((row, index) => (
-                    <tr key={index} className="bg-blue-950/80 hover:bg-blue-600/50 transition-colors duration-200 border-b border-blue-600">
-                      <td className="py-4 px-6 text-white font-medium border-b border-blue-600">{row.orderID}</td>
-                      <td className="py-4 px-6 text-gray-200 border-b border-blue-600">{row.startDate}</td>
-                      <td className="py-4 px-6 text-gray-200 border-b border-blue-600">{row.endDate}</td>
-                      <td className="py-4 px-6 text-gray-200 font-medium border-b border-blue-600">{row.actualDays}</td>
-                    </tr>
-                  ))}
-                  {tableData.length === 0 && (
-                    <tr>
-                      <td colSpan="4" className="py-8 px-6 text-center text-gray-400 bg-blue-950/80 border-b border-blue-600">
-                        No orders found for the selected filters
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Procurement Timeline Section */}
@@ -638,42 +720,125 @@ export default function EfficiencyMetricsPage() {
         <h2 className="text-2xl font-bold mb-6 text-left text-white">
           Procurement Timeline
         </h2>
-        
-        {/* Metrics Cards Row */}
+        {/* Filters (dynamic, below Procurement Timeline title) */}
+        <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6 mb-6">
+          <div className="grid grid-cols-5 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Month</label>
+              <select
+                value={selectedMonth}
+                onChange={(e) => {
+                  setSelectedMonth(e.target.value);
+                  setSelectedDay('All');
+                  setSelectedOrderState('All');
+                  setSelectedInventoryLocation('All');
+                  setSelectedOrderID('All');
+                }}
+                className="w-full bg-[#1a365d] border border-gray-600 rounded-lg p-2 text-white"
+              >
+                {months.map(month => (
+                  <option key={month} value={month}>
+                    {month}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Day</label>
+              <select
+                value={selectedDay}
+                onChange={(e) => {
+                  setSelectedDay(e.target.value);
+                  setSelectedOrderState('All');
+                  setSelectedInventoryLocation('All');
+                  setSelectedOrderID('All');
+                }}
+                className="w-full bg-[#1a365d] border border-gray-600 rounded-lg p-2 text-white"
+              >
+                {days.map(day => (
+                  <option key={day} value={day}>
+                    {day === 'All' ? 'All' : `Day ${day}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Order State</label>
+              <select
+                value={selectedOrderState}
+                onChange={(e) => {
+                  setSelectedOrderState(e.target.value);
+                  setSelectedInventoryLocation('All');
+                  setSelectedOrderID('All');
+                }}
+                className="w-full bg-[#1a365d] border border-gray-600 rounded-lg p-2 text-white"
+              >
+                {orderStates.map(state => (
+                  <option key={state} value={state}>{state}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Inventory Location</label>
+              <select
+                value={selectedInventoryLocation}
+                onChange={(e) => {
+                  setSelectedInventoryLocation(e.target.value);
+                  setSelectedOrderID('All');
+                }}
+                className="w-full bg-[#1a365d] border border-gray-600 rounded-lg p-2 text-white"
+              >
+                {inventoryLocations.map(location => (
+                  <option key={location} value={location}>{location}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Order ID</label>
+              <select
+                value={selectedOrderID}
+                onChange={(e) => setSelectedOrderID(e.target.value)}
+                className="w-full bg-[#1a365d] border border-gray-600 rounded-lg p-2 text-white"
+              >
+                {orderIDs.slice(0, 100).map(id => (
+                  <option key={id} value={id}>{id}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+        {/* Metrics Cards Row (Procurement only) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           {/* Number of Orders Card */}
           <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6 flex flex-col items-center justify-center text-center">
             <h3 className="text-lg font-bold mb-3 bg-gradient-to-r from-blue-300 to-cyan-300 bg-clip-text text-transparent">
               Number of Orders
             </h3>
-            <div className="text-4xl font-bold text-blue-400 mb-2">{totalOrders}</div>
+            <div className="text-4xl font-bold text-blue-400 mb-2">{procurementTotalOrders}</div>
             <div className="text-xs text-gray-300 uppercase tracking-wider">Total Orders</div>
           </div>
-
           {/* Actual Days Card */}
           <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6 flex flex-col items-center justify-center text-center">
             <h3 className="text-lg font-bold mb-3 bg-gradient-to-r from-green-300 to-emerald-300 bg-clip-text text-transparent">
               Actual Days
             </h3>
-            <div className="text-4xl font-bold text-green-400 mb-2">{formatThousands(totalActualDays)}</div>
+            <div className="text-4xl font-bold text-green-400 mb-2">{formatThousands(procurementTotalActualDays)}</div>
             <div className="text-xs text-gray-300 uppercase tracking-wider">Total Days</div>
           </div>
-
           {/* Average Days Gauge */}
           <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6">
             <h3 className="text-xl font-bold mb-6 text-center bg-gradient-to-r from-blue-300 to-cyan-300 bg-clip-text text-transparent">
               Average Days Analysis
             </h3>
-            <GaugeChart value={averageDays} />
+            <GaugeChart value={procurementAverageDays} />
           </div>
         </div>
-
-        {/* Subprocess Bar Chart */}
+        {/* Subprocess Bar Chart (Procurement only, ordered by sequence) */}
         <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6">
           <h3 className="text-xl font-semibold mb-4">Count of Order ID by Subprocess and Status Type</h3>
           <div className="h-96">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={subprocessData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+              <BarChart data={procurementSubprocessData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                 <XAxis 
                   dataKey="name" 
                   tick={{ fontSize: 14, fill: '#ffffff', fontWeight: 600 }}
@@ -716,6 +881,46 @@ export default function EfficiencyMetricsPage() {
             </ResponsiveContainer>
           </div>
         </div>
+        {/* Procurement Order Details Table (Procurement only, at bottom of page) */}
+        <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6 mt-6">
+          <div className="mb-4 flex justify-between items-center">
+            <h3 className="text-lg font-semibold">Order Details</h3>
+            <div className="text-sm text-gray-300">
+              Showing {procurementTableData.length} orders
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <div className="max-h-96 overflow-y-auto border-t border-b border-blue-600 rounded-lg">
+              <table className="w-full border-collapse">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-blue-950/80 backdrop-blur-sm border-b border-blue-600">
+                    <th className="text-left py-4 px-6 font-semibold text-gray-200 text-sm uppercase tracking-wider border-b border-blue-600">Order ID</th>
+                    <th className="text-left py-4 px-6 font-semibold text-gray-200 text-sm uppercase tracking-wider border-b border-blue-600">Start Date</th>
+                    <th className="text-left py-4 px-6 font-semibold text-gray-200 text-sm uppercase tracking-wider border-b border-blue-600">End Date</th>
+                    <th className="text-left py-4 px-6 font-semibold text-gray-200 text-sm uppercase tracking-wider border-b border-blue-600">Actual Days</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {procurementTableData.map((row, index) => (
+                    <tr key={index} className="bg-blue-950/80 hover:bg-blue-600/50 transition-colors duration-200 border-b border-blue-600">
+                      <td className="py-4 px-6 text-white font-medium border-b border-blue-600">{row.orderID}</td>
+                      <td className="py-4 px-6 text-gray-200 border-b border-blue-600">{row.startDate}</td>
+                      <td className="py-4 px-6 text-gray-200 border-b border-blue-600">{row.endDate}</td>
+                      <td className="py-4 px-6 text-gray-200 font-medium border-b border-blue-600">{row.actualDays}</td>
+                    </tr>
+                  ))}
+                  {procurementTableData.length === 0 && (
+                    <tr>
+                      <td colSpan="4" className="py-8 px-6 text-center text-gray-400 bg-blue-950/80 border-b border-blue-600">
+                        No orders found for the selected filters
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Back Button */}
@@ -741,10 +946,9 @@ function Dropdown({ label, options, value, onChange }) {
         onChange={(e) => onChange(e.target.value)}
         className="w-full bg-[#1a365d] border border-gray-600 rounded-lg p-2 text-white"
       >
-        <option value="All">All</option>
         {options.map((opt) => (
           <option key={opt} value={opt}>
-            {opt === 'All' ? 'All' : (label === 'Day' ? `Day ${opt}` : opt)}
+            {opt === "All" ? "All" : (label === "Day" ? `Day ${opt}` : opt)}
           </option>
         ))}
       </select>
