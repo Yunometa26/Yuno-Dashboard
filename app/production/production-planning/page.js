@@ -1218,4 +1218,4 @@ function GanttChart({ data }) {
     </div>
   )
 }
-//added Gantt Chart
+//added Gantt Chart.
