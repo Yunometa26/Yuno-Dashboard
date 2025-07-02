@@ -289,105 +289,59 @@ export default function EfficiencyMetricsPage() {
     const [animatedValue, setAnimatedValue] = useState(0);
     const numValue = parseFloat(value) || 0;
     // Use provided min and max for gauge
-    const gaugeMin = min;
-    const gaugeMax = max > min ? max : min + 1;
-    // Calculate the angle for the needle (0deg = left, 180deg = right)
-    const percentage = Math.max(0, Math.min(1, (numValue - gaugeMin) / (gaugeMax - gaugeMin)));
-    const angle = percentage * 180;
-    // Color stops for performance
-    const getNeedleColor = () => {
-      if (percentage < 0.33) return '#10b981'; // green
-      if (percentage < 0.66) return '#fbbf24'; // yellow
-      return '#ef4444'; // red
-    };
-    // Animate the needle
+    const gaugeMin = min !== undefined ? min : 0;
+    const gaugeMax = max !== undefined && max > gaugeMin ? max : gaugeMin + 1;
+    // Animate the value for smooth transition
     useEffect(() => {
       const timer = setTimeout(() => {
         setAnimatedValue(numValue);
       }, 200);
       return () => clearTimeout(timer);
     }, [numValue]);
-    // Animated needle angle
-    const animatedPercentage = Math.max(0, Math.min(1, (animatedValue - gaugeMin) / (gaugeMax - gaugeMin)));
-    const animatedAngle = animatedPercentage * 180;
-    // Needle position
-    const needleLength = 80;
-    const centerX = 120;
-    const centerY = 120;
-    const needleX = centerX + needleLength * Math.cos(Math.PI * (1 - animatedAngle / 180));
-    const needleY = centerY - needleLength * Math.sin(Math.PI * (1 - animatedAngle / 180));
+    // Gauge layout constants
+    const arcStartX = 60;
+    const arcEndX = 280;
+    const arcY = 170;
+    const numberY = 200; // below arc
+    const labelY = 218; // further below
+    const centerX = 170;
+    const centerY = 170;
     return (
       <div className="relative flex flex-col items-center">
-        <div className="relative mb-4">
-          <svg width="240" height="140" viewBox="0 0 240 140" className="filter drop-shadow-lg">
+        <div className="relative mb-2">
+          <svg width="340" height="240" viewBox="0 0 340 240" className="filter drop-shadow-lg">
             {/* Arc background with gradient */}
             <defs>
               <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                 <stop offset="0%" stopColor="#10b981" />
-                <stop offset="50%" stopColor="#fbbf24" />
                 <stop offset="100%" stopColor="#ef4444" />
               </linearGradient>
             </defs>
             {/* Arc */}
             <path
-              d="M 40,120 A 80,80 0 0,1 200,120"
+              d="M 60,170 A 110,110 0 0,1 280,170"
               fill="none"
               stroke="url(#gaugeGradient)"
-              strokeWidth="28"
+              strokeWidth="36"
               strokeLinecap="round"
             />
-            {/* Min/Max labels - small, subtle, precisely at arc start/end inside the gauge */}
-            {/* Min label (left, at arc start) */}
+            {/* Min/Max value labels below arc, inside or just outside if needed */}
             <g>
-              <circle cx="40" cy="120" r="11" fill="#10b981" stroke="#fff" strokeWidth="2" />
-              <text x="40" y="125" textAnchor="middle" fontSize="13" fontWeight="bold" fill="#fff">{gaugeMin}</text>
-            </g>
-            {/* Max label (right, at arc end) */}
-            <g>
-              <circle cx="200" cy="120" r="11" fill="#ef4444" stroke="#fff" strokeWidth="2" />
-              <text x="200" y="125" textAnchor="middle" fontSize="13" fontWeight="bold" fill="#fff">{gaugeMax}</text>
-            </g>
-            {/* Needle */}
-            <g style={{ transition: 'all 1.2s cubic-bezier(0.4,0,0.2,1)' }}>
-              <line
-                x1={centerX}
-                y1={centerY}
-                x2={needleX}
-                y2={needleY}
-                stroke={getNeedleColor()}
-                strokeWidth="6"
-                strokeLinecap="round"
-                filter="drop-shadow(0 0 6px #fff8)"
-              />
-              {/* Needle base circle */}
-              <circle cx={centerX} cy={centerY} r="10" fill="#22223b" stroke="#fff" strokeWidth="3" />
-              {/* Needle tip */}
-              <circle cx={needleX} cy={needleY} r="7" fill={getNeedleColor()} stroke="#fff" strokeWidth="2" />
+              <text x="60" y={numberY} textAnchor="middle" fontSize="18" fontWeight="bold" fill="#fff">{gaugeMin}</text>
+              <text x="280" y={numberY} textAnchor="middle" fontSize="18" fontWeight="bold" fill="#fff">{gaugeMax}</text>
+              {/* Small 'min' and 'max' text below numbers */}
+              <text x="60" y={labelY} textAnchor="middle" fontSize="12" fill="#a3e635">min</text>
+              <text x="280" y={labelY} textAnchor="middle" fontSize="12" fill="#a3e635">max</text>
             </g>
             {/* Value label (big, center) */}
-            <text x={centerX} y="90" textAnchor="middle" fontSize="32" fontWeight="bold" fill="#fff" style={{ filter: 'drop-shadow(0 2px 8px #000a)' }}>
+            <text x={centerX} y="110" textAnchor="middle" fontSize="40" fontWeight="bold" fill="#fff" style={{ filter: 'drop-shadow(0 2px 8px #000a)' }}>
               {animatedValue.toFixed(2)}
             </text>
             {/* Label below value */}
-            <text x={centerX} y="112" textAnchor="middle" fontSize="14" fill="#a3e635" fontWeight="bold">
+            <text x={centerX} y="140" textAnchor="middle" fontSize="18" fill="#a3e635" fontWeight="bold">
               Avg Days
             </text>
           </svg>
-        </div>
-        {/* Min/Avg/Max cards below gauge */}
-        <div className="grid grid-cols-3 gap-4 w-full max-w-sm mt-2">
-          <div className="bg-gradient-to-br from-blue-600/60 to-blue-800/60 backdrop-blur-sm rounded-xl p-3 text-center border-2 border-blue-400/50 shadow-lg">
-            <div className="text-lg font-bold text-blue-100 mb-1">{gaugeMin}</div>
-            <div className="text-xs text-blue-200 uppercase tracking-wider font-semibold">Min</div>
-          </div>
-          <div className="bg-gradient-to-br from-green-600/60 to-green-800/60 backdrop-blur-sm rounded-xl p-3 text-center border-2 border-green-400/50 shadow-lg animate-pulse">
-            <div className="text-lg font-bold text-green-100 mb-1">{animatedValue.toFixed(2)}</div>
-            <div className="text-xs text-green-200 uppercase tracking-wider font-semibold">Avg</div>
-          </div>
-          <div className="bg-gradient-to-br from-purple-600/60 to-purple-800/60 backdrop-blur-sm rounded-xl p-3 text-center border-2 border-purple-400/50 shadow-lg">
-            <div className="text-lg font-bold text-purple-100 mb-1">{gaugeMax}</div>
-            <div className="text-xs text-purple-200 uppercase tracking-wider font-semibold">Max</div>
-          </div>
         </div>
       </div>
     );
@@ -419,7 +373,15 @@ export default function EfficiencyMetricsPage() {
   // Procurement metrics
   const procurementTotalOrders = useMemo(() => new Set(procurementData.map(order => order.orderID)).size, [procurementData]);
   const procurementTotalActualDays = useMemo(() => procurementData.reduce((sum, d) => sum + (d.actualDays || 0), 0), [procurementData]);
-  const procurementAverageDays = useMemo(() => procurementData.length === 0 ? 0 : (procurementData.reduce((sum, d) => sum + (d.actualDays || 0), 0) / procurementData.length).toFixed(2), [procurementData]);
+  const procurementAverageDays = useMemo(() => {
+    // Calculate average days per order (sum of actual days for each order, then average)
+    if (procurementData.length === 0) return 0;
+    const orderIDs = [...new Set(procurementData.map(order => order.orderID))];
+    const orderSums = orderIDs.map(orderID => {
+      return procurementData.filter(order => order.orderID === orderID).reduce((sum, d) => sum + (d.actualDays || 0), 0);
+    });
+    return orderSums.length === 0 ? 0 : (orderSums.reduce((a, b) => a + b, 0) / orderSums.length).toFixed(2);
+  }, [procurementData]);
 
   // Procurement order details table (Procurement only, at bottom of page)
   const procurementTableData = useMemo(() => {
@@ -487,6 +449,24 @@ export default function EfficiencyMetricsPage() {
     // Sort by sequence
     return Object.values(subprocessMap)
       .sort((a, b) => (a.sequence || 9999) - (b.sequence || 9999));
+  }, [procurementData]);
+
+  // Calculate procurement min/max/avg for gauge
+  const procurementGaugeStats = useMemo(() => {
+    if (procurementData.length === 0) return { min: 0, max: 1, avg: 0 };
+    const orderIDs = [...new Set(procurementData.map(order => order.orderID))];
+    const orderSums = orderIDs.map(orderID => {
+      return procurementData.filter(order => order.orderID === orderID).reduce((sum, d) => sum + (d.actualDays || 0), 0);
+    });
+    if (orderSums.length === 0) return { min: 0, max: 1, avg: 0 };
+    const min = Math.min(...orderSums);
+    const max = Math.max(...orderSums);
+    const avg = orderSums.reduce((a, b) => a + b, 0) / orderSums.length;
+    // If all values are the same, expand the range for better visual
+    if (min === max) {
+      return { min: Math.max(0, avg - 1), max: avg + 1, avg: avg.toFixed(2) };
+    }
+    return { min, max, avg: avg.toFixed(2) };
   }, [procurementData]);
 
   if (loading) {
@@ -830,7 +810,7 @@ export default function EfficiencyMetricsPage() {
             <h3 className="text-xl font-bold mb-6 text-center bg-gradient-to-r from-blue-300 to-cyan-300 bg-clip-text text-transparent">
               Average Days Analysis
             </h3>
-            <GaugeChart value={procurementAverageDays} />
+            <GaugeChart value={procurementGaugeStats.avg} min={procurementGaugeStats.min} max={procurementGaugeStats.max} />
           </div>
         </div>
         {/* Subprocess Bar Chart (Procurement only, ordered by sequence) */}
