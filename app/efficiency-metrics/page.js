@@ -22,6 +22,10 @@ export default function EfficiencyMetricsPage() {
   const [selectedInventoryLocation, setSelectedInventoryLocation] = useState('All');
   const [selectedOrderID, setSelectedOrderID] = useState('All');
   const [selectedProcess, setSelectedProcess] = useState(null);
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState('All');
+  const [selectedSubprocessFilter, setSelectedSubprocessFilter] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
 
@@ -289,105 +293,59 @@ export default function EfficiencyMetricsPage() {
     const [animatedValue, setAnimatedValue] = useState(0);
     const numValue = parseFloat(value) || 0;
     // Use provided min and max for gauge
-    const gaugeMin = min;
-    const gaugeMax = max > min ? max : min + 1;
-    // Calculate the angle for the needle (0deg = left, 180deg = right)
-    const percentage = Math.max(0, Math.min(1, (numValue - gaugeMin) / (gaugeMax - gaugeMin)));
-    const angle = percentage * 180;
-    // Color stops for performance
-    const getNeedleColor = () => {
-      if (percentage < 0.33) return '#10b981'; // green
-      if (percentage < 0.66) return '#fbbf24'; // yellow
-      return '#ef4444'; // red
-    };
-    // Animate the needle
+    const gaugeMin = min !== undefined ? min : 0;
+    const gaugeMax = max !== undefined && max > gaugeMin ? max : gaugeMin + 1;
+    // Animate the value for smooth transition
     useEffect(() => {
       const timer = setTimeout(() => {
         setAnimatedValue(numValue);
       }, 200);
       return () => clearTimeout(timer);
     }, [numValue]);
-    // Animated needle angle
-    const animatedPercentage = Math.max(0, Math.min(1, (animatedValue - gaugeMin) / (gaugeMax - gaugeMin)));
-    const animatedAngle = animatedPercentage * 180;
-    // Needle position
-    const needleLength = 80;
-    const centerX = 120;
-    const centerY = 120;
-    const needleX = centerX + needleLength * Math.cos(Math.PI * (1 - animatedAngle / 180));
-    const needleY = centerY - needleLength * Math.sin(Math.PI * (1 - animatedAngle / 180));
+    // Gauge layout constants
+    const arcStartX = 60;
+    const arcEndX = 280;
+    const arcY = 170;
+    const numberY = 200; // below arc
+    const labelY = 218; // further below
+    const centerX = 170;
+    const centerY = 170;
     return (
       <div className="relative flex flex-col items-center">
-        <div className="relative mb-4">
-          <svg width="240" height="140" viewBox="0 0 240 140" className="filter drop-shadow-lg">
+        <div className="relative mb-2">
+          <svg width="340" height="240" viewBox="0 0 340 240" className="filter drop-shadow-lg">
             {/* Arc background with gradient */}
             <defs>
               <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                 <stop offset="0%" stopColor="#10b981" />
-                <stop offset="50%" stopColor="#fbbf24" />
                 <stop offset="100%" stopColor="#ef4444" />
               </linearGradient>
             </defs>
             {/* Arc */}
             <path
-              d="M 40,120 A 80,80 0 0,1 200,120"
+              d="M 60,170 A 110,110 0 0,1 280,170"
               fill="none"
               stroke="url(#gaugeGradient)"
-              strokeWidth="28"
+              strokeWidth="36"
               strokeLinecap="round"
             />
-            {/* Min/Max labels - small, subtle, precisely at arc start/end inside the gauge */}
-            {/* Min label (left, at arc start) */}
+            {/* Min/Max value labels below arc, inside or just outside if needed */}
             <g>
-              <circle cx="40" cy="120" r="11" fill="#10b981" stroke="#fff" strokeWidth="2" />
-              <text x="40" y="125" textAnchor="middle" fontSize="13" fontWeight="bold" fill="#fff">{gaugeMin}</text>
-            </g>
-            {/* Max label (right, at arc end) */}
-            <g>
-              <circle cx="200" cy="120" r="11" fill="#ef4444" stroke="#fff" strokeWidth="2" />
-              <text x="200" y="125" textAnchor="middle" fontSize="13" fontWeight="bold" fill="#fff">{gaugeMax}</text>
-            </g>
-            {/* Needle */}
-            <g style={{ transition: 'all 1.2s cubic-bezier(0.4,0,0.2,1)' }}>
-              <line
-                x1={centerX}
-                y1={centerY}
-                x2={needleX}
-                y2={needleY}
-                stroke={getNeedleColor()}
-                strokeWidth="6"
-                strokeLinecap="round"
-                filter="drop-shadow(0 0 6px #fff8)"
-              />
-              {/* Needle base circle */}
-              <circle cx={centerX} cy={centerY} r="10" fill="#22223b" stroke="#fff" strokeWidth="3" />
-              {/* Needle tip */}
-              <circle cx={needleX} cy={needleY} r="7" fill={getNeedleColor()} stroke="#fff" strokeWidth="2" />
+              <text x="60" y={numberY} textAnchor="middle" fontSize="18" fontWeight="bold" fill="#fff">{gaugeMin}</text>
+              <text x="280" y={numberY} textAnchor="middle" fontSize="18" fontWeight="bold" fill="#fff">{gaugeMax}</text>
+              {/* Small 'min' and 'max' text below numbers */}
+              <text x="60" y={labelY} textAnchor="middle" fontSize="12" fill="#a3e635">min</text>
+              <text x="280" y={labelY} textAnchor="middle" fontSize="12" fill="#a3e635">max</text>
             </g>
             {/* Value label (big, center) */}
-            <text x={centerX} y="90" textAnchor="middle" fontSize="32" fontWeight="bold" fill="#fff" style={{ filter: 'drop-shadow(0 2px 8px #000a)' }}>
+            <text x={centerX} y="110" textAnchor="middle" fontSize="40" fontWeight="bold" fill="#fff" style={{ filter: 'drop-shadow(0 2px 8px #000a)' }}>
               {animatedValue.toFixed(2)}
             </text>
             {/* Label below value */}
-            <text x={centerX} y="112" textAnchor="middle" fontSize="14" fill="#a3e635" fontWeight="bold">
+            <text x={centerX} y="140" textAnchor="middle" fontSize="18" fill="#a3e635" fontWeight="bold">
               Avg Days
             </text>
           </svg>
-        </div>
-        {/* Min/Avg/Max cards below gauge */}
-        <div className="grid grid-cols-3 gap-4 w-full max-w-sm mt-2">
-          <div className="bg-gradient-to-br from-blue-600/60 to-blue-800/60 backdrop-blur-sm rounded-xl p-3 text-center border-2 border-blue-400/50 shadow-lg">
-            <div className="text-lg font-bold text-blue-100 mb-1">{gaugeMin}</div>
-            <div className="text-xs text-blue-200 uppercase tracking-wider font-semibold">Min</div>
-          </div>
-          <div className="bg-gradient-to-br from-green-600/60 to-green-800/60 backdrop-blur-sm rounded-xl p-3 text-center border-2 border-green-400/50 shadow-lg animate-pulse">
-            <div className="text-lg font-bold text-green-100 mb-1">{animatedValue.toFixed(2)}</div>
-            <div className="text-xs text-green-200 uppercase tracking-wider font-semibold">Avg</div>
-          </div>
-          <div className="bg-gradient-to-br from-purple-600/60 to-purple-800/60 backdrop-blur-sm rounded-xl p-3 text-center border-2 border-purple-400/50 shadow-lg">
-            <div className="text-lg font-bold text-purple-100 mb-1">{gaugeMax}</div>
-            <div className="text-xs text-purple-200 uppercase tracking-wider font-semibold">Max</div>
-          </div>
         </div>
       </div>
     );
@@ -419,12 +377,20 @@ export default function EfficiencyMetricsPage() {
   // Procurement metrics
   const procurementTotalOrders = useMemo(() => new Set(procurementData.map(order => order.orderID)).size, [procurementData]);
   const procurementTotalActualDays = useMemo(() => procurementData.reduce((sum, d) => sum + (d.actualDays || 0), 0), [procurementData]);
-  const procurementAverageDays = useMemo(() => procurementData.length === 0 ? 0 : (procurementData.reduce((sum, d) => sum + (d.actualDays || 0), 0) / procurementData.length).toFixed(2), [procurementData]);
+  const procurementAverageDays = useMemo(() => {
+    // Calculate average days per order (sum of actual days for each order, then average)
+    if (procurementData.length === 0) return 0;
+    const orderIDs = [...new Set(procurementData.map(order => order.orderID))];
+    const orderSums = orderIDs.map(orderID => {
+      return procurementData.filter(order => order.orderID === orderID).reduce((sum, d) => sum + (d.actualDays || 0), 0);
+    });
+    return orderSums.length === 0 ? 0 : (orderSums.reduce((a, b) => a + b, 0) / orderSums.length).toFixed(2);
+  }, [procurementData]);
 
   // Procurement order details table (Procurement only, at bottom of page)
-  const procurementTableData = useMemo(() => {
+  const { procurementTableData, totalPages, totalFilteredOrders } = useMemo(() => {
     const uniqueOrderIDs = [...new Set(procurementData.map(order => order.orderID))];
-    return uniqueOrderIDs.map(orderID => {
+    const allOrders = uniqueOrderIDs.map(orderID => {
       const orderRecords = procurementData.filter(order => order.orderID === orderID);
       // Start Date: earliest valid Sub Actual Start Date from original CSV field
       const subStartDates = orderRecords
@@ -444,16 +410,91 @@ export default function EfficiencyMetricsPage() {
         .filter(date => date);
       // Actual Days: sum of 'Actual Days' for all subprocesses of that order
       const actualDaysSum = orderRecords.reduce((sum, order) => sum + (order.actualDays || 0), 0);
+      // Status: determine status based ONLY on procurement subprocesses for procurement table
+      const procurementRecords = procurementData.filter(record => record.orderID === orderID);
+      const procurementStatusTypes = procurementRecords.map(record => record.statusType?.trim()).filter(status => status);
+      
+      // If any procurement subprocess has 'Delay', the order is considered 'Delay'
+      // If all procurement subprocesses are 'On Time', the order is 'On Time'
+      // Otherwise, use the most common status or 'N/A'
+      let overallStatus = 'N/A';
+      if (procurementStatusTypes.length > 0) {
+        const hasDelay = procurementStatusTypes.some(status => status === 'Delay');
+        const hasOnTime = procurementStatusTypes.some(status => status === 'On Time');
+        
+        if (hasDelay) {
+          overallStatus = 'Delay';
+        } else if (hasOnTime) {
+          overallStatus = 'On Time'; // If there's any On Time and no Delay, it's On Time
+        } else {
+          // Use the first available status if neither 'Delay' nor 'On Time'
+          overallStatus = procurementStatusTypes[0] || 'N/A';
+        }
+      }
+      
       const earliestSubStart = subStartDates.length > 0 ? new Date(Math.min(...subStartDates)) : null;
       const latestSubEnd = subEndDates.length > 0 ? new Date(Math.max(...subEndDates)) : null;
       return {
         orderID,
         startDate: earliestSubStart ? format(earliestSubStart, 'dd MMM yyyy') : 'N/A',
         endDate: latestSubEnd ? format(latestSubEnd, 'dd MMM yyyy') : 'N/A',
-        actualDays: actualDaysSum
+        actualDays: actualDaysSum,
+        status: overallStatus
       };
-    }).sort((a, b) => a.orderID.localeCompare(b.orderID));
-  }, [procurementData]);
+          }).sort((a, b) => a.orderID.localeCompare(b.orderID));
+      
+      // Filter by selected subprocess and status from bar chart first (this takes priority)
+      let filteredOrders;
+      if (selectedSubprocessFilter) {
+        // Apply subprocess filter first
+        filteredOrders = allOrders.filter(order => {
+          const orderRecords = procurementData.filter(record => record.orderID === order.orderID);
+          const hasMatch = orderRecords.some(record => 
+            record.subprocess?.trim() === selectedSubprocessFilter.subprocess?.trim() && 
+            record.statusType?.trim() === selectedSubprocessFilter.statusType?.trim()
+          );
+          return hasMatch;
+        });
+        
+        // Then apply status filter on top of subprocess filter if not 'All'
+        if (selectedStatusFilter !== 'All') {
+          filteredOrders = filteredOrders.filter(order => order.status?.trim() === selectedStatusFilter?.trim());
+        }
+        
+        console.log('Subprocess filter active:', selectedSubprocessFilter);
+        console.log('Status filter active:', selectedStatusFilter);
+        console.log('Filtered orders:', filteredOrders.length, 'out of', allOrders.length);
+      } else {
+        // Only apply status filter if no subprocess filter is active
+        filteredOrders = selectedStatusFilter === 'All' 
+          ? allOrders 
+          : allOrders.filter(order => order.status?.trim() === selectedStatusFilter?.trim());
+        console.log('Status filter active:', selectedStatusFilter);
+        console.log('Filtered orders:', filteredOrders.length, 'out of', allOrders.length);
+      }
+    
+    // Calculate pagination
+    const totalFilteredOrders = filteredOrders.length;
+    const totalPages = Math.ceil(totalFilteredOrders / itemsPerPage);
+    
+    // Get current page data
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedOrders = filteredOrders.slice(startIndex, endIndex);
+    
+    return {
+      procurementTableData: paginatedOrders,
+      totalPages,
+      totalFilteredOrders
+    };
+  }, [procurementData, selectedStatusFilter, selectedSubprocessFilter, currentPage, itemsPerPage]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedStatusFilter, selectedSubprocessFilter]);
+
+  // Allow both filters to work together - no need to clear subprocess filter when status filter changes
 
   // Procurement subprocess bar chart data (ordered by Subprocess Sequence from CSV)
   const procurementSubprocessData = useMemo(() => {
@@ -487,6 +528,24 @@ export default function EfficiencyMetricsPage() {
     // Sort by sequence
     return Object.values(subprocessMap)
       .sort((a, b) => (a.sequence || 9999) - (b.sequence || 9999));
+  }, [procurementData]);
+
+  // Calculate procurement min/max/avg for gauge
+  const procurementGaugeStats = useMemo(() => {
+    if (procurementData.length === 0) return { min: 0, max: 1, avg: 0 };
+    const orderIDs = [...new Set(procurementData.map(order => order.orderID))];
+    const orderSums = orderIDs.map(orderID => {
+      return procurementData.filter(order => order.orderID === orderID).reduce((sum, d) => sum + (d.actualDays || 0), 0);
+    });
+    if (orderSums.length === 0) return { min: 0, max: 1, avg: 0 };
+    const min = Math.min(...orderSums);
+    const max = Math.max(...orderSums);
+    const avg = orderSums.reduce((a, b) => a + b, 0) / orderSums.length;
+    // If all values are the same, expand the range for better visual
+    if (min === max) {
+      return { min: Math.max(0, avg - 1), max: avg + 1, avg: avg.toFixed(2) };
+    }
+    return { min, max, avg: avg.toFixed(2) };
   }, [procurementData]);
 
   if (loading) {
@@ -599,7 +658,7 @@ export default function EfficiencyMetricsPage() {
         </div>
 
         {/* Metrics Cards Row (copy of Procurement Timeline metrics, now below filters) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Number of Orders Card */}
           <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6 flex flex-col items-center justify-center text-center">
             <h3 className="text-lg font-bold mb-3 bg-gradient-to-r from-blue-300 to-cyan-300 bg-clip-text text-transparent">
@@ -607,14 +666,6 @@ export default function EfficiencyMetricsPage() {
             </h3>
             <div className="text-4xl font-bold text-blue-400 mb-2">{totalOrders}</div>
             <div className="text-xs text-gray-300 uppercase tracking-wider">Total Orders</div>
-          </div>
-          {/* Actual Days Card (total sum for all filtered data) */}
-          <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6 flex flex-col items-center justify-center text-center">
-            <h3 className="text-lg font-bold mb-3 bg-gradient-to-r from-green-300 to-emerald-300 bg-clip-text text-transparent">
-              Actual Days
-            </h3>
-            <div className="text-4xl font-bold text-green-400 mb-2">{formatThousands(totalActualDaysAll)}</div>
-            <div className="text-xs text-gray-300 uppercase tracking-wider">Total Days</div>
           </div>
           {/* Average Days Gauge (average for all filtered data) */}
           <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6">
@@ -670,7 +721,7 @@ export default function EfficiencyMetricsPage() {
                 />
                 <Bar dataKey="ActualDays" cursor="pointer">
                   {processData.map((entry, index) => (
-                    <Cell key={index} fill="#39FF14" />
+                    <Cell key={index} fill="#00FF7F" />
                   ))}
                 </Bar>
               </BarChart>
@@ -808,7 +859,7 @@ export default function EfficiencyMetricsPage() {
           </div>
         </div>
         {/* Metrics Cards Row (Procurement only) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Number of Orders Card */}
           <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6 flex flex-col items-center justify-center text-center">
             <h3 className="text-lg font-bold mb-3 bg-gradient-to-r from-blue-300 to-cyan-300 bg-clip-text text-transparent">
@@ -817,28 +868,33 @@ export default function EfficiencyMetricsPage() {
             <div className="text-4xl font-bold text-blue-400 mb-2">{procurementTotalOrders}</div>
             <div className="text-xs text-gray-300 uppercase tracking-wider">Total Orders</div>
           </div>
-          {/* Actual Days Card */}
-          <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6 flex flex-col items-center justify-center text-center">
-            <h3 className="text-lg font-bold mb-3 bg-gradient-to-r from-green-300 to-emerald-300 bg-clip-text text-transparent">
-              Actual Days
-            </h3>
-            <div className="text-4xl font-bold text-green-400 mb-2">{formatThousands(procurementTotalActualDays)}</div>
-            <div className="text-xs text-gray-300 uppercase tracking-wider">Total Days</div>
-          </div>
           {/* Average Days Gauge */}
           <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6">
             <h3 className="text-xl font-bold mb-6 text-center bg-gradient-to-r from-blue-300 to-cyan-300 bg-clip-text text-transparent">
               Average Days Analysis
             </h3>
-            <GaugeChart value={procurementAverageDays} />
+            <GaugeChart value={procurementGaugeStats.avg} min={procurementGaugeStats.min} max={procurementGaugeStats.max} />
           </div>
         </div>
         {/* Subprocess Bar Chart (Procurement only, ordered by sequence) */}
         <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6">
-          <h3 className="text-xl font-semibold mb-4">Count of Order ID by Subprocess and Status Type</h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-semibold">Count of Order ID by Subprocess and Status Type</h3>
+            {selectedSubprocessFilter && (
+              <button 
+                onClick={() => setSelectedSubprocessFilter(null)}
+                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                Clear Filter ({selectedSubprocessFilter.subprocess})
+              </button>
+            )}
+          </div>
           <div className="h-96">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={procurementSubprocessData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+              <BarChart 
+                data={procurementSubprocessData} 
+                margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+              >
                 <XAxis 
                   dataKey="name" 
                   tick={{ fontSize: 14, fill: '#ffffff', fontWeight: 600 }}
@@ -875,18 +931,104 @@ export default function EfficiencyMetricsPage() {
                     marginRight: '30px'
                   }}
                 />
-                <Bar dataKey="Delay" stackId="a" fill="#ef4444" name="Delay" />
-                <Bar dataKey="On Time" stackId="a" fill="#10b981" name="On Time" />
+                <Bar 
+                  dataKey="Delay" 
+                  stackId="a" 
+                  fill="#ef4444" 
+                  name="Delay" 
+                  cursor="pointer"
+                  onClick={(data) => {
+                    console.log('Delay bar clicked:', data);
+                    if (data && data.payload) {
+                      setSelectedSubprocessFilter({
+                        subprocess: data.payload.fullName,
+                        statusType: "Delay"
+                      });
+                    }
+                  }}
+                />
+                <Bar 
+                  dataKey="On Time" 
+                  stackId="a" 
+                  fill="#10b981" 
+                  name="On Time" 
+                  cursor="pointer"
+                  onClick={(data) => {
+                    console.log('On Time bar clicked:', data);
+                    if (data && data.payload) {
+                      setSelectedSubprocessFilter({
+                        subprocess: data.payload.fullName,
+                        statusType: "On Time"
+                      });
+                    }
+                  }}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
+          <p className="text-sm text-gray-400 mt-2 text-center">
+            Click on any bar to filter the Order Details table by that subprocess and status combination
+          </p>
         </div>
         {/* Procurement Order Details Table (Procurement only, at bottom of page) */}
         <div className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6 mt-6">
-          <div className="mb-4 flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Order Details</h3>
-            <div className="text-sm text-gray-300">
-              Showing {procurementTableData.length} orders
+          <div className="mb-4">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-lg font-semibold">
+                Order Details
+                {selectedSubprocessFilter && (
+                  <span className="ml-2 text-sm font-normal text-blue-300">
+                    (Filtered by: {selectedSubprocessFilter.subprocess})
+                  </span>
+                )}
+              </h3>
+              <div className="text-sm text-gray-300">
+                Showing {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, totalFilteredOrders)} of {totalFilteredOrders} orders
+              </div>
+            </div>
+            {/* Status Filter Switch - Left Aligned */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-300">Filter by Status:</span>
+              {selectedSubprocessFilter && (
+                <span className="text-xs text-green-400 font-medium">
+                  (Combined with subprocess filter)
+                </span>
+              )}
+              <div className="flex bg-blue-900/50 rounded-lg p-1">
+                {['All', 'On Time', 'Delay'].map(status => {
+                  const isSelected = selectedStatusFilter === status;
+                  let selectedClasses = '';
+                  let hoverClasses = 'text-gray-300 hover:text-white hover:bg-blue-700/50';
+                  
+                  if (isSelected) {
+                    if (status === 'On Time') {
+                      selectedClasses = 'bg-green-600 text-white shadow-md shadow-green-600/50 ring-2 ring-green-400/30';
+                    } else if (status === 'Delay') {
+                      selectedClasses = 'bg-red-600 text-white shadow-md shadow-red-600/50 ring-2 ring-red-400/30';
+                    } else {
+                      selectedClasses = 'bg-blue-600 text-white shadow-md';
+                    }
+                  } else {
+                    if (status === 'On Time') {
+                      hoverClasses = 'text-gray-300 hover:text-white hover:bg-green-700/50';
+                    } else if (status === 'Delay') {
+                      hoverClasses = 'text-gray-300 hover:text-white hover:bg-red-700/50';
+                    }
+                  }
+                  
+                  return (
+                    <button
+                      key={status}
+                      onClick={() => setSelectedStatusFilter(status)}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-300 ${
+                        isSelected ? selectedClasses : hoverClasses
+                      }`}
+                    >
+                      {status}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -898,6 +1040,7 @@ export default function EfficiencyMetricsPage() {
                     <th className="text-left py-4 px-6 font-semibold text-gray-200 text-sm uppercase tracking-wider border-b border-blue-600">Start Date</th>
                     <th className="text-left py-4 px-6 font-semibold text-gray-200 text-sm uppercase tracking-wider border-b border-blue-600">End Date</th>
                     <th className="text-left py-4 px-6 font-semibold text-gray-200 text-sm uppercase tracking-wider border-b border-blue-600">Actual Days</th>
+                    <th className="text-left py-4 px-6 font-semibold text-gray-200 text-sm uppercase tracking-wider border-b border-blue-600">Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -907,11 +1050,20 @@ export default function EfficiencyMetricsPage() {
                       <td className="py-4 px-6 text-gray-200 border-b border-blue-600">{row.startDate}</td>
                       <td className="py-4 px-6 text-gray-200 border-b border-blue-600">{row.endDate}</td>
                       <td className="py-4 px-6 text-gray-200 font-medium border-b border-blue-600">{row.actualDays}</td>
+                      <td className="py-4 px-6 font-medium border-b border-blue-600">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          row.status === 'On Time' ? 'bg-green-600 text-green-100' :
+                          row.status === 'Delay' ? 'bg-red-600 text-red-100' :
+                          'bg-gray-600 text-gray-100'
+                        }`}>
+                          {row.status}
+                        </span>
+                      </td>
                     </tr>
                   ))}
-                  {procurementTableData.length === 0 && (
+                  {totalFilteredOrders === 0 && (
                     <tr>
-                      <td colSpan="4" className="py-8 px-6 text-center text-gray-400 bg-blue-950/80 border-b border-blue-600">
+                      <td colSpan="5" className="py-8 px-6 text-center text-gray-400 bg-blue-950/80 border-b border-blue-600">
                         No orders found for the selected filters
                       </td>
                     </tr>
@@ -920,6 +1072,69 @@ export default function EfficiencyMetricsPage() {
               </table>
             </div>
           </div>
+          
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-blue-600">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                    currentPage === 1
+                      ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                    currentPage === totalPages
+                      ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  Next
+                </button>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-300">Page</span>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`w-8 h-8 rounded-md text-xs font-medium transition-all duration-200 ${
+                          currentPage === pageNum
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-blue-900/50 text-gray-300 hover:bg-blue-700/50 hover:text-white'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+                <span className="text-sm text-gray-300">of {totalPages}</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
