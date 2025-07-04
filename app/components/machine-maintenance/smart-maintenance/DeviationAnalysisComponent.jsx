@@ -1,141 +1,141 @@
-// DeviationAnalysisComponent.jsx
-import { useState, useEffect } from 'react';
+'use client';
+import { useState, useEffect, useTransition, useMemo } from 'react';
+import { Filter } from 'lucide-react';
 import MachineFilterComponent from './MachineFilterComponent';
-import DeviationTableComponent from './DeviationTableComponent';
 
 const DeviationAnalysisComponent = ({ csvData }) => {
   const [machines, setMachines] = useState([]);
   const [selectedMachine, setSelectedMachine] = useState('');
   const [monthlyData, setMonthlyData] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [error, setError] = useState(null);
 
-  // Extract unique machines from data
+  const parameterMap = useMemo(() => ({
+    'Cycle_Time_sec': 'Cycle Time',
+    'Oil_Temperature_C': 'Oil Temperature',
+    'Nozzle_Temperature_C': 'Nozzle Temperature',
+    'Melt_Cushion_mm': 'Melt Cushion',
+    'Zone Temerature': 'Zone Temperature',
+    'Cooling_Time_sec': 'Cooling Time',
+  }), []);
+
   useEffect(() => {
-    if (csvData && csvData.length > 0) {
-      // Make sure we're looking at the right column name
-      const machineColumn = csvData[0].hasOwnProperty('Machine') ? 'Machine' : 'Breakdown Machine';
-      const uniqueMachines = [...new Set(csvData.map(row => row[machineColumn]).filter(Boolean))];
-      setMachines(uniqueMachines);
-    }
+    if (!csvData || csvData.length === 0) return;
+
+    const machineColumn = csvData[0].hasOwnProperty('Machine') ? 'Machine' : 'Breakdown Machine';
+    const uniqueMachines = [...new Set(csvData.map(row => row[machineColumn]).filter(Boolean))];
+    setMachines(uniqueMachines);
   }, [csvData]);
 
-  // Parameter ranges
-  const parameterRanges = {
-    'Cycle_Time_sec': { min: 29, max: 30 },
-    'Oil_Temperature_C': { min: 58, max: 60 },
-    'Nozzle_Temperature_C': { min: 218, max: 225 },
-    'Melt_Cushion_mm': { min: 4.5, max: 5 },
-    'Cooling_Time_sec': { min: 9, max: 10 },
-    'Zone Temerature': { min: 123, max: 125 },
-    'Water_In_Temp_C': { min: 20, max: 21 },
-    'Water_Out_Temp_C': { min: 24, max: 26 },
-    'Feed_Temperature_C': { min: 24, max: 26 } // Added separate Feed Temperature parameter
-  };
-
-  // Handle machine selection
   const handleMachineSelect = (machine) => {
     setSelectedMachine(machine);
-    setIsLoading(true);
-    
-    try {
-      if (machine && csvData && csvData.length > 0) {
-        // Make sure we're looking at the right column name
-        const machineColumn = csvData[0].hasOwnProperty('Machine') ? 'Machine' : 'Breakdown Machine';
-        const filteredData = csvData.filter(row => row[machineColumn] === machine);
-        
-        // Process monthly data
-        const monthlyResults = processMonthlyData(filteredData, parameterRanges);
-        setMonthlyData(monthlyResults);
-      } else {
-        setMonthlyData([]);
-      }
-    } catch (err) {
-      setError(`Error processing data: ${err.message}`);
-    } finally {
-      setIsLoading(false);
+    if (!csvData || csvData.length === 0 || !machine) {
+      setMonthlyData([]);
+      return;
     }
-  };
 
-  // Process data by month
-  const processMonthlyData = (data, ranges) => {
-    // Group data by month
-    const monthlyGroups = {};
-    
-    data.forEach(row => {
-      // Check if we have a Date or Breakdown Date column
-      const dateColumn = row.hasOwnProperty('Date') ? 'Date' : 'Breakdown Date';
-      const date = new Date(row[dateColumn]);
-      
-      if (!isNaN(date.getTime())) {
-        const month = date.toLocaleString('default', { month: 'long' });
-        
-        if (!monthlyGroups[month]) {
-          monthlyGroups[month] = [];
+    startTransition(() => {
+      try {
+        const machineColumn = csvData[0].hasOwnProperty('Machine') ? 'Machine' : 'Breakdown Machine';
+        const dateColumn = csvData[0].hasOwnProperty('Date') ? 'Date' : 'Breakdown Date';
+
+        const filtered = csvData.filter(row => row[machineColumn] === machine && row[dateColumn]);
+
+        const monthlyMap = {};
+
+        for (const row of filtered) {
+          const date = new Date(row[dateColumn]);
+          if (isNaN(date)) continue;
+
+          const month = date.toLocaleString('default', { month: 'long' });
+          if (!monthlyMap[month]) {
+            monthlyMap[month] = {};
+            for (const key of Object.keys(parameterMap)) {
+              monthlyMap[month][key] = [];
+            }
+          }
+
+          for (const paramKey of Object.keys(parameterMap)) {
+            const val = parseFloat(row[paramKey]);
+            if (!isNaN(val)) {
+              monthlyMap[month][paramKey].push(val);
+            }
+          }
         }
-        
-        monthlyGroups[month].push(row);
+
+        const results = Object.entries(monthlyMap).map(([month, paramObj]) => {
+          const avgParams = {};
+          for (const key of Object.keys(paramObj)) {
+            const values = paramObj[key];
+            avgParams[key] = values.length > 0
+              ? values.reduce((a, b) => a + b, 0) / values.length
+              : 0;
+          }
+
+          return { month, parameters: avgParams };
+        });
+
+        setMonthlyData(results);
+      } catch (err) {
+        setError(`Error processing data: ${err.message}`);
       }
     });
-    
-    // Calculate percentage out of range for each month
-    const monthlyResults = [];
-    
-    Object.entries(monthlyGroups).forEach(([month, monthData]) => {
-      const totalCount = monthData.length;
-      const result = {
-        month: month,
-        parameters: {}
-      };
-      
-      // Calculate for each parameter
-      Object.entries(ranges).forEach(([param, range]) => {
-        const outOfRangeCount = monthData.filter(row => {
-          const value = parseFloat(row[param]);
-          return !isNaN(value) && (value < range.min || value > range.max);
-        }).length;
-        
-        const percentageOutOfRange = totalCount > 0 
-          ? ((outOfRangeCount / totalCount) * 100).toFixed(2) 
-          : 0;
-        
-        result.parameters[param] = parseFloat(percentageOutOfRange);
-      });
-      
-      monthlyResults.push(result);
-    });
-    
-    return monthlyResults;
   };
 
   return (
     <div className="p-4">
-      
       {error && (
         <div className="bg-red-50 text-red-700 p-4 mb-6 rounded-md">
           {error}
         </div>
       )}
-      
-      <MachineFilterComponent 
-        machines={machines}
-        selectedMachine={selectedMachine}
-        onMachineSelect={handleMachineSelect}
-      />
-      
-      {isLoading ? (
-        <div className="text-center py-8 text-white">
-          Loading data...
+
+      <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] p-4 rounded-xl shadow-sm border border-blue-200 text-white mb-6">
+        <div className="flex items-center mb-3">
+          <Filter className="w-4 h-4 mr-2" />
+          <h3 className="text-lg font-semibold">Select Machine</h3>
+        </div>
+        <MachineFilterComponent
+          machines={machines}
+          selectedMachine={selectedMachine}
+          onMachineSelect={handleMachineSelect}
+        />
+      </div>
+
+      {isPending ? (
+        <div className="text-center py-8 text-white">Processing data...</div>
+      ) : monthlyData.length > 0 ? (
+        <div className="rounded-xl shadow-md overflow-x-auto border border-blue-200 mt-8 max-h-[500px] overflow-y-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-gradient-to-r from-[#024673] to-[#5C99E3] text-white">
+                <th className="p-3 text-left border border-blue-200">Month</th>
+                {Object.entries(parameterMap).map(([key, label], idx) => (
+                  <th key={idx} className="p-3 text-center border border-blue-200">{label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {monthlyData.map((row, idx) => (
+                <tr key={idx} className={`text-white ${idx % 2 === 0 ? 'bg-[#024673]' : 'bg-[#03579E]'}`}>
+                  <td className="p-2 border border-blue-200 font-medium">{row.month}</td>
+                  {Object.keys(parameterMap).map((paramKey, i) => (
+                    <td key={i} className="p-2 text-center border border-blue-200">
+                      {row.parameters[paramKey]?.toFixed(2) ?? '0.00'}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : (
-        <DeviationTableComponent 
-          monthlyData={monthlyData}
-          parameterRanges={parameterRanges}
-        />
+        <div className="text-center py-8 text-white">
+          Select a machine to view monthly deviation analysis
+        </div>
       )}
     </div>
   );
 };
 
 export default DeviationAnalysisComponent;
-

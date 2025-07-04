@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from "react";
-import Papa from "papaparse";
+'use client';
+import React, { useState, useEffect } from 'react';
+import Papa from 'papaparse';
+import { Filter } from 'lucide-react';
 
 // Filters Component
 const Filters = ({ filters, setFilters }) => {
@@ -7,32 +9,64 @@ const Filters = ({ filters, setFilters }) => {
     setFilters({ ...filters, [e.target.name]: e.target.value });
   };
 
+  const selectBoxClass =
+    'w-full appearance-none bg-white border border-gray-200 text-gray-700 py-2 px-3 pr-8 rounded-lg';
+
+  const arrowIcon = (
+    <svg
+      className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-700"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+    >
+      <path d="M5.23 7.21a.75.75 0 011.06.02L10 10.939l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.23 8.29a.75.75 0 01.02-1.06z" />
+    </svg>
+  );
+
   return (
-    <div className="flex gap-4 mb-4">
-      <select 
-        name="year" 
-        value={filters.year} 
-        onChange={handleChange}
-        className="px-3 py-2 border border-gray-300 bg-white text-black rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-      >
-        <option value="">All Years</option>
-        <option value="2024">2024</option>
-        <option value="2025">2025</option>
-      </select>
-      <select 
-        name="month" 
-        value={filters.month} 
-        onChange={handleChange}
-        className="px-3 py-2 border border-gray-300 bg-white text-black rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-      >
-        <option value="">All Months</option>
-        {[
-          "January", "February", "March", "April", "May", "June", "July",
-          "August", "September", "October", "November", "December"
-        ].map((month) => (
-          <option key={month} value={month}>{month}</option>
-        ))}
-      </select>
+    <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] p-4 rounded-xl shadow-sm border border-blue-200 text-white mb-6">
+      <div className="flex items-center mb-3">
+        <Filter className="w-4 h-4 mr-2" />
+        <h3 className="text-sm font-medium text-white">Assets Register</h3>
+      </div>
+      <div className="flex gap-6">
+        <div className="w-40 relative">
+          <label className="block text-xs text-white mb-1">Year</label>
+          <div className="relative">
+            <select
+              name="year"
+              value={filters.year}
+              onChange={handleChange}
+              className={selectBoxClass}
+            >
+              <option value="">All Years</option>
+              <option value="2024">2024</option>
+              <option value="2025">2025</option>
+            </select>
+            {arrowIcon}
+          </div>
+        </div>
+
+        <div className="w-40 relative">
+          <label className="block text-xs text-white mb-1">Month</label>
+          <div className="relative">
+            <select
+              name="month"
+              value={filters.month}
+              onChange={handleChange}
+              className={selectBoxClass}
+            >
+              <option value="">All Months</option>
+              {[
+                'January', 'February', 'March', 'April', 'May', 'June', 'July',
+                'August', 'September', 'October', 'November', 'December',
+              ].map((month) => (
+                <option key={month} value={month}>{month}</option>
+              ))}
+            </select>
+            {arrowIcon}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -46,9 +80,9 @@ const StatusCards = ({ data }) => {
   };
 
   data.forEach((item) => {
-    if (item.Status && item.Status.includes("Completed")) counts.Completed++;
-    else if (item.Status && item.Status.includes("Unattended")) counts.Unattended++;
-    else if (item.Status && item.Status.includes("Delayed")) counts.Delayed++;
+    if (item.Status?.includes("Completed")) counts.Completed++;
+    else if (item.Status?.includes("Unattended")) counts.Unattended++;
+    else if (item.Status?.includes("Delayed")) counts.Delayed++;
   });
 
   return (
@@ -71,24 +105,29 @@ const StatusCards = ({ data }) => {
 
 // Snapshot Table Component
 const SnapshotTable = ({ data }) => {
-  // Helper function to extract year from date string like "20-Jan-25"
+  const [expandedYears, setExpandedYears] = useState({});
+
+  const toggleYear = (year) => {
+    setExpandedYears((prev) => ({
+      ...prev,
+      [year]: !prev[year],
+    }));
+  };
+
   const extractYear = (dateStr) => {
     if (!dateStr) return null;
     const parts = dateStr.split("-");
     if (parts.length === 3) {
       const yearPart = parts[2];
-      // Convert 2-digit year to 4-digit year
       return yearPart.length === 2 ? `20${yearPart}` : yearPart;
     }
     return null;
   };
 
-  // Create snapshot data structure
   const snapshot = {};
-  
   data.forEach((item) => {
     if (!item["Maintenance Date"] || !item["Maintenance Month"] || !item["Asset Category"]) return;
-    
+
     const year = extractYear(item["Maintenance Date"]);
     const month = item["Maintenance Month"];
     const category = item["Asset Category"];
@@ -102,10 +141,8 @@ const SnapshotTable = ({ data }) => {
     snapshot[year][month][category]++;
   });
 
-  // Get all unique categories for consistent table headers
   const allCategories = [...new Set(data.map(item => item["Asset Category"]).filter(Boolean))].sort();
 
-  // Calculate totals
   const calculateYearTotals = (months) => {
     const totals = {};
     allCategories.forEach(cat => {
@@ -129,146 +166,107 @@ const SnapshotTable = ({ data }) => {
   };
 
   if (Object.keys(snapshot).length === 0) {
-    return <div className="text-center p-4 text-gray-500">No data available for the selected filters</div>;
+    return <div className="text-center p-4 text-white">No data available for the selected filters</div>;
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-      <div className="bg-gray-50 p-4 border-b">
-        <h3 className="text-lg font-semibold text-black">Asset Maintenance Snapshot</h3>
-      </div>
-      
-      <div className="overflow-auto max-h-[600px]">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-100 sticky top-0">
-            <tr>
-              <th className="text-left p-3 font-semibold text-black">Year</th>
-              {allCategories.map((cat) => (
-                <th key={cat} className="text-center p-3 font-semibold text-black">{cat}</th>
-              ))}
-              <th className="text-center p-3 font-semibold bg-blue-50 text-black">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(snapshot).sort().map(([year, months]) => {
-              const yearTotals = calculateYearTotals(months);
-              const yearGrandTotal = Object.values(yearTotals).reduce((sum, count) => sum + count, 0);
-              
-              return (
-                <React.Fragment key={year}>
-                  {/* Year header row */}
-                  <tr className="bg-blue-50 border-t-2 border-blue-200">
-                    <td className="p-3 font-bold text-blue-800">📅 {year}</td>
-                    {allCategories.map((cat) => (
-                      <td key={cat} className="text-center p-3 font-bold text-blue-700">
-                        {yearTotals[cat] || 0}
-                      </td>
-                    ))}
-                    <td className="text-center p-3 font-bold text-blue-800 bg-blue-100">
-                      {yearGrandTotal}
-                    </td>
-                  </tr>
-                  
-                  {/* Month rows */}
-                  {Object.entries(months).sort().map(([month, categories]) => {
+    <div className="rounded-xl shadow-md overflow-x-auto border border-blue-200 mt-8 max-h-[500px] overflow-y-auto">
+      <table className="w-full text-sm divide-y divide-blue-300">
+        <thead className="bg-[#024673] text-white sticky top-0 z-10">
+          <tr className="divide-x divide-blue-300">
+            <th className="text-left p-3 font-semibold">Year</th>
+            {allCategories.map((cat) => (
+              <th key={cat} className="text-center p-3 font-semibold">{cat}</th>
+            ))}
+            <th className="text-center p-3 font-semibold">Total</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-blue-300">
+          {Object.entries(snapshot).sort().map(([year, months], idx) => {
+            const yearTotals = calculateYearTotals(months);
+            const yearGrandTotal = Object.values(yearTotals).reduce((sum, count) => sum + count, 0);
+            const isExpanded = expandedYears[year];
+
+            return (
+              <React.Fragment key={year}>
+                <tr
+                  className={`cursor-pointer text-white divide-x divide-blue-300 ${idx % 2 === 0 ? 'bg-[#024673]' : 'bg-[#03579E]'}`}
+                  onClick={() => toggleYear(year)}
+                >
+                  <td className="p-3 font-bold flex items-center">
+                    <button className="mr-2 text-lg font-bold">{isExpanded ? "−" : "+"}</button>
+                    📅 {year}
+                  </td>
+                  {allCategories.map((cat) => (
+                    <td key={cat} className="text-center p-3 font-bold">{yearTotals[cat] || 0}</td>
+                  ))}
+                  <td className="text-center p-3 bg-black font-bold">{yearGrandTotal}</td>
+                </tr>
+
+                {isExpanded &&
+                  Object.entries(months).sort().map(([month, categories], mIdx) => {
                     const monthTotal = calculateMonthTotal(categories);
                     return (
-                      <tr key={`${year}-${month}`} className="border-b hover:bg-gray-50">
-                        <td className="p-3 pl-8 text-black">└ {month}</td>
+                      <tr
+                        key={`${year}-${month}`}
+                        className={`text-white divide-x divide-blue-300 ${mIdx % 2 === 0 ? 'bg-[#024673]' : 'bg-[#03579E]'}`}
+                      >
+                        <td className="p-3 pl-8">{month}</td>
                         {allCategories.map((cat) => (
-                          <td key={cat} className="text-center p-3 text-black">
-                            {categories[cat] || 0}
-                          </td>
+                          <td key={cat} className="text-center p-3">{categories[cat] || 0}</td>
                         ))}
-                        <td className="text-center p-3 font-medium bg-gray-50 text-black">
-                          {monthTotal}
-                        </td>
+                        <td className="text-center p-3 bg-black font-medium">{monthTotal}</td>
                       </tr>
                     );
                   })}
-                </React.Fragment>
-              );
-            })}
-            
-            {/* Grand total row */}
-            <tr className="bg-gray-800 text-white font-bold border-t-2">
-              <td className="p-3">Total</td>
-              {allCategories.map((cat) => {
-                const catTotal = Object.values(snapshot).reduce((sum, months) => {
-                  return sum + Object.values(months).reduce((monthSum, categories) => {
-                    return monthSum + (categories[cat] || 0);
-                  }, 0);
+              </React.Fragment>
+            );
+          })}
+
+          <tr className="bg-black text-white font-bold border-t-2 divide-x divide-blue-300">
+            <td className="p-3">Total</td>
+            {allCategories.map((cat) => {
+              const catTotal = Object.values(snapshot).reduce((sum, months) => {
+                return sum + Object.values(months).reduce((monthSum, categories) => {
+                  return monthSum + (categories[cat] || 0);
                 }, 0);
-                return (
-                  <td key={cat} className="text-center p-3">{catTotal}</td>
-                );
-              })}
-              <td className="text-center p-3 bg-gray-700">{calculateGrandTotal()}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+              }, 0);
+              return <td key={cat} className="text-center p-3">{catTotal}</td>;
+            })}
+            <td className="text-center p-3 bg-black">{calculateGrandTotal()}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 };
 
 // Main Home Component
-const Home = () => {
+export default function Home() {
   const [data, setData] = useState([]);
   const [filters, setFilters] = useState({ year: "", month: "" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        if (typeof window !== 'undefined' && window.fs && window.fs.readFile) {
-          // Using file system API
-          const csvData = await window.fs.readFile('asset1.csv', { encoding: 'utf8' });
-          Papa.parse(csvData, {
-            header: true,
-            skipEmptyLines: true,
-            complete: (results) => {
-              const cleanedData = results.data.filter(row => 
-                row["Asset Category"] && row["Asset Category"].trim() !== ""
-              );
-              setData(cleanedData);
-              setLoading(false);
-            },
-            error: (error) => {
-              setError(`Error parsing CSV: ${error.message}`);
-              setLoading(false);
-            }
-          });
-        } else {
-          // Fallback to fetch
-          Papa.parse("/asset1.csv", {
-            download: true,
-            header: true,
-            skipEmptyLines: true,
-            complete: (results) => {
-              const cleanedData = results.data.filter(row => 
-                row["Asset Category"] && row["Asset Category"].trim() !== ""
-              );
-              setData(cleanedData);
-              setLoading(false);
-            },
-            error: (error) => {
-              setError(`Error loading CSV: ${error.message}`);
-              setLoading(false);
-            }
-          });
-        }
-      } catch (err) {
-        setError(`Error: ${err.message}`);
+    Papa.parse("/asset1.csv", {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const cleanedData = results.data.filter(row =>
+          row["Asset Category"] && row["Asset Category"].trim() !== ""
+        );
+        setData(cleanedData);
+        setLoading(false);
+      },
+      error: (error) => {
+        setError(`Error loading CSV: ${error.message}`);
         setLoading(false);
       }
-    };
-
-    loadData();
+    });
   }, []);
 
-  // Helper function to extract year from date string
   const extractYear = (dateStr) => {
     if (!dateStr) return null;
     const parts = dateStr.split("-");
@@ -305,19 +303,13 @@ const Home = () => {
   return (
     <div className="p-6 bg-gradient-to-br from-[#024673] to-[#5C99E3] min-h-screen rounded-xl">
       <div className="max-w-7xl mx-auto">
-          <h2 className="text-xl font-semibold mb-4 text-white">Filters</h2>
-          <Filters filters={filters} setFilters={setFilters} />
-        
-        
+        <Filters filters={filters} setFilters={setFilters} />
         <StatusCards data={filteredData} />
         <SnapshotTable data={filteredData} />
-        
         <div className="mt-6 text-sm text-center text-white">
           Showing {filteredData.length} records {filters.year || filters.month ? 'with applied filters' : 'total'}
         </div>
       </div>
     </div>
   );
-};
-
-export default Home;
+}

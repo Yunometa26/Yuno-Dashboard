@@ -1,5 +1,5 @@
-'use client'
-import { useState, useEffect } from 'react';
+'use client';
+import { useState, useEffect, useTransition, useMemo } from 'react';
 import Papa from 'papaparse';
 import FilterComponent from '@/app/components/machine-maintenance/smart-maintenance/FilterComponent';
 import MaintenanceTableComponent from '@/app/components/machine-maintenance/smart-maintenance/MaintenanceTableComponent';
@@ -7,100 +7,79 @@ import DeviationAnalysisComponent from '@/app/components/machine-maintenance/sma
 import MonthMachineFilterComponent from '@/app/components/machine-maintenance/smart-maintenance/MonthMachineFilterComponent';
 import ParameterRangeTableComponent from '@/app/components/machine-maintenance/smart-maintenance/ParameterRangeTableComponent';
 
-// Main Dashboard Component
 export default function MaintenanceDashboard() {
-  // State for data management
-  const [csvData, setCsvData] = useState([]);
-  const [machines, setMachines] = useState([]);
-  const [breakdownDates, setBreakdownDates] = useState({});
+  const [rawCsvData, setRawCsvData] = useState(null);
   const [selectedMachine, setSelectedMachine] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedMonthMachine, setSelectedMonthMachine] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  
-  // Use a single state to control which view is active
-  const [activeView, setActiveView] = useState('maintenance'); // 'maintenance', 'deviation', or 'range'
+  const [activeView, setActiveView] = useState('maintenance');
+  const [isPending, startTransition] = useTransition();
 
-  // Load CSV data from public folder
+  // Parse CSV in worker mode for non-blocking
   useEffect(() => {
-    const fetchCSV = async () => {
-      try {
-        // Assuming the CSV file is in the public folder
-        const response = await fetch('/Smart Maintenance.csv');
-        const csvText = await response.text();
-        
-        Papa.parse(csvText, {
+    fetch('/Smart Maintenance.csv')
+      .then(res => res.text())
+      .then(text => {
+        Papa.parse(text, {
           header: true,
           dynamicTyping: true,
           skipEmptyLines: true,
-          complete: (results) => {
-            if (results.errors.length > 0) {
-              setError(`CSV parsing errors: ${results.errors.map(e => e.message).join(', ')}`);
-              setIsLoading(false);
+          worker: true, // <--- key for performance: parse in web worker
+          complete: ({ data, errors }) => {
+            if (errors.length > 0) {
+              setError(`CSV errors: ${errors.map(e => e.message).join(', ')}`);
               return;
             }
-            
-            processCSVData(results.data);
+            // Batch state updates inside startTransition for better UI responsiveness
+            startTransition(() => setRawCsvData(data));
           },
-          error: (error) => {
-            setError(`Error parsing CSV: ${error.message}`);
-            setIsLoading(false);
-          }
+          error: (err) => {
+            setError(`Parsing error: ${err.message}`);
+          },
         });
-      } catch (error) {
-        setError(`Failed to fetch CSV file: ${error.message}. Make sure to place your CSV file named 'Smart Maintenance.csv' in the public folder.`);
-        setIsLoading(false);
-      }
-    };
-
-    fetchCSV();
+      })
+      .catch(() => {
+        setError("Failed to fetch CSV file. Make sure it's in the public folder.");
+      });
   }, []);
 
-  // Process CSV data
-  const processCSVData = (data) => {
-    try {
-      setCsvData(data);
-      
-      // Extract unique breakdown machines
-      const uniqueMachines = [...new Set(data.map(row => row['Breakdown Machine']).filter(Boolean))];
-      setMachines(uniqueMachines);
-      
-      // Create a mapping of machines to their breakdown dates
-      const dateMapping = {};
-      data.forEach(row => {
-        const machine = row['Breakdown Machine'];
-        const date = row['Breakdown Date'];
-        
-        if (machine && date) {
-          if (!dateMapping[machine]) {
-            dateMapping[machine] = new Set();
-          }
-          dateMapping[machine].add(date);
-        }
-      });
-      
-      // Convert Sets to Arrays for each machine
-      Object.keys(dateMapping).forEach(machine => {
-        dateMapping[machine] = Array.from(dateMapping[machine]);
-      });
-      
-      setBreakdownDates(dateMapping);
-      setIsLoading(false);
-    } catch (error) {
-      setError(`Error processing CSV data: ${error.message}`);
-      setIsLoading(false);
-    }
-  };
+  // Memoize machines & breakdownDates for quick lookup
+  const { machines, breakdownDates } = useMemo(() => {
+    if (!rawCsvData) return { machines: [], breakdownDates: {} };
 
-  // Handle filter changes from the filter component
+    const machineSet = new Set();
+    const dateMap = {};
+
+    for (const row of rawCsvData) {
+      const machine = row['Breakdown Machine'];
+      const date = row['Breakdown Date'];
+
+      if (machine) {
+        machineSet.add(machine);
+        if (date) {
+          if (!dateMap[machine]) dateMap[machine] = new Set();
+          dateMap[machine].add(date);
+        }
+      }
+    }
+
+    // Convert sets to sorted arrays
+    const machineList = Array.from(machineSet).sort();
+    const mappedDates = {};
+    for (const [key, value] of Object.entries(dateMap)) {
+      mappedDates[key] = Array.from(value).sort();
+    }
+
+    return { machines: machineList, breakdownDates: mappedDates };
+  }, [rawCsvData]);
+
   const handleFilterChange = (machine, date) => {
     setSelectedMachine(machine);
     setSelectedDate(date);
   };
 
-  // Handle month-machine filter changes
   const handleMonthMachineFilterChange = (machine, month) => {
     setSelectedMonthMachine(machine);
     setSelectedMonth(month);
@@ -109,122 +88,108 @@ export default function MaintenanceDashboard() {
   return (
     <div className="p-4 bg-gradient-to-br from-[#024673] to-[#5C99E3] min-h-screen">
       <div className="bg-opacity-15 backdrop-blur-sm m-1 rounded-xl bg-gradient-to-r from-[#024673] to-[#5C99E3]">
-          <div className="p-8 sm:p-12">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
-              {/* Left side with text content */}
-              <div className="flex-1 space-y-5 align-middle text-center">
-                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white leading-tight">
-                  <span className="text-white">Smart Maintenance Analysis Dashboard</span>
-                </h2>
-              </div>
+        <div className="p-8 sm:p-12">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
+            <div className="flex-1 text-center">
+              <h2 className="text-4xl font-bold text-white leading-tight">
+                Smart Maintenance Analysis Dashboard
+              </h2>
             </div>
           </div>
         </div>
-      
+      </div>
+
       {error && (
-        <div className="bg-red-50 text-red-700 p-4 mb-6 rounded-md">
-          {error}
-        </div>
+        <div className="bg-red-50 text-red-700 p-4 mb-6 rounded-md">{error}</div>
       )}
-      
-      {isLoading ? (
-        <div className="text-center py-8">
-          <div className="text-white">Loading data...</div>
-        </div>
+
+      {!rawCsvData ? (
+        <div className="text-center py-8 text-white">Loading data...</div>
       ) : (
         <>
-          {/* Toggle Buttons for Different Views */}
           <div className="flex flex-wrap gap-4 mt-6 mb-4">
-            <button 
-              onClick={() => setActiveView('maintenance')}
-              className={`group relative flex items-center justify-center overflow-hidden rounded-lg ${activeView === 'maintenance' ? 'bg-gradient-to-br from-green-500 to-green-700' : 'bg-gradient-to-br from-blue-500 to-purple-600'} p-0.5 text-sm font-medium text-white hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 shadow-lg`}
-            >
-              <span className="relative flex items-center gap-2 rounded-md bg-gradient-to-r from-[#024673] to-[#5C99E3] px-5 py-2.5 transition-all duration-300 ease-in group-hover:bg-opacity-0">
-                Data Back validation of Maintenance Analysis
-              </span>
-            </button>
-            
-            <button 
-              onClick={() => setActiveView('deviation')}
-              className={`group relative flex items-center justify-center overflow-hidden rounded-lg ${activeView === 'deviation' ? 'bg-gradient-to-br from-green-500 to-green-700' : 'bg-gradient-to-br from-blue-500 to-purple-600'} p-0.5 text-sm font-medium text-white hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 shadow-lg`}
-            >
-              <span className="relative flex items-center gap-2 rounded-md bg-gradient-to-r from-[#024673] to-[#5C99E3] px-5 py-2.5 transition-all duration-300 ease-in group-hover:bg-opacity-0">
-                Deviation Analysis
-              </span>
-            </button>
-            
-            <button 
-              onClick={() => setActiveView('range')}
-              className={`group relative flex items-center justify-center overflow-hidden rounded-lg ${activeView === 'range' ? 'bg-gradient-to-br from-green-500 to-green-700' : 'bg-gradient-to-br from-blue-500 to-purple-600'} p-0.5 text-sm font-medium text-white hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 shadow-lg`}
-            >
-              <span className="relative flex items-center gap-2 rounded-md bg-gradient-to-r from-[#024673] to-[#5C99E3] px-5 py-2.5 transition-all duration-300 ease-in group-hover:bg-opacity-0">
-                Customized Maintenance Report
-              </span>
-            </button>
+            {['maintenance', 'deviation', 'range'].map(view => (
+              <button
+                key={view}
+                onClick={() => setActiveView(view)}
+                className={`group relative flex items-center justify-center overflow-hidden rounded-lg ${
+                  activeView === view
+                    ? 'bg-gradient-to-br from-green-500 to-green-700'
+                    : 'bg-gradient-to-br from-blue-500 to-purple-600'
+                } p-0.5 text-sm font-medium text-white hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 shadow-lg`}
+              >
+                <span className="relative flex items-center gap-2 rounded-md bg-gradient-to-r from-[#024673] to-[#5C99E3] px-5 py-2.5 transition-all duration-300 ease-in group-hover:bg-opacity-0">
+                  {view === 'maintenance'
+                    ? 'Data Back validation of Maintenance Analysis'
+                    : view === 'deviation'
+                    ? 'Deviation Analysis'
+                    : 'Customized Maintenance Report'}
+                </span>
+              </button>
+            ))}
           </div>
 
-          {/* Different views based on activeView state */}
-          {activeView === 'maintenance' && (
-            <div className="animate-fade-in">
-              {/* Filters Component */}
-              <FilterComponent 
-                machines={machines}
-                breakdownDates={breakdownDates}
-                onFilterChange={handleFilterChange}
-              />
-              
-              {/* Maintenance Table Component */}
-              <MaintenanceTableComponent 
-                csvData={csvData}
-                selectedMachine={selectedMachine}
-                selectedDate={selectedDate}
-              />
-            </div>
-          )}
+          <div className="animate-fade-in">
+            {activeView === 'maintenance' && (
+              <>
+                <FilterComponent
+                  machines={machines}
+                  breakdownDates={breakdownDates}
+                  onFilterChange={handleFilterChange}
+                />
+                <MaintenanceTableComponent
+                  csvData={rawCsvData}
+                  selectedMachine={selectedMachine}
+                  selectedDate={selectedDate}
+                />
+              </>
+            )}
 
-          {/* Deviation Analysis View */}
-          {activeView === 'deviation' && (
-            <div className="animate-fade-in">
-              <DeviationAnalysisComponent csvData={csvData} />
-            </div>
-          )}
+            {activeView === 'deviation' && (
+              <DeviationAnalysisComponent csvData={rawCsvData} />
+            )}
 
-          {/* Parameter Range Analysis View */}
-          {activeView === 'range' && (
-            <div className="animate-fade-in">
-              <MonthMachineFilterComponent 
-                csvData={csvData}
-                onFilterChange={handleMonthMachineFilterChange}
-              />
-              <ParameterRangeTableComponent 
-                csvData={csvData}
-                selectedMachine={selectedMonthMachine}
-                selectedMonth={selectedMonth}
-              />
-            </div>
-          )}
+            {activeView === 'range' && (
+              <>
+                <MonthMachineFilterComponent
+                  csvData={rawCsvData}
+                  onFilterChange={handleMonthMachineFilterChange}
+                />
+                <ParameterRangeTableComponent
+                  csvData={rawCsvData}
+                  selectedMachine={selectedMonthMachine}
+                  selectedMonth={selectedMonth}
+                />
+              </>
+            )}
+          </div>
         </>
       )}
 
-      {/* Add the custom animation */}
       <style jsx>{`
         @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
         .animate-fade-in {
           animation: fadeIn 0.3s ease-out forwards;
         }
       `}</style>
 
-        <div className="mt-8 flex justify-center">
-          <button 
-            onClick={() => window.location.href = '/maintenance'}
-            className="bg-gradient-to-r from-[#024673] to-[#5C99E3] hover:from-[#023d63] hover:to-[#4b88d2] text-white px-6 py-3 rounded-lg shadow-md transition-all duration-300 font-medium"
-          >
-            Back to Maintenance
-          </button>
-        </div>
+      <div className="mt-8 flex justify-center">
+        <button
+          onClick={() => (window.location.href = '/maintenance')}
+          className="bg-gradient-to-r from-[#024673] to-[#5C99E3] hover:from-[#023d63] hover:to-[#4b88d2] text-white px-6 py-3 rounded-lg shadow-md transition-all duration-300 font-medium"
+        >
+          Back to Maintenance
+        </button>
+      </div>
     </div>
   );
 }

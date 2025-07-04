@@ -1,71 +1,78 @@
-// FilterComponent.js
-import { useState, useEffect } from 'react';
-import { Calendar, Filter } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Filter } from 'lucide-react';
+import React from 'react';
 
-// Filter Component
-const FilterComponent = ({ machines, breakdownDates, onFilterChange }) => {
+const FilterComponent = React.memo(({ machines, breakdownDates, onFilterChange }) => {
   const [selectedMachine, setSelectedMachine] = useState('');
-  const [availableDates, setAvailableDates] = useState([]);
   const [selectedDate, setSelectedDate] = useState('');
+  const [availableDates, setAvailableDates] = useState([]);
 
-  // Handle machine selection
-  const handleMachineChange = (machine) => {
-    setSelectedMachine(machine);
-    setSelectedDate('');
-    
-    // Update available dates for selected machine
-    if (machine && breakdownDates[machine]) {
-      setAvailableDates(breakdownDates[machine]);
+  // Update available breakdown dates when selected machine changes
+  useEffect(() => {
+    if (selectedMachine && breakdownDates[selectedMachine]) {
+      const sortedDates = [...breakdownDates[selectedMachine]].sort((a, b) => new Date(b) - new Date(a));
+      setAvailableDates(sortedDates);
     } else {
       setAvailableDates([]);
     }
+  }, [selectedMachine, breakdownDates]);
 
-    // Call parent callback with null for date since it's being reset
+  const handleMachineChange = (machine) => {
+    setSelectedMachine(machine);
+    setSelectedDate('');
     onFilterChange(machine, '');
   };
 
-  // Handle date selection
   const handleDateChange = (date) => {
     setSelectedDate(date);
     onFilterChange(selectedMachine, date);
   };
 
+  // Memoize options to prevent re-creation on every render
+  const machineOptions = useMemo(() => machines.map((machine, idx) => (
+    <option key={idx} value={machine}>{machine}</option>
+  )), [machines]);
+
+  const dateOptions = useMemo(() => availableDates.map((date, idx) => (
+    <option key={idx} value={date}>{date}</option>
+  )), [availableDates]);
+
   return (
-    <div className="flex flex-col md:flex-row gap-4 mb-6 mt-5 mr-1 ml-1">
-      <div className="flex flex-col w-full md:w-1/2">
-        <label className="text-sm font-medium mb-1 text-white">Machine</label>
-        <div className="relative">
+    <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] p-4 rounded-xl shadow-sm border border-blue-200 text-white mb-6">
+      <div className="flex items-center mb-3">
+        <Filter className="w-4 h-4 mr-2" />
+        <h3 className="text-lg font-semibold">Select Filters</h3>
+      </div>
+
+      <div className="flex flex-col md:flex-row gap-4">
+        {/* Machine Dropdown */}
+        <div className="flex flex-col w-full md:w-1/2">
+          <label className="text-sm font-medium mb-1">Machine</label>
           <select
             value={selectedMachine}
             onChange={(e) => handleMachineChange(e.target.value)}
             className="w-full p-2 border border-gray-300 rounded-md bg-white text-black"
           >
             <option value="">Select Machine</option>
-            {machines.map((machine, idx) => (
-              <option key={idx} value={machine}>{machine}</option>
-            ))}
+            {machineOptions}
           </select>
         </div>
-      </div>
-      
-      <div className="flex flex-col w-full md:w-1/2">
-        <label className="text-sm font-medium mb-1 text-white">Breakdown Date</label>
-        <div className="relative">
+
+        {/* Breakdown Date Dropdown */}
+        <div className="flex flex-col w-full md:w-1/2">
+          <label className="text-sm font-medium mb-1">Breakdown Date</label>
           <select
             value={selectedDate}
             onChange={(e) => handleDateChange(e.target.value)}
             className="w-full p-2 border border-gray-300 rounded-md bg-white text-black"
           >
             <option value="">Select Date</option>
-            {availableDates.map((date, idx) => (
-              <option key={idx} value={date}>{date}</option>
-            ))}
+            {dateOptions}
           </select>
         </div>
       </div>
     </div>
   );
-};
+});
 
 export default FilterComponent;
-
