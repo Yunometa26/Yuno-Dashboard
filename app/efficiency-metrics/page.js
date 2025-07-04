@@ -1182,3 +1182,6 @@ function MetricCard({ title, value, className = "" }) {
     </div>
   );
 }
+
+//made changes to the table and removed actual days section
+
