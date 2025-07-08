@@ -62,7 +62,7 @@ export default function OutboundLogisticsPage() {
                 onClick={() => handleCardClick(card.path)}
                 className="bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 hover:shadow-lg cursor-pointer transform hover:-translate-y-1 hover:scale-105 h-32 flex flex-col"
               >
-                <div className="p-6 flex-1 flex items-center justify-center">
+                <div className="p-3 flex-1 flex items-center justify-center">
                   <div className="flex items-center justify-between w-full">
                     <h3 className="text-base font-semibold text-gray-800 leading-tight text-center flex-1 whitespace-nowrap pr-2">{card.title}</h3>
                     <div className="ml-2 flex-shrink-0">

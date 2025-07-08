@@ -2,7 +2,7 @@
 
 import { Warehouse } from 'lucide-react'
 
-export default function InboundLogisticsPage() {
+export default function InlandLogisticsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#024673] via-[#024673] to-[#024673]">
@@ -16,7 +16,7 @@ export default function InboundLogisticsPage() {
                   <div className="flex items-center justify-center gap-4 mb-4">
                     <Warehouse className="h-12 w-12 text-white" />
                     <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white leading-tight">
-                      Inbound Logistics
+                      Inland Logistics
                     </h2>
                   </div>
                 </div>
@@ -25,12 +25,12 @@ export default function InboundLogisticsPage() {
           </div>
         </div>
 
-        {/* Placeholder Content */}
+        {/* No Data Content */}
         <div className="rounded-lg shadow-md overflow-hidden mb-6" style={{ backgroundColor: 'rgba(0, 31, 71, 0.9)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
           <div className="p-12 text-center">
-            <Warehouse className="h-24 w-24 text-green-400 mx-auto mb-6" />
-            <h3 className="text-2xl font-semibold text-white mb-4">Inbound Logistics Dashboard</h3>
-            <p className="text-gray-300 text-lg">Content will be implemented based on company requirements</p>
+            <Warehouse className="h-24 w-24 text-gray-400 mx-auto mb-6" />
+            <h3 className="text-2xl font-semibold text-white mb-4">No Data Available</h3>
+            <p className="text-gray-400 text-lg">There is currently no data to display for this section.</p>
           </div>
         </div>
 

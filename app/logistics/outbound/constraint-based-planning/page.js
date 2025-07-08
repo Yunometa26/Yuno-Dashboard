@@ -24,12 +24,12 @@ export default function ConstraintBasedPlanningPage() {
           </div>
         </div>
 
-        {/* Placeholder Content */}
+        {/* No Data Content */}
         <div className="rounded-lg shadow-md overflow-hidden mb-6" style={{ backgroundColor: 'rgba(0, 31, 71, 0.9)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
           <div className="p-12 text-center">
-            <Brain className="h-24 w-24 text-green-400 mx-auto mb-6" />
-            <h3 className="text-2xl font-semibold text-white mb-4">Constraint Based Planning System</h3>
-            <p className="text-gray-300 text-lg">Content will be implemented based on company requirements</p>
+            <Brain className="h-24 w-24 text-gray-400 mx-auto mb-6" />
+            <h3 className="text-2xl font-semibold text-white mb-4">No Data Available</h3>
+            <p className="text-gray-400 text-lg">There is currently no data to display for this section.</p>
           </div>
         </div>
 
