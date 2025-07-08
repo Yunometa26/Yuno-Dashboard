@@ -269,22 +269,28 @@ export default function EfficiencyMetricsPage() {
     return result;
   }, [filteredData]);
 
-  // Calculate min, max, and average of process-level actual days sums for gauge meter
+  // Calculate min, max, and average of process-level actual days per order for gauge meter
   const processActualDaysStats = useMemo(() => {
     if (!filteredData || filteredData.length === 0) {
       return { min: 0, max: 0, avg: 0 };
     }
-    // Group by process and sum actual days for each process
-    const processSums = {};
+    // Group by process: for each process, sum actual days and count unique order IDs
+    const processStats = {};
     filteredData.forEach(order => {
-      if (!processSums[order.process]) processSums[order.process] = 0;
-      processSums[order.process] += order.actualDays || 0;
+      if (!processStats[order.process]) {
+        processStats[order.process] = { sum: 0, orderIDs: new Set() };
+      }
+      processStats[order.process].sum += order.actualDays || 0;
+      if (order.orderID) processStats[order.process].orderIDs.add(order.orderID);
     });
-    const sums = Object.values(processSums);
-    if (sums.length === 0) return { min: 0, max: 0, avg: 0 };
-    const min = Math.min(...sums);
-    const max = Math.max(...sums);
-    const avg = (sums.reduce((a, b) => a + b, 0) / sums.length).toFixed(2);
+    // For each process, calculate average days per order
+    const avgs = Object.values(processStats)
+      .map(stat => stat.orderIDs.size > 0 ? stat.sum / stat.orderIDs.size : 0)
+      .filter(avg => !isNaN(avg));
+    if (avgs.length === 0) return { min: 0, max: 0, avg: 0 };
+    const min = Math.min(...avgs);
+    const max = Math.max(...avgs);
+    const avg = (avgs.reduce((a, b) => a + b, 0) / avgs.length).toFixed(2);
     return { min, max, avg };
   }, [filteredData]);
 
@@ -340,8 +346,9 @@ export default function EfficiencyMetricsPage() {
             </text>
             {/* Min/Max value labels below arc */}
             <g>
-              <text x="60" y={numberY + 20} textAnchor="middle" fontSize="16" fontWeight="bold" fill="#fff">{gaugeMin}</text>
-              <text x="280" y={numberY + 20} textAnchor="middle" fontSize="16" fontWeight="bold" fill="#fff">{gaugeMax}</text>
+              {/* CHANGED: show only integer values for min and max */}
+              <text x="60" y={numberY + 20} textAnchor="middle" fontSize="16" fontWeight="bold" fill="#fff">{Math.round(gaugeMin)}</text>
+              <text x="280" y={numberY + 20} textAnchor="middle" fontSize="16" fontWeight="bold" fill="#fff">{Math.round(gaugeMax)}</text>
               {/* Small 'min' and 'max' text below numbers */}
               <text x="60" y={labelY + 20} textAnchor="middle" fontSize="11" fill="#a3e635">min</text>
               <text x="280" y={labelY + 20} textAnchor="middle" fontSize="11" fill="#a3e635">max</text>
