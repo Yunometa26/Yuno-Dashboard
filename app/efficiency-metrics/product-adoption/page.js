@@ -42,7 +42,7 @@ const TooltipNoHrs = ({ active, payload, label }) => {
   return null;
 };
 
-const PersonDelayTooltip = ({ active, payload, label }) => {
+const PositionDelayTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-white p-2 border-gray-300 rounded text-slate-800">
@@ -62,12 +62,12 @@ const PersonDelayTooltip = ({ active, payload, label }) => {
 export default function DelayAnalysisPage() {
   const [rawData, setRawData] = useState([]);
   const [filters, setFilters] = useState({});
-  const [selection, setSelection] = useState({ process: null, task: null, person: null, dateKey: null });
+  const [selection, setSelection] = useState({ process: null, task: null, position: null, dateKey: null });
   const [processOrder, setProcessOrder] = useState([]);
   const [taskOrder, setTaskOrder] = useState([]);
 
   useEffect(() => {
-    fetch('/Product Adoption.csv')
+    fetch('/Product_Adoption_Updated.csv')
       .then(res => res.text())
       .then(csv => {
         Papa.parse(csv, {
@@ -111,10 +111,12 @@ export default function DelayAnalysisPage() {
   );
 
   const dynamicOptions = useMemo(() => {
-    const fields = ['Process Name', 'Status', 'Task Name', 'Month', 'Day', 'Responsible Person'];
+    const fields = ['Process Name', 'Status', 'Task Name', 'Month', 'Day', 'Position'];
     const opts = {};
     fields.forEach(field => {
-      opts[field] = Array.from(new Set(filteredData.map(d => d[field]).filter(Boolean)));
+      opts[field] = Array.from(new Set(filteredData.map(d => d[field]).filter(Boolean))).sort((a, b) =>
+        a.localeCompare(b)
+      );
     });
     return opts;
   }, [filteredData]);
@@ -123,8 +125,8 @@ export default function DelayAnalysisPage() {
     filteredData.filter(d =>
       (!selection.process || d['Process Name'] === selection.process) &&
       (!selection.task || d['Task Name'] === selection.task) &&
-      (!selection.person || d['Responsible Person'] === selection.person) &&
-      (!selection.dateKey || `${d.Month}-${d.Day}-${d['Responsible Person']}` === selection.dateKey)
+      (!selection.position || d['Position'] === selection.position) &&
+      (!selection.dateKey || `${d.Month}-${d.Day}-${d['Position']}` === selection.dateKey)
     ),
     [filteredData, selection]
   );
@@ -149,15 +151,20 @@ export default function DelayAnalysisPage() {
     return taskOrder.map(name => grouped[name]).filter(g => g && (g.Delayed > 0 || g['On Time'] > 0));
   }, [filteredData, selection.process, taskOrder]);
 
-  const personData = useMemo(() => {
+  const positionData = useMemo(() => {
     const grouped = {};
     filteredData
-      .filter(d => (!selection.process || d['Process Name'] === selection.process) && (!selection.task || d['Task Name'] === selection.task))
+      .filter(d =>
+        (!selection.process || d['Process Name'] === selection.process) &&
+        (!selection.task || d['Task Name'] === selection.task))
       .forEach(d => {
-        grouped[d['Responsible Person']] ??= { 'Responsible Person': d['Responsible Person'], Delayed: 0, 'On Time': 0 };
-        grouped[d['Responsible Person']][d.Status]++;
+        grouped[d['Position']] ??= { Position: d['Position'], Delayed: 0, 'On Time': 0 };
+        grouped[d['Position']][d.Status]++;
       });
-    return Object.values(grouped).filter(g => g.Delayed > 0 || g['On Time'] > 0);
+
+    return Object.values(grouped)
+      .filter(g => g.Delayed > 0 || g['On Time'] > 0)
+      .sort((a, b) => a.Position.localeCompare(b.Position));
   }, [filteredData, selection.process, selection.task]);
 
   const lineData = useMemo(() => {
@@ -188,17 +195,17 @@ export default function DelayAnalysisPage() {
 
   const handleProcessClick = e => {
     if (!e?.activeLabel) return;
-    setSelection(prev => ({ process: prev.process === e.activeLabel ? null : e.activeLabel, task: null, person: null, dateKey: null }));
+    setSelection(prev => ({ process: prev.process === e.activeLabel ? null : e.activeLabel, task: null, position: null, dateKey: null }));
   };
 
   const handleTaskClick = e => {
     if (!e?.activeLabel) return;
-    setSelection(prev => ({ ...prev, task: prev.task === e.activeLabel ? null : e.activeLabel, person: null, dateKey: null }));
+    setSelection(prev => ({ ...prev, task: prev.task === e.activeLabel ? null : e.activeLabel, position: null, dateKey: null }));
   };
 
-  const handlePersonClick = e => {
+  const handlePositionClick = e => {
     if (!e?.activeLabel) return;
-    setSelection(prev => ({ ...prev, person: prev.person === e.activeLabel ? null : e.activeLabel, dateKey: null }));
+    setSelection(prev => ({ ...prev, position: prev.position === e.activeLabel ? null : e.activeLabel, dateKey: null }));
   };
 
   const tooltipStyle = {
@@ -227,7 +234,7 @@ export default function DelayAnalysisPage() {
               value={filters[label] || ''}
               onChange={e => {
                 setFilters(prev => ({ ...prev, [label]: e.target.value }));
-                setSelection({ process: null, task: null, person: null, dateKey: null });
+                setSelection({ process: null, task: null, position: null, dateKey: null });
               }}
             >
               <option value="">{label}</option>
@@ -276,13 +283,13 @@ export default function DelayAnalysisPage() {
         </ResponsiveContainer>
       </div>
 
-      <h2 className="text-lg font-bold mb-2">Delay Hours per Person</h2>
+      <h2 className="text-lg font-bold mb-2">Delay Hours per Position</h2>
       <div className="bg-blue-950/80 p-6 mb-6 h-[600px] rounded-xl shadow-lg border border-white/10">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart layout="vertical" data={personData} onClick={handlePersonClick}>
+          <BarChart layout="vertical" data={positionData} onClick={handlePositionClick}>
             <XAxis type="number" tick={{ fill: '#f0f0f0' }} />
-            <YAxis dataKey="Responsible Person" type="category" width={320} tick={{ fill: '#f0f0f0', fontSize: 14 }} interval={0} />
-            <Tooltip content={<PersonDelayTooltip />} />
+            <YAxis dataKey="Position" type="category" width={320} tick={{ fill: '#f0f0f0', fontSize: 14 }} interval={0} />
+            <Tooltip content={<PositionDelayTooltip />} />
             <Legend content={<CustomLegend />} />
             <Bar dataKey="Delayed" stackId="a" fill={DELAYED_COLOR} />
             <Bar dataKey="On Time" stackId="a" fill={ONTIME_COLOR} />

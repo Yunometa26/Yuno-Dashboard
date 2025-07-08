@@ -36,6 +36,13 @@ export default function DashboardHomepage() {
     },
     { 
       id: 5, 
+      title: "Logistics", 
+      icon: <TrendingUp className="h-8 w-8 text-red-500" />, 
+      path: "/logistics",
+      borderColor: "bg-yellow-500"
+    },
+    { 
+      id: 6, 
       title: "Efficiency Metrics", 
       icon: <TrendingUp className="h-8 w-8 text-red-500" />, 
       path: "/efficiency-metrics",
