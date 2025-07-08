@@ -28,19 +28,18 @@ export default function OutboundLogisticsPage() {
   ];
 
   const handleCardClick = (path) => {
-    console.log(`Navigating to ${path}`);
     window.location.href = path;
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#024673] via-[#024673] to-[#024673]">
-      <div className="max-w-6xl mx-auto p-6">
+    <div className="min-h-screen bg-gradient-to-br from-[#024673] to-[#5C99E3] flex items-center justify-center">
+      <div className="max-w-6xl w-full p-8">
         {/* Header Section */}
         <div className="mb-12 w-full overflow-hidden">
-          <div className="backdrop-blur-sm m-1 rounded-xl" style={{ backgroundColor: 'rgba(0, 31, 71, 0.8)' }}>
+          <div className="bg-opacity-15 backdrop-blur-sm m-1 rounded-xl bg-gradient-to-r from-[#024673] to-[#5C99E3]">
             <div className="p-8 sm:p-12">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
-                <div className="flex-1 space-y-5 align-middle text-center">
+                <div className="flex-1 space-y-5 text-center">
                   <div className="flex items-center justify-center gap-4 mb-4">
                     <Truck className="h-12 w-12 text-white" />
                     <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white leading-tight">
@@ -54,33 +53,29 @@ export default function OutboundLogisticsPage() {
         </div>
 
         {/* Cards Section */}
-        <div className="flex justify-center">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12 max-w-4xl">
-            {cards.map((card) => (
-              <div
-                key={card.id}
-                onClick={() => handleCardClick(card.path)}
-                className="bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 hover:shadow-lg cursor-pointer transform hover:-translate-y-1 hover:scale-105 h-32 flex flex-col"
-              >
-                <div className="p-3 flex-1 flex items-center justify-center">
-                  <div className="flex items-center justify-between w-full">
-                    <h3 className="text-base font-semibold text-gray-800 leading-tight text-center flex-1 whitespace-nowrap pr-2">{card.title}</h3>
-                    <div className="ml-2 flex-shrink-0">
-                      {card.icon}
-                    </div>
-                  </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {cards.map((card) => (
+            <div
+              key={card.id}
+              onClick={() => handleCardClick(card.path)}
+              className="bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 hover:shadow-lg cursor-pointer transform hover:-translate-y-1"
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-semibold text-gray-800">{card.title}</h3>
+                  {card.icon}
                 </div>
-                <div className={`${card.borderColor} h-2 w-full`}></div>
               </div>
-            ))}
-          </div>
+              <div className={`${card.borderColor} h-1 w-full`}></div>
+            </div>
+          ))}
         </div>
 
         {/* Back Button */}
-        <div className="text-center">
+        <div className="mt-8 flex justify-center">
           <button
             onClick={() => window.location.href = '/logistics'}
-            className="bg-gradient-to-r from-[#024673] to-[#5C99E3] hover:from-[#023d63] hover:to-[#4b88d2] text-white px-8 py-3 rounded-lg shadow-md transition-all duration-300 font-medium"
+            className="bg-gradient-to-r from-[#024673] to-[#5C99E3] hover:from-[#023d63] hover:to-[#4b88d2] text-white px-6 py-3 rounded-lg shadow-md transition-all duration-300 font-medium"
           >
             Back to Logistics
           </button>
