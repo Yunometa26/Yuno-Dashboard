@@ -1,6 +1,6 @@
 "use client"
 import { useState } from 'react';
-import { Search, BarChart2, Package, Factory, Settings, TrendingUp, Wrench } from 'lucide-react';
+import { Search, BarChart2, Package, Factory, Settings, TrendingUp } from 'lucide-react';
 
 export default function DashboardHomepage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,7 +37,7 @@ export default function DashboardHomepage() {
     { 
       id: 5, 
       title: "Logistics", 
-      icon: <Wrench className="h-8 w-8 text-yellow-500" />, 
+      icon: <TrendingUp className="h-8 w-8 text-red-500" />, 
       path: "/logistics",
       borderColor: "bg-yellow-500"
     },
