@@ -196,7 +196,7 @@ export default function RouteOptimizationPage() {
     // Calculate on time delivery percentage
     const onTimePercentage = totalDeliveries > 0 ? ((onTimeDeliveries / totalDeliveries) * 100).toFixed(1) + '%' : '0%';
     return {
-      totalDeliveries: (totalDeliveries / 1000).toFixed(2) + 'K',
+      totalDeliveries: totalDeliveries.toLocaleString(),
       onTimeDeliveries: onTimePercentage,
       avgRouteDeviation: avgRouteDeviation.toFixed(2)
     }
