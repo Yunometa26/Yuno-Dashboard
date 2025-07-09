@@ -1,6 +1,6 @@
 "use client"
 import React from 'react';
-import { Factory, BarChart3 } from 'lucide-react';
+import { Factory, BarChart3, Users } from 'lucide-react';
 
 export default function EfficiencyMetricsPage() {
   const cards = [
@@ -17,6 +17,13 @@ export default function EfficiencyMetricsPage() {
       icon: <BarChart3 className="h-8 w-8 text-green-500" />,
       path: "/efficiency-metrics/product-adoption",
       borderColor: "bg-green-500"
+    },
+    { 
+      id: 3, 
+      title: "Resource Library", 
+      icon: <Users className="h-8 w-8 text-purple-500" />,
+      path: "/efficiency-metrics/resource-planning",
+      borderColor: "bg-purple-500"
     },
   ];
 
@@ -45,8 +52,8 @@ export default function EfficiencyMetricsPage() {
             </div>
           </div>
 
-        {/* Cards Section - Adjusted for two cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
+        {/* Cards Section - Adjusted for three cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
           {cards.map((card) => (
             <div
               key={card.id}
