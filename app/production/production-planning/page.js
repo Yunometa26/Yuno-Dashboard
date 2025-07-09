@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Papa from 'papaparse'
+import { Wrench } from 'lucide-react'
 import {
   BarChart,
   Bar,
@@ -223,6 +224,9 @@ export default function ProductionPlanningPage() {
           <div className="backdrop-blur-sm m-1 rounded-xl" style={{ backgroundColor: 'rgba(0, 31, 71, 0.8)' }}>
             <div className="p-8 sm:p-12">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
+                <div className="flex items-center justify-center">
+                  <Wrench className="h-12 w-12 text-yellow-500" />
+                </div>
                 <div className="flex-1 space-y-5 align-middle text-center">
                   <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white leading-tight">
                     Production Planning
