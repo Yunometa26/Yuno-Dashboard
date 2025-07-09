@@ -317,6 +317,18 @@ export default function RouteOptimizationPage() {
     return tableFilteredData.slice(start, start + VEHICLE_PAGE_SIZE)
   }, [tableFilteredData, vehiclePage])
 
+  const ModeOfTransportTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div style={{ background: '#001F47', color: '#fff', borderRadius: 8, padding: 12, border: '1px solid #333', fontSize: 13 }}>
+          <div style={{ fontWeight: 600, marginBottom: 4, color: '#fff' }}>{label}</div>
+          <div style={{ color: '#fff' }}>{payload[0].name} : <span style={{ fontWeight: 700, color: '#fff' }}>{payload[0].value}</span></div>
+        </div>
+      )
+    }
+    return null
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-[#024673] via-[#024673] to-[#024673] flex items-center justify-center">
@@ -327,7 +339,7 @@ export default function RouteOptimizationPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#024673] via-[#024673] to-[#024673]">
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-full mx-auto px-4 py-6">
         {/* Header Section */}
         <div className="mb-8 w-full overflow-hidden">
           <div className="backdrop-blur-sm m-1 rounded-xl" style={{ backgroundColor: 'rgba(0, 31, 71, 0.8)' }}>
@@ -445,7 +457,7 @@ export default function RouteOptimizationPage() {
               <BarChart data={modeOfTransportData}>
                 <XAxis dataKey="mode" stroke="#fff" tick={{ fill: '#fff' }} />
                 <YAxis stroke="#fff" tick={{ fill: '#fff' }} />
-                <Tooltip contentStyle={{ backgroundColor: '#001F47', color: '#fff', border: 'none' }} labelStyle={{ color: '#fff' }} />
+                <Tooltip content={<ModeOfTransportTooltip />} />
                 <Bar dataKey="orders">
                   {modeOfTransportData.map((entry, idx) => (
                     <Cell key={`cell-${entry.mode}`} fill={['Road', 'Rail'].includes(entry.mode) ? '#22D34F' : '#3B82F6'} />
