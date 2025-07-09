@@ -43,8 +43,36 @@ export default function YardAllocationPage() {
   }, []);
 
   // Extract unique filter options
-  const months = useMemo(() => ['All', ...Array.from(new Set(data.map(d => d.Month)).values()).filter(Boolean)], [data]);
-  const cargoTypes = useMemo(() => ['All', ...Array.from(new Set(data.map(d => d.Cargo_Type)).values()).filter(Boolean)], [data]);
+  const months = useMemo(() => {
+    const monthOrder = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    // Get available months based on selected cargo type
+    const filteredData = selectedCargoType === 'All' 
+      ? data 
+      : data.filter(d => d.Cargo_Type === selectedCargoType);
+    const uniqueMonths = Array.from(new Set(filteredData.map(d => d.Month)).values()).filter(Boolean);
+    return ['All', ...uniqueMonths.sort((a, b) => monthOrder.indexOf(a) - monthOrder.indexOf(b))];
+  }, [data, selectedCargoType]);
+
+  const cargoTypes = useMemo(() => {
+    // Get available cargo types based on selected month
+    const filteredData = selectedMonth === 'All' 
+      ? data 
+      : data.filter(d => d.Month === selectedMonth);
+    const uniqueCargoTypes = Array.from(new Set(filteredData.map(d => d.Cargo_Type)).values()).filter(Boolean);
+    return ['All', ...uniqueCargoTypes.sort()];
+  }, [data, selectedMonth]);
+
+  // Handle filter changes with cascading logic
+  const handleMonthChange = (newMonth) => {
+    setSelectedMonth(newMonth);
+  };
+
+  const handleCargoTypeChange = (newCargoType) => {
+    setSelectedCargoType(newCargoType);
+  };
 
   // Filtered data
   const filtered = useMemo(() => {
@@ -54,6 +82,18 @@ export default function YardAllocationPage() {
     );
   }, [data, selectedMonth, selectedCargoType]);
 
+  // Sort data by month order
+  const monthOrder = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const sortedData = data.sort((a, b) => {
+    const monthA = new Date(a.Entry_Date).toLocaleString('default', { month: 'long' });
+    const monthB = new Date(b.Entry_Date).toLocaleString('default', { month: 'long' });
+    return monthOrder.indexOf(monthA) - monthOrder.indexOf(monthB);
+  });
+
   // Chart and KPI calculations
   const sumOccupiedTEUByMonth = useMemo(() => {
     const grouped = {};
@@ -61,7 +101,13 @@ export default function YardAllocationPage() {
       if (!grouped[row.Month]) grouped[row.Month] = 0;
       grouped[row.Month] += parseFloat(row.Occupied_TEU) || 0;
     });
-    return Object.entries(grouped).map(([month, value]) => ({ month, value: Math.round(value) }));
+    const monthOrder = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return Object.entries(grouped)
+      .map(([month, value]) => ({ month, value: Math.round(value) }))
+      .sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
   }, [filtered]);
 
   const avgDwellTimeByMonth = useMemo(() => {
@@ -70,10 +116,16 @@ export default function YardAllocationPage() {
       if (!grouped[row.Month]) grouped[row.Month] = [];
       grouped[row.Month].push(parseFloat(row.Dwell_Time_Days) || 0);
     });
-    return Object.entries(grouped).map(([month, arr]) => ({
+    const monthOrder = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return Object.entries(grouped)
+      .map(([month, arr]) => ({
       month,
       value: arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length) : 0
-    }));
+    }))
+      .sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
   }, [filtered]);
 
   const avgDwellTime = useMemo(() => {
@@ -124,13 +176,13 @@ export default function YardAllocationPage() {
             <div className="flex flex-row gap-6 mb-8">
               <div>
                 <label className="block text-white mb-1">Month</label>
-                <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="w-40 px-3 py-2 rounded bg-[#011a36] text-white border border-blue-900">
+                <select value={selectedMonth} onChange={e => handleMonthChange(e.target.value)} className="w-40 px-3 py-2 rounded bg-[#011a36] text-white border border-blue-900">
                   {months.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-white mb-1">Cargo Type</label>
-                <select value={selectedCargoType} onChange={e => setSelectedCargoType(e.target.value)} className="w-40 px-3 py-2 rounded bg-[#011a36] text-white border border-blue-900">
+                <select value={selectedCargoType} onChange={e => handleCargoTypeChange(e.target.value)} className="w-40 px-3 py-2 rounded bg-[#011a36] text-white border border-blue-900">
                   {cargoTypes.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
