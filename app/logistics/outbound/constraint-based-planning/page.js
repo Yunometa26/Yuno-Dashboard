@@ -1,4 +1,4 @@
-'use client'
+"use client"
 
 import { Brain, MapPin, Warehouse } from 'lucide-react'
 
