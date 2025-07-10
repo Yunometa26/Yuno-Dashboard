@@ -49,18 +49,26 @@ export default function SKUTrendGraph() {
   const colors = {
     '2022-2023': '#39FF14', // Neon green
     '2023-2024': '#FFD700', // Gold
-    '2024-2025': '#000000'  // Black
+    '2024-2025': '#FF0000'  // Red
   };
 
   return (
-    <div className="bg-gradient-to-br from-[#024673] to-[#5C99E3] rounded-xl shadow-md p-6 mt-8 border border-blue-200">
+    <div className="bg-[#013554] rounded-lg shadow-xl p-6 mt-8 border border-blue-700">
       <h2 className="text-white text-lg font-semibold mb-4">SKU Trend Graph</h2>
       <div className="flex flex-wrap gap-4 mb-4">
-        <select value={selectedDepot} onChange={e => setSelectedDepot(e.target.value)} className="px-2 py-1 rounded-md">
+        <select 
+          value={selectedDepot} 
+          onChange={e => setSelectedDepot(e.target.value)} 
+          className="px-2 py-1 rounded-md bg-[#013554] border border-white border-opacity-20 text-white"
+        >
           <option value="All" disabled>Depot</option>
           {depotOptions.map((d, i) => <option key={i} value={d}>{d}</option>)}
         </select>
-        <select value={selectedSKU} onChange={e => setSelectedSKU(e.target.value)} className="px-2 py-1 rounded-md">
+        <select 
+          value={selectedSKU} 
+          onChange={e => setSelectedSKU(e.target.value)} 
+          className="px-2 py-1 rounded-md bg-[#013554] border border-white border-opacity-20 text-white"
+        >
           <option value="All" disabled>SKU</option>
           {skuOptions.map((s, i) => <option key={i} value={s}>{s}</option>)}
         </select>
@@ -86,7 +94,7 @@ export default function SKUTrendGraph() {
             <Tooltip />
             <Legend
               content={() => (
-                <ul className="flex gap-4 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg shadow-sm text-white">
+                <ul className="flex gap-4 justify-center text-white">
                   {Object.keys(colors).map(year => (
                     <li key={year} className="flex items-center gap-2">
                       <span className="w-4 h-4 rounded-sm inline-block" style={{ backgroundColor: colors[year] }}></span>

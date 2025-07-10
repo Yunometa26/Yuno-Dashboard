@@ -295,13 +295,13 @@ export default function TopPerformingSKUs({
   };
 
   return (
-    <div className="mt-6 bg-gradient-to-br from-[#024673] to-[#5C99E3] rounded-xl shadow-sm p-6 border border-blue-200">
+    <div className="mb-8 p-6 space-y-6 bg-[#013554] rounded-lg shadow-xl">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
         <div>
-          <h3 className="text-lg font-medium text-white">
+          <h3 className="text-2xl font-bold text-white">
             Top Performing SKUs
             {(selectedProduct !== 'All' || selectedSKU !== 'All' || selectedDepot !== 'All' || selectedMonth !== 'All' || selectedYear !== 'All') && (
-              <span className="text-sm font-normal text-blue-600 ml-2">(Filtered)</span>
+              <span className="text-sm font-normal text-blue-200 ml-2">(Filtered)</span>
             )}
           </h3>
           <p className="text-sm text-white mt-1">Showing top 10 SKUs based on actual sales volume</p>
@@ -314,49 +314,49 @@ export default function TopPerformingSKUs({
               placeholder="Search SKUs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 w-full md:w-56 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="pl-9 pr-4 py-2 w-full md:w-56 bg-[#013554] border border-white border-opacity-20 rounded-md text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
               disabled={loading || isCalculating}
             />
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-blue-200" />
           </div>
         </div>
       </div>
       
-      <div className="overflow-x-auto">
-        <table className="min-w-full">
-          <thead>
-            <tr className="bg-white">
-              <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider cursor-pointer" onClick={() => handleSort('sku')}>
+      <div className="overflow-x-auto max-h-96 overflow-y-auto mt-6 rounded-lg">
+        <table className="min-w-full divide-y divide-blue-700">
+          <thead className="bg-[#013554] border-b border-blue-700 sticky top-0 z-10">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-blue-100 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('sku')}>
                 <div className="flex items-center">
                   SKU
                   {getSortIcon('sku')}
                 </div>
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider cursor-pointer" onClick={() => handleSort('product')}>
+              <th className="px-6 py-3 text-left text-xs font-medium text-blue-100 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('product')}>
                 <div className="flex items-center">
                   Product
                   {getSortIcon('product')}
                 </div>
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider cursor-pointer" onClick={() => handleSort('actual')}>
+              <th className="px-6 py-3 text-left text-xs font-medium text-blue-100 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('actual')}>
                 <div className="flex items-center">
                   Actual
                   {getSortIcon('actual')}
                 </div>
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider cursor-pointer" onClick={() => handleSort('fitted')}>
+              <th className="px-6 py-3 text-left text-xs font-medium text-blue-100 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('fitted')}>
                 <div className="flex items-center">
                   Fitted
                   {getSortIcon('fitted')}
                 </div>
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider cursor-pointer" onClick={() => handleSort('accuracy')}>
+              <th className="px-6 py-3 text-left text-xs font-medium text-blue-100 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('accuracy')}>
                 <div className="flex items-center">
                   Accuracy
                   {getSortIcon('accuracy')}
                 </div>
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider cursor-pointer" onClick={() => handleSort('depotsCount')}>
+              <th className="px-6 py-3 text-left text-xs font-medium text-blue-100 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('depotsCount')}>
                 <div className="flex items-center">
                   Depots
                   {getSortIcon('depotsCount')}
@@ -364,10 +364,10 @@ export default function TopPerformingSKUs({
               </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="bg-[#013554] divide-y divide-blue-700">
             {loading || isCalculating ? (
               Array(5).fill(0).map((_, index) => (
-                <tr key={index} className="animate-pulse bg-gradient-to-r from-[#024673] to-[#5C99E3]">
+                <tr key={index} className="animate-pulse hover:bg-blue-700">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="h-4 bg-blue-500 rounded w-20"></div>
                   </td>
@@ -389,10 +389,10 @@ export default function TopPerformingSKUs({
                 </tr>
               ))
             ) : !hasValidData ? (
-              <tr className="bg-gradient-to-r from-[#024673] to-[#5C99E3]">
+              <tr className="hover:bg-blue-700">
                 <td colSpan="6" className="px-6 py-8 text-center">
                   <div className="flex flex-col items-center justify-center">
-                    <div className="rounded-full bg-[#024673] p-3 mb-3">
+                    <div className="rounded-full bg-blue-600 p-3 mb-3">
                       <RefreshCw className="w-6 h-6 text-white" />
                     </div>
                     <p className="text-white font-medium">No data available</p>
@@ -408,38 +408,38 @@ export default function TopPerformingSKUs({
                 </td>
               </tr>
             ) : topSKUs.length === 0 ? (
-              <tr className="bg-gradient-to-r from-[#024673] to-[#5C99E3]">
+              <tr className="hover:bg-blue-700">
                 <td colSpan="6" className="px-6 py-8 text-center text-white">
                   No SKUs found with valid performance data
                 </td>
               </tr>
             ) : (
               topSKUs.map((item, index) => (
-                <tr key={index} className="bg-gradient-to-r from-[#024673] to-[#5C99E3] border-b border-blue-200">
+                <tr key={index} className="hover:bg-blue-700">
                   <td 
-                    className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white cursor-pointer hover:text-blue-200 hover:underline"
+                    className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-100 cursor-pointer hover:text-white hover:underline"
                     onClick={() => handleSKUClick(item.sku)}
                   >
                     {item.sku}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-100">
                     {item.product}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-white font-semibold">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-100 font-semibold">
                     {item.actual.toLocaleString()}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-100">
                     {item.fitted.toLocaleString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <span className="text-sm font-medium text-white">
+                      <span className="text-sm font-medium text-blue-100">
                         {item.accuracy}%
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
-                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-white text-[#024673]">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-100">
+                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-600 text-white">
                       {item.depotsCount}
                     </span>
                   </td>
@@ -452,11 +452,11 @@ export default function TopPerformingSKUs({
       
       {/* Applied filters information */}
       {(selectedProduct !== 'All' || selectedSKU !== 'All' || selectedDepot !== 'All' || selectedMonth !== 'All' || selectedYear !== 'All') && !loading && !isCalculating && (
-        <div className="mt-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
+        <div className="mt-4 p-3 bg-blue-600 bg-opacity-20 rounded-lg text-sm text-blue-100 border border-blue-600 border-opacity-30">
           <p className="flex items-center">
             <Filter className="w-4 h-4 mr-2" />
             Showing top SKUs filtered by: 
-            <strong className="ml-2">
+            <strong className="ml-2 text-white">
               {selectedProduct !== 'All' && <span>Product: {selectedProduct}</span>}
               {selectedProduct !== 'All' && (selectedSKU !== 'All' || selectedDepot !== 'All' || selectedMonth !== 'All' || selectedYear !== 'All') && <span> • </span>}
               
@@ -477,7 +477,7 @@ export default function TopPerformingSKUs({
       
       {/* Search info */}
       {searchQuery && !loading && !isCalculating && hasValidData && (
-        <div className="mt-2 text-sm text-gray-500">
+        <div className="mt-2 text-sm text-blue-100">
           Showing results for search: "{searchQuery}"
         </div>
       )}
@@ -485,14 +485,14 @@ export default function TopPerformingSKUs({
       {/* Graph Modal */}
       {showGraph && (
         <div className="fixed inset-0 flex items-center justify-center z-50">
-          <div className="bg-gradient-to-br from-[#024673] to-[#5C99E3] rounded-lg shadow-lg p-6 w-full max-w-4xl max-h-screen overflow-auto border border-blue-200">
+          <div className="bg-[#013554] rounded-lg shadow-lg p-6 w-full max-w-4xl max-h-screen overflow-auto border border-blue-700">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium text-white">
                 SKU Performance: {selectedSKUForGraph}
               </h3>
               <button 
                 onClick={handleCloseGraph}
-                className="p-1 hover:bg-[#5C99E3] rounded-full"
+                className="p-1 hover:bg-blue-600 rounded-full"
               >
                 <X className="w-5 h-5 text-white" />
               </button>
@@ -512,8 +512,8 @@ export default function TopPerformingSKUs({
               </ResponsiveContainer>
             </div>
             
-            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-700">
+            <div className="mt-4 p-3 bg-blue-600 bg-opacity-20 rounded-lg border border-blue-600 border-opacity-30">
+              <p className="text-sm text-blue-100">
                 This graph shows actual vs. fitted values across all depots for the selected SKU.
               </p>
             </div>

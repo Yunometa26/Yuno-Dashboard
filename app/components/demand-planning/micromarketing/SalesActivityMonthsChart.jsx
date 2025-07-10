@@ -31,7 +31,7 @@ const SalesActivityMonthsChart = ({
   };
 
   return (
-    <div className={`bg-gradient-to-br from-[#024673] to-[#5C99E3] p-4 rounded-lg border border-blue-200 shadow-sm ${className}`}>
+    <div className={`bg-[#013554] p-4 rounded-lg border border-blue-700 shadow-xl ${className}`}>
       <h2 className="font-semibold text-white mb-4">Sales Activity</h2>
       <ResponsiveContainer width="100%" height={350}>
         <BarChart

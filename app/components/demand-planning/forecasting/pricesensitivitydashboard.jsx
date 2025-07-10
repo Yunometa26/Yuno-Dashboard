@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Papa from 'papaparse';
 import { parse } from 'date-fns';
-import { ChevronDown, Filter } from 'lucide-react';
+import { ChevronDown, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function PriceSensitivityDashboard() {
   const [csvData, setCsvData] = useState([]);
@@ -12,6 +12,10 @@ export default function PriceSensitivityDashboard() {
     sku: 'All',
     percentageRevenueChange: 'All',
   });
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(15); // Show 15 items per page
 
   useEffect(() => {
     fetch('/Percent Demand Projection_Revised.csv')
@@ -46,6 +50,60 @@ export default function PriceSensitivityDashboard() {
   const sortedSKUs = ['All', ...Array.from(new Set(csvData.map(d => d.SKU)))
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b))];
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentPageData = filteredData.slice(startIndex, endIndex);
+
+  // Pagination handlers
+  const goToPage = (page) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      const halfVisible = Math.floor(maxVisiblePages / 2);
+      let startPage = Math.max(1, currentPage - halfVisible);
+      let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+      
+      if (endPage - startPage < maxVisiblePages - 1) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+      }
+      
+      for (let i = startPage; i <= endPage; i++) {
+        pages.push(i);
+      }
+    }
+    
+    return pages;
+  };
 
   return (
     <div className="p-6">
@@ -111,7 +169,17 @@ export default function PriceSensitivityDashboard() {
         </div>
       </div>
 
-      <div className="rounded-xl shadow-md overflow-x-auto border border-blue-200 mt-8 max-h-[500px] overflow-y-auto">
+      {/* Data summary and pagination info */}
+      <div className="flex justify-between items-center mb-4">
+        <div className="text-white text-sm">
+          Showing {currentPageData.length > 0 ? startIndex + 1 : 0} - {Math.min(endIndex, filteredData.length)} of {filteredData.length} records
+        </div>
+        <div className="text-white text-sm">
+          Page {totalPages > 0 ? currentPage : 0} of {totalPages}
+        </div>
+      </div>
+
+      <div className="rounded-xl shadow-md overflow-x-auto border border-blue-200">
         <table className="w-full table-auto border-collapse">
           <thead className="bg-[#024673] text-white sticky top-0 z-10">
             <tr>
@@ -126,18 +194,59 @@ export default function PriceSensitivityDashboard() {
             </tr>
           </thead>
           <tbody>
-            {filteredData.map((row, idx) => (
-              <tr key={idx} className={`text-white ${idx % 2 === 0 ? 'bg-[#024673]' : 'bg-[#03579E]'}`}>
-                <td className="p-3 border border-blue-400 text-center">{row.Quantity}</td>
-                <td className="p-3 border border-blue-400 text-center">{row.ProjectedDemand}</td>
-                <td className="p-3 border border-blue-400 text-center">
-                  {row.PercentChangeInDemand.toFixed(2)}%
+            {currentPageData.length > 0 ? (
+              currentPageData.map((row, idx) => (
+                <tr key={startIndex + idx} className={`text-white ${idx % 2 === 0 ? 'bg-[#024673]' : 'bg-[#03579E]'}`}>
+                  <td className="p-3 border border-blue-400 text-center">{row.Quantity.toLocaleString()}</td>
+                  <td className="p-3 border border-blue-400 text-center">{row.ProjectedDemand.toLocaleString()}</td>
+                  <td className="p-3 border border-blue-400 text-center">
+                    {row.PercentChangeInDemand.toFixed(2)}%
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr className="text-white">
+                <td colSpan="3" className="p-8 text-center text-gray-300">
+                  No data available for the selected filters.
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="mt-6">
+          {/* Previous and Next buttons positioned at opposite ends */}
+          <div className="flex justify-between items-center">
+            {/* Previous button - Lower Left */}
+            <button
+              onClick={goToPreviousPage}
+              disabled={currentPage === 1}
+              className="flex items-center gap-1 px-3 py-2 bg-[#024673] text-white rounded-lg border border-blue-400 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#035a8a] transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Previous
+            </button>
+
+            {/* Items per page info - Center */}
+            <div className="text-white text-sm">
+              {itemsPerPage} per page
+            </div>
+
+            {/* Next button - Lower Right */}
+            <button
+              onClick={goToNextPage}
+              disabled={currentPage === totalPages}
+              className="flex items-center gap-1 px-3 py-2 bg-[#024673] text-white rounded-lg border border-blue-400 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#035a8a] transition-colors"
+            >
+              Next
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

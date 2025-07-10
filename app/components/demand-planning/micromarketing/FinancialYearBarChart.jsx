@@ -29,7 +29,7 @@ const FinancialYearBarChart = ({ yearlyData, animateCharts, handleYearClick }) =
   };
 
   return (
-    <div className={`bg-gradient-to-br from-[#024673] to-[#5C99E3] p-4 rounded-lg border border-blue-200 shadow-sm transition-all duration-500 ease-in-out transform ${animateCharts ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`} style={{ transitionDelay: '200ms' }}>
+    <div className={`bg-[#013554] p-4 rounded-lg border border-blue-700 shadow-xl transition-all duration-500 ease-in-out transform ${animateCharts ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`} style={{ transitionDelay: '200ms' }}>
       <h2 className="font-semibold text-white mb-4">Financial Year Sales</h2>
       <p className="text-white text-sm mb-2">Click on a year to view monthly breakdown</p>
       <div className="h-64">

@@ -135,7 +135,7 @@ const ForecastChart = ({
   const isFilterActive = selectedMonth !== 'All' || selectedYear !== 'All';
 
   return (
-    <div className="bg-gradient-to-br from-[#024673] to-[#5C99E3] rounded-xl shadow-md p-6 border border-blue-200 text-white">
+    <div className="bg-[#013554] rounded-lg shadow-xl p-6 border border-blue-700 text-white">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
         <div>
           <h3 className="font-medium text-lg text-white">{getChartTitle()}</h3>
@@ -193,7 +193,7 @@ const ForecastChart = ({
       </div>
 
       {isFilterActive && (
-        <div className="mt-4 p-3 bg-white/20 rounded-lg text-sm text-white">
+        <div className="mt-4 p-3 bg-blue-600/20 rounded-lg text-sm text-white border border-blue-600/30">
           <p className="flex items-center">
             <Calendar className="w-4 h-4 mr-2" />
             Showing filtered data for: 

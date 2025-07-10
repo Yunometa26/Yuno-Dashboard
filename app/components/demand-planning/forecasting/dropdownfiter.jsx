@@ -54,7 +54,7 @@ export default function DropdownFilters({
   };
 
   return (
-    <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] p-4 rounded-xl shadow-sm border border-blue-200 text-white mb-6">
+    <div className="bg-[#013554] p-4 rounded-lg shadow-xl border border-blue-700 text-white mb-6">
       <div className="flex justify-between items-center mb-3">
         <h3 className="text-sm font-medium text-white flex items-center">
           <Filter className="w-4 h-4 mr-2" />
@@ -63,7 +63,7 @@ export default function DropdownFilters({
         
         <button 
           onClick={handleReset}
-          className="text-sm text-white flex items-center hover:text-blue-100"
+          className="text-sm text-white flex items-center hover:text-blue-200"
           disabled={loading}
         >
           <RefreshCw className="w-3 h-3 mr-1" />
@@ -85,7 +85,7 @@ export default function DropdownFilters({
                 month: selectedMonth,
                 year: selectedYear
               })}
-              className={`w-full appearance-none bg-white border border-gray-200 text-gray-700 py-2 px-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${loading || isDependentLoading ? 'opacity-70' : ''}`}
+              className={`w-full appearance-none bg-[#013554] border border-white border-opacity-20 text-white py-2 px-3 pr-8 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent ${loading || isDependentLoading ? 'opacity-70' : ''}`}
               disabled={loading || isDependentLoading}
             >
               {products.length === 0 ? (
@@ -96,7 +96,7 @@ export default function DropdownFilters({
                 ))
               )}
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-blue-200">
               {loading || isDependentLoading ? (
                 <RefreshCw className="w-4 h-4 animate-spin" />
               ) : (
@@ -119,7 +119,7 @@ export default function DropdownFilters({
                 month: selectedMonth,
                 year: selectedYear
               })}
-              className={`w-full appearance-none bg-white border border-gray-200 text-gray-700 py-2 px-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${loading || isDependentLoading ? 'opacity-70' : ''}`}
+              className={`w-full appearance-none bg-[#013554] border border-white border-opacity-20 text-white py-2 px-3 pr-8 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent ${loading || isDependentLoading ? 'opacity-70' : ''}`}
               disabled={loading || isDependentLoading || products.length === 0}
             >
               {skus.length === 0 ? (
@@ -130,7 +130,7 @@ export default function DropdownFilters({
                 ))
               )}
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-blue-200">
               {loading || isDependentLoading ? (
                 <RefreshCw className="w-4 h-4 animate-spin" />
               ) : (
@@ -153,7 +153,7 @@ export default function DropdownFilters({
                 month: selectedMonth,
                 year: selectedYear
               })}
-              className={`w-full appearance-none bg-white border border-gray-200 text-gray-700 py-2 px-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${loading || isDependentLoading ? 'opacity-70' : ''}`}
+              className={`w-full appearance-none bg-[#013554] border border-white border-opacity-20 text-white py-2 px-3 pr-8 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent ${loading || isDependentLoading ? 'opacity-70' : ''}`}
               disabled={loading || isDependentLoading || skus.length === 0}
             >
               {depots.length === 0 ? (
@@ -164,7 +164,7 @@ export default function DropdownFilters({
                 ))
               )}
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-blue-200">
               {loading || isDependentLoading ? (
                 <RefreshCw className="w-4 h-4 animate-spin" />
               ) : (
@@ -187,14 +187,14 @@ export default function DropdownFilters({
                 month: e.target.value,
                 year: selectedYear
               })}
-              className={`w-full appearance-none bg-white border border-gray-200 text-gray-700 py-2 px-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${loading || isDependentLoading ? 'opacity-70' : ''}`}
+              className={`w-full appearance-none bg-[#013554] border border-white border-opacity-20 text-white py-2 px-3 pr-8 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent ${loading || isDependentLoading ? 'opacity-70' : ''}`}
               disabled={loading || isDependentLoading}
             >
               {months.map(month => (
                 <option key={month} value={month}>{month}</option>
               ))}
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-blue-200">
               {loading || isDependentLoading ? (
                 <RefreshCw className="w-4 h-4 animate-spin" />
               ) : (
@@ -217,14 +217,14 @@ export default function DropdownFilters({
                 month: selectedMonth,
                 year: e.target.value
               })}
-              className={`w-full appearance-none bg-white border border-gray-200 text-gray-700 py-2 px-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${loading || isDependentLoading ? 'opacity-70' : ''}`}
+              className={`w-full appearance-none bg-[#013554] border border-white border-opacity-20 text-white py-2 px-3 pr-8 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent ${loading || isDependentLoading ? 'opacity-70' : ''}`}
               disabled={loading || isDependentLoading}
             >
               {years.map(year => (
                 <option key={year} value={year}>{year}</option>
               ))}
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-blue-200">
               {loading || isDependentLoading ? (
                 <RefreshCw className="w-4 h-4 animate-spin" />
               ) : (
@@ -236,7 +236,7 @@ export default function DropdownFilters({
       </div>
       
       {(loading || isDependentLoading) && (
-        <div className="mt-2 text-xs text-gray-400 flex items-center">
+        <div className="mt-2 text-xs text-blue-200 flex items-center">
           <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
           Updating available options...
         </div>

@@ -100,7 +100,7 @@ const ProductStackedBarChart = ({ pieData, animateCharts, activeProduct, handleP
   };
 
   return (
-    <div className={`bg-gradient-to-br from-[#024673] to-[#5C99E3] p-4 rounded-lg border border-blue-200 shadow-sm lg:col-span-2 transition-all duration-500 ease-in-out transform ${animateCharts ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`} style={{ transitionDelay: '300ms' }}>
+    <div className={`bg-[#013554] p-4 rounded-lg border border-blue-700 shadow-xl lg:col-span-2 transition-all duration-500 ease-in-out transform ${animateCharts ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`} style={{ transitionDelay: '300ms' }}>
       <h2 className="font-semibold text-white mb-4">Sales by Product (Financial Year-wise)</h2>
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
