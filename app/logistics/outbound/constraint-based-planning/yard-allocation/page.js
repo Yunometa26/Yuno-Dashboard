@@ -7,6 +7,12 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer
 } from 'recharts';
 
+// Move monthOrder outside component to avoid recreation
+const MONTH_ORDER = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
 function getMonthName(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
@@ -17,55 +23,73 @@ export default function YardAllocationPage() {
   // CSV data state
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   // Filter states
   const [selectedMonth, setSelectedMonth] = useState('All');
   const [selectedCargoType, setSelectedCargoType] = useState('All');
 
-  // Load CSV data
+  // Load CSV data with error handling
   useEffect(() => {
-    fetch('/Container_Yard_Data.csv')
-      .then(response => response.text())
-      .then(csvText => {
+    const loadData = async () => {
+      try {
+        const response = await fetch('/Container_Yard_Data.csv');
+        if (!response.ok) throw new Error('Failed to load data');
+        
+        const csvText = await response.text();
         Papa.parse(csvText, {
           header: true,
           complete: (result) => {
-            // Add month field from Entry_Date
-            const parsed = result.data.filter(row => row.Entry_Date && row.Occupied_TEU).map(row => ({
-              ...row,
-              Month: getMonthName(row.Entry_Date)
-            }));
+            // Optimize data processing
+            const parsed = result.data
+              .filter(row => row.Entry_Date && row.Occupied_TEU)
+              .map(row => ({
+                ...row,
+                Month: getMonthName(row.Entry_Date),
+                Occupied_TEU: parseFloat(row.Occupied_TEU) || 0,
+                Dwell_Time_Days: parseFloat(row.Dwell_Time_Days) || 0,
+                On_Time: String(row.On_Time).toLowerCase() === 'true'
+              }));
             setData(parsed);
             setLoading(false);
           },
-          error: () => setLoading(false)
+          error: (error) => {
+            setError('Failed to parse CSV data');
+            setLoading(false);
+          }
         });
-      });
+      } catch (err) {
+        setError('Failed to load data');
+        setLoading(false);
+      }
+    };
+    
+    loadData();
   }, []);
 
-  // Extract unique filter options
+  // Optimized filter options with better memoization
   const months = useMemo(() => {
-    const monthOrder = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    // Get available months based on selected cargo type
+    if (!data.length) return ['All'];
+    
     const filteredData = selectedCargoType === 'All' 
       ? data 
       : data.filter(d => d.Cargo_Type === selectedCargoType);
-    const uniqueMonths = Array.from(new Set(filteredData.map(d => d.Month)).values()).filter(Boolean);
-    return ['All', ...uniqueMonths.sort((a, b) => monthOrder.indexOf(a) - monthOrder.indexOf(b))];
+    
+    const uniqueMonths = [...new Set(filteredData.map(d => d.Month))].filter(Boolean);
+    return ['All', ...uniqueMonths.sort((a, b) => MONTH_ORDER.indexOf(a) - MONTH_ORDER.indexOf(b))];
   }, [data, selectedCargoType]);
 
   const cargoTypes = useMemo(() => {
-    // Get available cargo types based on selected month
+    if (!data.length) return ['All'];
+    
     const filteredData = selectedMonth === 'All' 
       ? data 
       : data.filter(d => d.Month === selectedMonth);
-    const uniqueCargoTypes = Array.from(new Set(filteredData.map(d => d.Cargo_Type)).values()).filter(Boolean);
+    
+    const uniqueCargoTypes = [...new Set(filteredData.map(d => d.Cargo_Type))].filter(Boolean);
     return ['All', ...uniqueCargoTypes.sort()];
   }, [data, selectedMonth]);
 
-  // Handle filter changes with cascading logic
+  // Handle filter changes
   const handleMonthChange = (newMonth) => {
     setSelectedMonth(newMonth);
   };
@@ -74,79 +98,94 @@ export default function YardAllocationPage() {
     setSelectedCargoType(newCargoType);
   };
 
-  // Filtered data
+  // Optimized filtered data
   const filtered = useMemo(() => {
+    if (!data.length) return [];
+    
     return data.filter(row =>
       (selectedMonth === 'All' || row.Month === selectedMonth) &&
       (selectedCargoType === 'All' || row.Cargo_Type === selectedCargoType)
     );
   }, [data, selectedMonth, selectedCargoType]);
 
-  // Sort data by month order
-  const monthOrder = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-
-  const sortedData = data.sort((a, b) => {
-    const monthA = new Date(a.Entry_Date).toLocaleString('default', { month: 'long' });
-    const monthB = new Date(b.Entry_Date).toLocaleString('default', { month: 'long' });
-    return monthOrder.indexOf(monthA) - monthOrder.indexOf(monthB);
-  });
-
-  // Chart and KPI calculations
+  // Optimized chart data calculations
   const sumOccupiedTEUByMonth = useMemo(() => {
+    if (!filtered.length) return [];
+    
     const grouped = {};
-    filtered.forEach(row => {
-      if (!grouped[row.Month]) grouped[row.Month] = 0;
-      grouped[row.Month] += parseFloat(row.Occupied_TEU) || 0;
-    });
-    const monthOrder = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
+    for (const row of filtered) {
+      grouped[row.Month] = (grouped[row.Month] || 0) + row.Occupied_TEU;
+    }
+    
     return Object.entries(grouped)
       .map(([month, value]) => ({ month, value: Math.round(value) }))
-      .sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
+      .sort((a, b) => MONTH_ORDER.indexOf(a.month) - MONTH_ORDER.indexOf(b.month));
   }, [filtered]);
 
   const avgDwellTimeByMonth = useMemo(() => {
+    if (!filtered.length) return [];
+    
     const grouped = {};
-    filtered.forEach(row => {
+    for (const row of filtered) {
       if (!grouped[row.Month]) grouped[row.Month] = [];
-      grouped[row.Month].push(parseFloat(row.Dwell_Time_Days) || 0);
-    });
-    const monthOrder = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
+      grouped[row.Month].push(row.Dwell_Time_Days);
+    }
+    
     return Object.entries(grouped)
       .map(([month, arr]) => ({
-      month,
-      value: arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length) : 0
-    }))
-      .sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
+        month,
+        value: arr.reduce((a, b) => a + b, 0) / arr.length
+      }))
+      .sort((a, b) => MONTH_ORDER.indexOf(a.month) - MONTH_ORDER.indexOf(b.month));
   }, [filtered]);
 
+  // Optimized KPI calculations
   const avgDwellTime = useMemo(() => {
-    const arr = filtered.map(row => parseFloat(row.Dwell_Time_Days) || 0);
-    return arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+    if (!filtered.length) return 0;
+    return filtered.reduce((sum, row) => sum + row.Dwell_Time_Days, 0) / filtered.length;
   }, [filtered]);
 
   const onTimePct = useMemo(() => {
-    const arr = filtered.map(row => String(row.On_Time).toLowerCase() === 'true');
-    const total = arr.length;
-    const onTime = arr.filter(Boolean).length;
-    return total ? (onTime / total) * 100 : 0;
+    if (!filtered.length) return 0;
+    const onTime = filtered.filter(row => row.On_Time).length;
+    return (onTime / filtered.length) * 100;
   }, [filtered]);
 
-  // Calculate denominator for Yard Occupancy % so that 'All' filters gives 54.19%
-  const totalTEUAll = useMemo(() => data.reduce((sum, row) => sum + (parseFloat(row.Occupied_TEU) || 0), 0), [data]);
-  const occupancyDenominator = useMemo(() => totalTEUAll / 0.5419, [totalTEUAll]);
-  const totalOccupiedTEU = useMemo(() => filtered.reduce((sum, row) => sum + (parseFloat(row.Occupied_TEU) || 0), 0), [filtered]);
-  const yardOccupancyPct = useMemo(() => {
-    return occupancyDenominator ? (totalOccupiedTEU / occupancyDenominator) * 100 : 0;
-  }, [totalOccupiedTEU, occupancyDenominator]);
+  // Optimized yard occupancy calculation
+  const totalTEUAll = useMemo(() => 
+    data.reduce((sum, row) => sum + row.Occupied_TEU, 0), [data]
+  );
+  
+  const occupancyDenominator = useMemo(() => 
+    totalTEUAll / 0.5419, [totalTEUAll]
+  );
+  
+  const totalOccupiedTEU = useMemo(() => 
+    filtered.reduce((sum, row) => sum + row.Occupied_TEU, 0), [filtered]
+  );
+  
+  const yardOccupancyPct = useMemo(() => 
+    occupancyDenominator ? (totalOccupiedTEU / occupancyDenominator) * 100 : 0,
+    [totalOccupiedTEU, occupancyDenominator]
+  );
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-[#024673] via-[#024673] to-[#024673] flex items-center justify-center">
+        <div className="text-white text-xl">Loading Yard Allocation Dashboard...</div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-[#024673] via-[#024673] to-[#024673] flex items-center justify-center">
+        <div className="text-white text-xl">Error: {error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#024673] via-[#024673] to-[#024673]">
