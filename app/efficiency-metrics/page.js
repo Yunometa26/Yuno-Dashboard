@@ -66,7 +66,7 @@ export default function EfficiencyMetricsPage() {
                   {card.icon}
                 </div>
               </div>
-              <div className={`${card.borderColor} h-1 w-full`}></div>
+              <div className={`${card.borderColor} h-2 w-full`}></div>
             </div>
           ))}
         </div>
