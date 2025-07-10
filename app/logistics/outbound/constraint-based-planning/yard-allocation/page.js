@@ -196,7 +196,11 @@ export default function YardAllocationPage() {
                     <BarChart data={sumOccupiedTEUByMonth}>
                       <XAxis dataKey="month" stroke="#fff" tick={{ fill: '#fff' }} />
                       <YAxis stroke="#fff" tick={{ fill: '#fff' }} />
-                      <Tooltip contentStyle={{ background: '#001F47', color: '#fff' }} labelStyle={{ color: '#fff' }} />
+                      <Tooltip 
+                        contentStyle={{ background: '#001F47', color: '#fff' }} 
+                        labelStyle={{ color: '#fff' }}
+                        formatter={(value, name) => [value, 'TEU']}
+                      />
                       <Bar dataKey="value" fill="#39FF14" barThickness={28} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -216,7 +220,11 @@ export default function YardAllocationPage() {
                     <BarChart data={avgDwellTimeByMonth}>
                       <XAxis dataKey="month" stroke="#fff" tick={{ fill: '#fff' }} />
                       <YAxis stroke="#fff" tick={{ fill: '#fff' }} />
-                      <Tooltip contentStyle={{ background: '#001F47', color: '#fff' }} labelStyle={{ color: '#fff' }} />
+                      <Tooltip 
+                        contentStyle={{ background: '#001F47', color: '#fff' }} 
+                        labelStyle={{ color: '#fff' }}
+                        formatter={(value, name) => [value.toFixed(3), 'Dwell Time (Hours)']}
+                      />
                       <Bar dataKey="value" fill="#FFD700" barThickness={28} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -225,11 +233,11 @@ export default function YardAllocationPage() {
               <div className="flex flex-col gap-4 h-[28rem] w-full md:w-1/4">
                 <div className="bg-[#011a36] rounded-lg border border-blue-900 flex flex-col items-center justify-center flex-1">
                   <div className="text-4xl font-bold text-white mb-1">{onTimePct.toFixed(2)}</div>
-                  <div className="text-white text-lg">On Time %</div>
+                  <div className="text-white text-lg">On Time Movement %</div>
                 </div>
                 <div className="bg-[#011a36] rounded-lg border border-blue-900 flex flex-col items-center justify-center flex-1">
                   <div className="text-4xl font-bold text-white mb-1">{Math.round(avgDwellTime)}</div>
-                  <div className="text-white text-lg text-center">Average of Dwell Time</div>
+                  <div className="text-white text-lg text-center">Average Dwell Time (Hours)</div>
                 </div>
               </div>
             </div>
