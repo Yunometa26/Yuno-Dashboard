@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import Papa from "papaparse";
 import dayjs from "dayjs";
 import {
@@ -26,6 +26,12 @@ const COLORS = [
   "#8B5CF6",
   "#06B6D4",
 ];
+
+const validMonths = [
+  "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"
+];
+
+const validDays = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
 
 const InventoryDashboard = () => {
   const [showITRGraph, setShowITRGraph] = useState(false);
@@ -94,6 +100,41 @@ const InventoryDashboard = () => {
     };
   };
 
+  // --- Dynamic filter options ---
+  const dynamicCategories = useMemo(() => {
+    let arr = data;
+    if (filters.itemId) arr = arr.filter(d => d["Item ID"] === filters.itemId);
+    if (filters.month && validMonths.includes(filters.month)) arr = arr.filter(d => d.date.format("MM") === filters.month);
+    if (filters.day && validDays.includes(filters.day)) arr = arr.filter(d => d.date.format("DD") === filters.day);
+    return [...new Set(arr.map(d => d.Category))].filter(Boolean);
+  }, [data, filters.itemId, filters.month, filters.day]);
+
+  const dynamicItemIds = useMemo(() => {
+    let arr = data;
+    if (filters.category) arr = arr.filter(d => d.Category === filters.category);
+    if (filters.month && validMonths.includes(filters.month)) arr = arr.filter(d => d.date.format("MM") === filters.month);
+    if (filters.day && validDays.includes(filters.day)) arr = arr.filter(d => d.date.format("DD") === filters.day);
+    return [...new Set(arr.map(d => d["Item ID"]))].filter(Boolean);
+  }, [data, filters.category, filters.month, filters.day]);
+
+  const dynamicMonths = useMemo(() => {
+    let arr = data;
+    if (filters.category) arr = arr.filter(d => d.Category === filters.category);
+    if (filters.itemId) arr = arr.filter(d => d["Item ID"] === filters.itemId);
+    if (filters.day && validDays.includes(filters.day)) arr = arr.filter(d => d.date.format("DD") === filters.day);
+    const months = [...new Set(arr.map(d => d.date.format("MM")))].filter(m => validMonths.includes(m));
+    return months.sort((a, b) => validMonths.indexOf(a) - validMonths.indexOf(b));
+  }, [data, filters.category, filters.itemId, filters.day]);
+
+  const dynamicDays = useMemo(() => {
+    let arr = data;
+    if (filters.category) arr = arr.filter(d => d.Category === filters.category);
+    if (filters.itemId) arr = arr.filter(d => d["Item ID"] === filters.itemId);
+    if (filters.month && validMonths.includes(filters.month)) arr = arr.filter(d => d.date.format("MM") === filters.month);
+    const days = [...new Set(arr.map(d => d.date.format("DD")))].filter(d => validDays.includes(d));
+    return days.sort((a, b) => parseInt(a) - parseInt(b));
+  }, [data, filters.category, filters.itemId, filters.month]);
+
   useEffect(() => {
     let temp = data;
 
@@ -144,7 +185,8 @@ const InventoryDashboard = () => {
     });
   };
 
-  const filterOptions = getFilterOptions();
+  // Replace filterOptions with dynamic options
+  // const filterOptions = getFilterOptions();
 
   // ABC Analysis data
   const abcAnalysisData = (() => {
@@ -250,7 +292,7 @@ const InventoryDashboard = () => {
               className="w-full bg-white border text-black rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">All Categories</option>
-              {filterOptions.categories.map((cat, idx) => (
+              {dynamicCategories.map((cat, idx) => (
                 <option key={idx} value={cat}>
                   {cat}
                 </option>
@@ -263,7 +305,7 @@ const InventoryDashboard = () => {
               Item ID
               {filters.category && (
                 <span className="text-xs text-gray-300 ml-1">
-                  ({filterOptions.itemIds.length} available)
+                  ({dynamicItemIds.length} available)
                 </span>
               )}
             </label>
@@ -272,10 +314,10 @@ const InventoryDashboard = () => {
               value={filters.itemId}
               onChange={handleFilterChange}
               className="w-full bg-white text-black rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              disabled={filterOptions.itemIds.length === 0}
+              disabled={dynamicItemIds.length === 0}
             >
               <option value="">All Item IDs</option>
-              {filterOptions.itemIds.map((id, idx) => (
+              {dynamicItemIds.map((id, idx) => (
                 <option key={idx} value={id}>
                   {id}
                 </option>
@@ -288,7 +330,7 @@ const InventoryDashboard = () => {
               Month
               {(filters.category || filters.itemId) && (
                 <span className="text-xs text-gray-300 ml-1">
-                  ({filterOptions.months.length} available)
+                  ({dynamicMonths.length} available)
                 </span>
               )}
             </label>
@@ -297,10 +339,10 @@ const InventoryDashboard = () => {
               value={filters.month}
               onChange={handleFilterChange}
               className="w-full bg-white text-black rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              disabled={filterOptions.months.length === 0}
+              disabled={dynamicMonths.length === 0}
             >
               <option value="">All Months</option>
-              {filterOptions.months.map((month, idx) => (
+              {dynamicMonths.map((month, idx) => (
                 <option key={idx} value={month}>
                   {dayjs()
                     .month(parseInt(month) - 1)
@@ -315,7 +357,7 @@ const InventoryDashboard = () => {
               Day
               {(filters.category || filters.itemId || filters.month) && (
                 <span className="text-xs text-gray-300 ml-1">
-                  ({filterOptions.days.length} available)
+                  ({dynamicDays.length} available)
                 </span>
               )}
             </label>
@@ -324,10 +366,10 @@ const InventoryDashboard = () => {
               value={filters.day}
               onChange={handleFilterChange}
               className="w-full bg-white text-black rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              disabled={filterOptions.days.length === 0}
+              disabled={dynamicDays.length === 0}
             >
               <option value="">All Days</option>
-              {filterOptions.days.map((day, idx) => (
+              {dynamicDays.map((day, idx) => (
                 <option key={idx} value={day}>
                   {parseInt(day)}
                 </option>

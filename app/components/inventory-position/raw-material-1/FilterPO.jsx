@@ -1,9 +1,18 @@
 'use client'
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Papa from "papaparse";
 import { Filter } from "lucide-react";
 import POStatusCards from "../raw-material/POStatusCards";
 import POStatusChart from "../raw-material/POStatusChart";
+
+const validMonths = [
+  "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"
+];
+const monthLabels = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+const validDays = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
 
 const FilterPage = () => {
   const [data, setData] = useState([]);
@@ -171,6 +180,72 @@ const FilterPage = () => {
     return `Filtered by: ${parts.join(", ")}`;
   };
 
+  // --- Dynamic filter options ---
+  const dynamicItems = useMemo(() => {
+    let arr = data;
+    if (filters.vendor && filters.vendor !== "All") arr = arr.filter(d => d["Vendor"] === filters.vendor);
+    if (filters.year) arr = arr.filter(d => d["PO Date"].getFullYear().toString() === filters.year);
+    if (filters.month && validMonths.includes(filters.month)) arr = arr.filter(d => (d["PO Date"].getMonth() + 1).toString() === filters.month);
+    if (filters.day && validDays.includes(filters.day)) arr = arr.filter(d => d["PO Date"].getDate().toString() === filters.day);
+    return ["All", ...Array.from(new Set(arr.map(d => d["Item Description"]))).filter(Boolean).sort()];
+  }, [data, filters.vendor, filters.year, filters.month, filters.day]);
+
+  const dynamicVendors = useMemo(() => {
+    let arr = data;
+    if (filters.item && filters.item !== "All") arr = arr.filter(d => d["Item Description"] === filters.item);
+    if (filters.year) arr = arr.filter(d => d["PO Date"].getFullYear().toString() === filters.year);
+    if (filters.month && validMonths.includes(filters.month)) arr = arr.filter(d => (d["PO Date"].getMonth() + 1).toString() === filters.month);
+    if (filters.day && validDays.includes(filters.day)) arr = arr.filter(d => d["PO Date"].getDate().toString() === filters.day);
+    return ["All", ...Array.from(new Set(arr.map(d => d["Vendor"]))).filter(Boolean).sort()];
+  }, [data, filters.item, filters.year, filters.month, filters.day]);
+
+  const dynamicYears = useMemo(() => {
+    let arr = data;
+    if (filters.item && filters.item !== "All") arr = arr.filter(d => d["Item Description"] === filters.item);
+    if (filters.vendor && filters.vendor !== "All") arr = arr.filter(d => d["Vendor"] === filters.vendor);
+    if (filters.month && validMonths.includes(filters.month)) arr = arr.filter(d => (d["PO Date"].getMonth() + 1).toString() === filters.month);
+    if (filters.day && validDays.includes(filters.day)) arr = arr.filter(d => d["PO Date"].getDate().toString() === filters.day);
+    const years = Array.from(new Set(arr.map(d => d["PO Date"].getFullYear().toString())));
+    return [{ value: "", label: "All Years" }, ...years.sort().map(year => ({ value: year, label: year }))];
+  }, [data, filters.item, filters.vendor, filters.month, filters.day]);
+
+  const dynamicMonths = useMemo(() => {
+    let arr = data;
+    if (filters.item && filters.item !== "All") arr = arr.filter(d => d["Item Description"] === filters.item);
+    if (filters.vendor && filters.vendor !== "All") arr = arr.filter(d => d["Vendor"] === filters.vendor);
+    if (filters.year) arr = arr.filter(d => d["PO Date"].getFullYear().toString() === filters.year);
+    if (filters.day && validDays.includes(filters.day)) arr = arr.filter(d => d["PO Date"].getDate().toString() === filters.day);
+    const months = Array.from(new Set(arr.map(d => (d["PO Date"].getMonth() + 1).toString()))).filter(m => validMonths.includes(m));
+    return [{ value: "", label: "All Months" }, ...months.sort((a, b) => parseInt(a) - parseInt(b)).map(m => ({ value: m, label: monthLabels[parseInt(m) - 1] }))];
+  }, [data, filters.item, filters.vendor, filters.year, filters.day]);
+
+  const dynamicDays = useMemo(() => {
+    let arr = data;
+    if (filters.item && filters.item !== "All") arr = arr.filter(d => d["Item Description"] === filters.item);
+    if (filters.vendor && filters.vendor !== "All") arr = arr.filter(d => d["Vendor"] === filters.vendor);
+    if (filters.year) arr = arr.filter(d => d["PO Date"].getFullYear().toString() === filters.year);
+    if (filters.month && validMonths.includes(filters.month)) arr = arr.filter(d => (d["PO Date"].getMonth() + 1).toString() === filters.month);
+    const days = Array.from(new Set(arr.map(d => d["PO Date"].getDate().toString()))).filter(d => validDays.includes(d));
+    return [{ value: "", label: "All Days" }, ...days.sort((a, b) => parseInt(a) - parseInt(b)).map(d => ({ value: d, label: d }))];
+  }, [data, filters.item, filters.vendor, filters.year, filters.month]);
+
+  // --- Pie Chart Data ---
+  const pieChartData = useMemo(() => {
+    // Group by PO Status in filtered data
+    const statusCounts = {};
+    filtered.forEach(row => {
+      const status = row["PO Status"] || "Unknown";
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+    return Object.entries(statusCounts).map(([status, count]) => ({ name: status, value: count }));
+  }, [filtered]);
+
+  // --- Delayed Deliveries Calculation ---
+  const delayedDeliveriesCount = useMemo(() => {
+    // Use PO Status 'Delayed' as the source of truth, as per the CSV
+    return filtered.filter(row => row["PO Status"] === 'Delayed').length;
+  }, [filtered]);
+
   return (
     <div className="p-4 bg-gradient-to-br from-[#024673] to-[#5C99E3] min-h-screen rounded-xl border">
       <div className="max-w mx-auto">
@@ -196,7 +271,7 @@ const FilterPage = () => {
                 onChange={(e) => handleFilterChange('item', e.target.value)}
                 className="w-full rounded-md border-gray-300 text-black shadow-sm px-3 py-2 text-sm border bg-white"
               >
-                {items.map((item) => (
+                {dynamicItems.map((item) => (
                   <option key={item} value={item}>{item}</option>
                 ))}
               </select>
@@ -210,7 +285,7 @@ const FilterPage = () => {
                 onChange={(e) => handleFilterChange('vendor', e.target.value)}
                 className="w-full rounded-md border-gray-300 text-black bg-white shadow-sm px-3 py-2 text-sm border"
               >
-                {vendors.map((v) => (
+                {dynamicVendors.map((v) => (
                   <option key={v} value={v}>{v}</option>
                 ))}
               </select>
@@ -224,7 +299,7 @@ const FilterPage = () => {
                 onChange={(e) => handleFilterChange('year', e.target.value)}
                 className="w-full rounded-md border-gray-300 text-black bg-white shadow-sm px-3 py-2 text-sm border"
               >
-                {years.map((year) => (
+                {dynamicYears.map((year) => (
                   <option key={year.value} value={year.value}>{year.label}</option>
                 ))}
               </select>
@@ -238,7 +313,7 @@ const FilterPage = () => {
                 onChange={(e) => handleFilterChange('month', e.target.value)}
                 className="w-full rounded-md border-gray-300 text-black bg-white shadow-sm px-3 py-2 text-sm border"
               >
-                {months.map((month) => (
+                {dynamicMonths.map((month) => (
                   <option key={month.value} value={month.value}>{month.label}</option>
                 ))}
               </select>
@@ -252,7 +327,7 @@ const FilterPage = () => {
                 onChange={(e) => handleFilterChange('day', e.target.value)}
                 className="w-full rounded-md border-gray-300 text-black bg-white shadow-sm px-3 py-2 text-sm border"
               >
-                {days.map((day) => (
+                {dynamicDays.map((day) => (
                   <option key={day.value} value={day.value}>{day.label}</option>
                 ))}
               </select>

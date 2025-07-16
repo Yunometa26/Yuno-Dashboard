@@ -24,8 +24,29 @@ export default function SKUTrendGraph() {
     });
   }, []);
 
-  const depotOptions = useMemo(() => [...new Set(['All', ...rawData.map(row => row.Depot)])], [rawData]);
-  const skuOptions = useMemo(() => [...new Set(['All', ...rawData.map(row => row.SKU)])], [rawData]);
+  // --- DYNAMIC BIDIRECTIONAL FILTERS FOR DEPOT & SKU ---
+  const sortWithAllFirst = arr => {
+    if (!arr || arr.length === 0) return arr;
+    const allIdx = arr.indexOf('All');
+    const sorted = arr.filter(x => x !== 'All').sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+    return allIdx !== -1 ? ['All', ...sorted] : sorted;
+  };
+
+  const depotOptions = useMemo(() => {
+    let filtered = rawData;
+    if (selectedSKU && selectedSKU !== 'All') {
+      filtered = filtered.filter(row => row.SKU === selectedSKU);
+    }
+    return sortWithAllFirst(['All', ...new Set(filtered.map(row => row.Depot).filter(Boolean))]);
+  }, [rawData, selectedSKU]);
+
+  const skuOptions = useMemo(() => {
+    let filtered = rawData;
+    if (selectedDepot && selectedDepot !== 'All') {
+      filtered = filtered.filter(row => row.Depot === selectedDepot);
+    }
+    return sortWithAllFirst(['All', ...new Set(filtered.map(row => row.SKU).filter(Boolean))]);
+  }, [rawData, selectedDepot]);
 
   const formattedData = useMemo(() => {
     const filtered = rawData.filter(row =>

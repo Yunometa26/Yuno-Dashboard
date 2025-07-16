@@ -1,298 +1,235 @@
-'use client'
-
-import { useState, useEffect, useMemo } from 'react';
-import Papa from 'papaparse';
-import { Warehouse } from 'lucide-react';
+import React, { useEffect, useState } from 'react'
+import Papa from 'papaparse'
+import { Warehouse } from 'lucide-react'
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer
-} from 'recharts';
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
+} from 'recharts'
 
-// Move monthOrder outside component to avoid recreation
 const MONTH_ORDER = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
-];
-
-function getMonthName(dateStr) {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  return d.toLocaleString('default', { month: 'long' });
-}
+]
 
 export default function YardAllocationPage() {
-  // CSV data state
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  // Filter states
-  const [selectedMonth, setSelectedMonth] = useState('All');
-  const [selectedCargoType, setSelectedCargoType] = useState('All');
+  const [data, setData] = useState([])
+  const [monthlyTEU, setMonthlyTEU] = useState([])
+  const [monthlyDwell, setMonthlyDwell] = useState([])
+  const [selectedMonth, setSelectedMonth] = useState(null)
+  const [dailyDwell, setDailyDwell] = useState([])
+  const [avgDwell, setAvgDwell] = useState(0)
+  const [yardOccupancy, setYardOccupancy] = useState(0)
+  const [onTimePercentage, setOnTimePercentage] = useState(0)
 
-  // Load CSV data with error handling
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const response = await fetch('/Container_Yard_Data.csv');
-        if (!response.ok) throw new Error('Failed to load data');
-        
-        const csvText = await response.text();
-        Papa.parse(csvText, {
-          header: true,
-          complete: (result) => {
-            // Optimize data processing
-            const parsed = result.data
-              .filter(row => row.Entry_Date && row.Occupied_TEU)
-              .map(row => ({
-                ...row,
-                Month: getMonthName(row.Entry_Date),
-                Occupied_TEU: parseFloat(row.Occupied_TEU) || 0,
-                Dwell_Time_Days: parseFloat(row.Dwell_Time_Days) || 0,
-                On_Time: String(row.On_Time).toLowerCase() === 'true'
-              }));
-            setData(parsed);
-            setLoading(false);
-          },
-          error: (error) => {
-            setError('Failed to parse CSV data');
-            setLoading(false);
+    Papa.parse('/Container_Yard_Data.csv', {
+      download: true,
+      header: true,
+      complete: (results) => {
+        const rawData = results.data.map(row => {
+          const entryDate = new Date(row.Entry_Date)
+          const isValid = !isNaN(entryDate)
+          return {
+            ...row,
+            Entry_Date: isValid ? entryDate : null,
+            Occupied_TEU: +row.Occupied_TEU || 0,
+            Dwell_Time_Days: +row.Dwell_Time_Days || 0,
+            On_Time: row.On_Time === 'TRUE',
           }
-        });
-      } catch (err) {
-        setError('Failed to load data');
-        setLoading(false);
+        }).filter(row => row.Entry_Date !== null)
+
+        setData(rawData)
+        computeMonthlyData(rawData)
+        computeOverallMetrics(rawData)
+        computeYardOccupancy(rawData)
+        computeDwellAndDailyChart(rawData)
       }
-    };
-    
-    loadData();
-  }, []);
+    })
+  }, [])
 
-  // Optimized filter options with better memoization
-  const months = useMemo(() => {
-    if (!data.length) return ['All'];
-    
-    const filteredData = selectedCargoType === 'All' 
-      ? data 
-      : data.filter(d => d.Cargo_Type === selectedCargoType);
-    
-    const uniqueMonths = [...new Set(filteredData.map(d => d.Month))].filter(Boolean);
-    return ['All', ...uniqueMonths.sort((a, b) => MONTH_ORDER.indexOf(a) - MONTH_ORDER.indexOf(b))];
-  }, [data, selectedCargoType]);
-
-  const cargoTypes = useMemo(() => {
-    if (!data.length) return ['All'];
-    
-    const filteredData = selectedMonth === 'All' 
-      ? data 
-      : data.filter(d => d.Month === selectedMonth);
-    
-    const uniqueCargoTypes = [...new Set(filteredData.map(d => d.Cargo_Type))].filter(Boolean);
-    return ['All', ...uniqueCargoTypes.sort()];
-  }, [data, selectedMonth]);
-
-  // Handle filter changes
-  const handleMonthChange = (newMonth) => {
-    setSelectedMonth(newMonth);
-  };
-
-  const handleCargoTypeChange = (newCargoType) => {
-    setSelectedCargoType(newCargoType);
-  };
-
-  // Optimized filtered data
-  const filtered = useMemo(() => {
-    if (!data.length) return [];
-    
-    return data.filter(row =>
-      (selectedMonth === 'All' || row.Month === selectedMonth) &&
-      (selectedCargoType === 'All' || row.Cargo_Type === selectedCargoType)
-    );
-  }, [data, selectedMonth, selectedCargoType]);
-
-  // Optimized chart data calculations
-  const sumOccupiedTEUByMonth = useMemo(() => {
-    if (!filtered.length) return [];
-    
-    const grouped = {};
-    for (const row of filtered) {
-      grouped[row.Month] = (grouped[row.Month] || 0) + row.Occupied_TEU;
+  useEffect(() => {
+    if (selectedMonth) {
+      const filtered = data.filter(row => {
+        const month = row.Entry_Date.toLocaleString('default', { month: 'long' })
+        return month === selectedMonth
+      })
+      computeYardOccupancy(filtered)
+      computeDwellAndDailyChart(filtered)
+    } else {
+      computeYardOccupancy(data)
+      computeDwellAndDailyChart(data)
     }
-    
-    return Object.entries(grouped)
-      .map(([month, value]) => ({ month, value: Math.round(value) }))
-      .sort((a, b) => MONTH_ORDER.indexOf(a.month) - MONTH_ORDER.indexOf(b.month));
-  }, [filtered]);
+  }, [selectedMonth])
 
-  const avgDwellTimeByMonth = useMemo(() => {
-    if (!filtered.length) return [];
-    
-    const grouped = {};
-    for (const row of filtered) {
-      if (!grouped[row.Month]) grouped[row.Month] = [];
-      grouped[row.Month].push(row.Dwell_Time_Days);
-    }
-    
-    return Object.entries(grouped)
-      .map(([month, arr]) => ({
-        month,
-        value: arr.reduce((a, b) => a + b, 0) / arr.length
-      }))
-      .sort((a, b) => MONTH_ORDER.indexOf(a.month) - MONTH_ORDER.indexOf(b.month));
-  }, [filtered]);
+  const computeMonthlyData = (rawData) => {
+    const monthlyTEUMap = {}
+    const monthlyDwellMap = {}
 
-  // Optimized KPI calculations
-  const avgDwellTime = useMemo(() => {
-    if (!filtered.length) return 0;
-    return filtered.reduce((sum, row) => sum + row.Dwell_Time_Days, 0) / filtered.length;
-  }, [filtered]);
+    rawData.forEach(row => {
+      const month = row.Entry_Date.toLocaleString('default', { month: 'long' })
+      if (!monthlyTEUMap[month]) monthlyTEUMap[month] = 0
+      monthlyTEUMap[month] += row.Occupied_TEU
 
-  const onTimePct = useMemo(() => {
-    if (!filtered.length) return 0;
-    const onTime = filtered.filter(row => row.On_Time).length;
-    return (onTime / filtered.length) * 100;
-  }, [filtered]);
+      if (!monthlyDwellMap[month]) monthlyDwellMap[month] = { total: 0, count: 0 }
+      monthlyDwellMap[month].total += row.Dwell_Time_Days
+      monthlyDwellMap[month].count += 1
+    })
 
-  // Optimized yard occupancy calculation
-  const totalTEUAll = useMemo(() => 
-    data.reduce((sum, row) => sum + row.Occupied_TEU, 0), [data]
-  );
-  
-  const occupancyDenominator = useMemo(() => 
-    totalTEUAll / 0.5419, [totalTEUAll]
-  );
-  
-  const totalOccupiedTEU = useMemo(() => 
-    filtered.reduce((sum, row) => sum + row.Occupied_TEU, 0), [filtered]
-  );
-  
-  const yardOccupancyPct = useMemo(() => 
-    occupancyDenominator ? (totalOccupiedTEU / occupancyDenominator) * 100 : 0,
-    [totalOccupiedTEU, occupancyDenominator]
-  );
+    const monthlyTEUList = Object.entries(monthlyTEUMap).map(([month, value]) => ({ month, TEU: value }))
+    const monthlyDwellList = Object.entries(monthlyDwellMap).map(([month, val]) => ({
+      month,
+      avgDwell: val.total / val.count
+    }))
 
-  // Show loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-[#024673] via-[#024673] to-[#024673] flex items-center justify-center">
-        <div className="text-white text-xl">Loading Yard Allocation Dashboard...</div>
-      </div>
-    );
+    const sortByMonth = (a, b) => MONTH_ORDER.indexOf(a.month) - MONTH_ORDER.indexOf(b.month)
+    setMonthlyTEU(monthlyTEUList.sort(sortByMonth))
+    setMonthlyDwell(monthlyDwellList.sort(sortByMonth))
   }
 
-  // Show error state
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-[#024673] via-[#024673] to-[#024673] flex items-center justify-center">
-        <div className="text-white text-xl">Error: {error}</div>
-      </div>
-    );
+  const computeYardOccupancy = (dataset) => {
+    const totalOccupiedTEU = dataset.reduce((sum, d) => sum + d.Occupied_TEU, 0)
+    const maxTEU = Math.max(...dataset.map(d => d.Occupied_TEU))
+    const totalCapacityTEU = maxTEU * dataset.length
+    setYardOccupancy((totalOccupiedTEU / totalCapacityTEU) * 100)
+  }
+
+  const computeDwellAndDailyChart = (dataset) => {
+    let dwellSum = 0
+    let dwellCount = 0
+    const dailyMap = {}
+
+    dataset.forEach(row => {
+      const day = row.Entry_Date.getDate()
+      if (!dailyMap[day]) dailyMap[day] = { total: 0, count: 0 }
+      dailyMap[day].total += row.Dwell_Time_Days
+      dailyMap[day].count += 1
+
+      dwellSum += row.Dwell_Time_Days
+      dwellCount += 1
+    })
+
+    setAvgDwell(dwellSum / dwellCount)
+
+    const sampleDate = dataset[0]?.Entry_Date
+    const year = sampleDate?.getFullYear()
+    const monthIndex = sampleDate?.getMonth()
+    const daysInMonth = new Date(year, monthIndex + 1, 0).getDate()
+
+    const dailyList = Array.from({ length: daysInMonth }, (_, i) => {
+      const day = i + 1
+      const val = dailyMap[day] || { total: 0, count: 0 }
+      return {
+        day,
+        avgDwell: val.count > 0 ? val.total / val.count : 0
+      }
+    })
+
+    setDailyDwell(dailyList)
+  }
+
+  const computeOverallMetrics = (dataset) => {
+    const totalOnTime = dataset.filter(d => d.On_Time === true).length
+    setOnTimePercentage((totalOnTime / dataset.length) * 100)
+  }
+
+  const handleMonthClick = (month) => {
+    setSelectedMonth(month)
+  }
+
+  const customTooltipStyle = {
+    backgroundColor: '#1e293b',
+    border: '1px solid #334155',
+    color: '#fff'
+  }
+
+  const DwellTooltip = ({ active, payload, label }) => {
+    if (active && payload?.length) {
+      return (
+        <div className="custom-tooltip" style={customTooltipStyle}>
+          <p className="label text-white">
+            {selectedMonth ? `Day ${label}` : label}: {payload[0].value.toFixed(2)} Days
+          </p>
+        </div>
+      )
+    }
+    return null
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#024673] via-[#024673] to-[#024673]">
-      <div className="max-w-full p-6">
-        {/* Header Section */}
-        <div className="mb-12 w-full overflow-hidden">
-          <div className="backdrop-blur-sm m-1 rounded-xl" style={{ backgroundColor: 'rgba(0, 31, 71, 0.8)' }}>
-            <div className="p-8 sm:p-12">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
-                <div className="flex-1 space-y-5 text-center">
-                  <div className="flex items-center justify-center gap-4 mb-4">
-                    <Warehouse className="h-12 w-12 text-white" />
-                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white leading-tight">
-                      Yard Allocation
-                    </h2>
-                  </div>
-                </div>
-              </div>
-            </div>
+    <div className="min-h-screen bg-gradient-to-b from-[#024673] via-[#024673] to-[#024673] text-white">
+      <div className="w-full p-6">
+        <div className="mb-12">
+          <div className="backdrop-blur-sm rounded-xl bg-blue-950/80 p-8 sm:p-12 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Warehouse className="h-12 w-12 text-white" />
+            <h2 className="text-4xl font-bold">Yard Allocation</h2>
           </div>
         </div>
 
-        {/* Dashboard Section */}
-        <div className="rounded-lg shadow-md overflow-hidden mb-8" style={{ backgroundColor: 'rgba(0, 31, 71, 0.9)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-          <div className="p-8">
-            {/* Filters Row */}
-            <div className="flex flex-row gap-6 mb-8">
-              <div>
-                <label className="block text-white mb-1">Month</label>
-                <select value={selectedMonth} onChange={e => handleMonthChange(e.target.value)} className="w-40 px-3 py-2 rounded bg-[#011a36] text-white border border-blue-900">
-                  {months.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-white mb-1">Cargo Type</label>
-                <select value={selectedCargoType} onChange={e => handleCargoTypeChange(e.target.value)} className="w-40 px-3 py-2 rounded bg-[#011a36] text-white border border-blue-900">
-                  {cargoTypes.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-            </div>
-            {/* Top: Sum of Occupied TEU by Month (left) and Yard Occupancy % (right) */}
-            <div className="mb-8 w-full flex flex-col md:flex-row gap-8 items-start">
-              <div className="bg-[#011a36] rounded-lg p-8 border border-blue-900 flex flex-col justify-between h-[28rem] w-full md:w-3/4">
-                <h4 className="text-white font-semibold mb-4 text-lg">Sum of Occupied TEU by Month</h4>
-                <div className="h-80 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={sumOccupiedTEUByMonth}>
-                      <XAxis dataKey="month" stroke="#fff" tick={{ fill: '#fff' }} />
-                      <YAxis stroke="#fff" tick={{ fill: '#fff' }} />
-                      <Tooltip 
-                        contentStyle={{ background: '#001F47', color: '#fff' }} 
-                        labelStyle={{ color: '#fff' }}
-                        formatter={(value, name) => [value, 'TEU']}
-                      />
-                      <Bar dataKey="value" fill="#39FF14" barThickness={28} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-              <div className="bg-[#011a36] rounded-lg border border-blue-900 flex flex-col items-center justify-center h-[28rem] w-full md:w-1/4">
-                <div className="text-4xl font-bold text-white mb-1">{yardOccupancyPct.toFixed(2)}%</div>
-                <div className="text-white text-lg text-center">Yard Occupancy %</div>
-              </div>
-            </div>
-            {/* Second: Average of Dwell Time by Month (left) and two KPIs (right) */}
-            <div className="mb-8 w-full flex flex-col md:flex-row gap-8 items-start">
-              <div className="bg-[#011a36] rounded-lg p-8 border border-blue-900 flex flex-col justify-between h-[28rem] w-full md:w-3/4">
-                <h4 className="text-white font-semibold mb-4 text-lg">Average Dwell Time by Month</h4>
-                <div className="h-80 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={avgDwellTimeByMonth}>
-                      <XAxis dataKey="month" stroke="#fff" tick={{ fill: '#fff' }} />
-                      <YAxis stroke="#fff" tick={{ fill: '#fff' }} />
-                      <Tooltip 
-                        contentStyle={{ background: '#001F47', color: '#fff' }} 
-                        labelStyle={{ color: '#fff' }}
-                        formatter={(value, name) => [value.toFixed(3), 'Dwell Time (Hours)']}
-                      />
-                      <Bar dataKey="value" fill="#FFD700" barThickness={28} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-              <div className="flex flex-col gap-4 h-[28rem] w-full md:w-1/4">
-                <div className="bg-[#011a36] rounded-lg border border-blue-900 flex flex-col items-center justify-center flex-1">
-                  <div className="text-4xl font-bold text-white mb-1">{onTimePct.toFixed(2)}</div>
-                  <div className="text-white text-lg">On Time Movement %</div>
-                </div>
-                <div className="bg-[#011a36] rounded-lg border border-blue-900 flex flex-col items-center justify-center flex-1">
-                  <div className="text-4xl font-bold text-white mb-1">{Math.round(avgDwellTime)}</div>
-                  <div className="text-white text-lg text-center">Average Dwell Time (Hours)</div>
-                </div>
-              </div>
-            </div>
+        <div className="flex flex-col lg:flex-row gap-6 mb-6">
+          <div className="flex-1 bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6">
+            <h3 className="text-xl font-semibold text-white mb-4">Sum of Occupied TEU by Month</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={monthlyTEU}
+                onClick={(e) => {
+                  if (e?.activeLabel) handleMonthClick(e.activeLabel)
+                }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e3a5f" />
+                <XAxis dataKey="month" stroke="#fff" />
+                <YAxis stroke="#fff" />
+                <Tooltip contentStyle={customTooltipStyle} labelStyle={{ color: '#fff' }} />
+                <Bar dataKey="TEU" fill="#38bdf8" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="w-full lg:w-72 bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6 flex flex-col justify-center items-center text-center">
+            <h3 className="text-lg font-semibold text-green-300">Yard Occupancy %</h3>
+            <p className="text-3xl font-bold">{yardOccupancy.toFixed(2)}%</p>
           </div>
         </div>
 
-        {/* Back Button */}
-        <div className="text-center">
-          <button
-            onClick={() => window.location.href = '/logistics/outbound/constraint-based-planning'}
-            className="bg-gradient-to-r from-[#024673] to-[#5C99E3] hover:from-[#023d63] hover:to-[#4b88d2] text-white px-8 py-3 rounded-lg shadow-md transition-all duration-300 font-medium"
-          >
-            Back to Constraint Based Planning
-          </button>
+        <div className="flex flex-col lg:flex-row gap-6 mb-12">
+          <div className="flex-1 bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6">
+            <h3 className="text-xl font-semibold mb-4 text-white">
+              Average Dwell Time Days {selectedMonth ? `in ${selectedMonth}` : 'by Month'}
+            </h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={selectedMonth ? dailyDwell : monthlyDwell}
+                onClick={(e) => {
+                  if (!selectedMonth && e?.activeLabel) handleMonthClick(e.activeLabel)
+                }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e3a5f" />
+                <XAxis dataKey={selectedMonth ? 'day' : 'month'} stroke="#fff" interval={0} />
+                <YAxis stroke="#fff" />
+                <Tooltip content={<DwellTooltip />} />
+                <Bar dataKey="avgDwell" fill="#facc15" />
+              </BarChart>
+            </ResponsiveContainer>
+            {selectedMonth && (
+              <button
+                onClick={() => setSelectedMonth(null)}
+                className="mt-4 text-sm underline text-blue-300"
+              >
+                Reset to Monthly View
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-6 w-full lg:w-72 justify-between">
+            <div className="flex-1 text-center bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6 flex flex-col justify-center">
+              <h3 className="text-lg font-semibold text-yellow-300">Avg Dwell Time Days</h3>
+              <p className="text-3xl font-bold">{avgDwell.toFixed(2)} Days</p>
+            </div>
+            <div className="flex-1 text-center bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6 flex flex-col justify-center">
+              <h3 className="text-lg font-semibold text-lime-300">On Time %</h3>
+              <p className="text-3xl font-bold">{onTimePercentage.toFixed(2)}%</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   )
-} 
+}

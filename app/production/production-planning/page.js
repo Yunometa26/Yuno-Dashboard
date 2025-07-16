@@ -217,8 +217,8 @@ export default function ProductionPlanningPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#024673] via-[#024673] to-[#024673]">
-      <div className="max-w-6xl mx-auto p-6">
+    <div className="min-h-screen bg-gradient-to-b from-[#024673] via-[#024673] to-[#024673] w-full">
+      <div className="w-full p-6">
         {/* Header Section */}
         <div className="mb-12 w-full overflow-hidden">
           <div className="backdrop-blur-sm m-1 rounded-xl" style={{ backgroundColor: 'rgba(0, 31, 71, 0.8)' }}>
@@ -431,15 +431,6 @@ export default function ProductionPlanningPage() {
           <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 100%)' }}></div>
         </div>
 
-        {/* Production Summary Table */}
-        <div className="rounded-lg shadow-md overflow-hidden mt-6" style={{ backgroundColor: 'rgba(0, 31, 71, 0.9)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-          <div className="p-6">
-            <h3 className="text-xl font-semibold text-white mb-4">Scheduling of SKU (Quantity)</h3>
-            <ProductionSummaryTable data={filteredData} />
-          </div>
-          <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 100%)' }}></div>
-        </div>
-
         {/* Top SKUs Chart */}
         <div className="rounded-lg shadow-md overflow-hidden mt-6" style={{ backgroundColor: 'rgba(0, 31, 71, 0.9)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
           <div className="p-6">
@@ -453,200 +444,6 @@ export default function ProductionPlanningPage() {
     </div>
   )
 } 
-
-// Production Summary Table Component
-function ProductionSummaryTable({ data }) {
-  // Generate filtered scheduling data like the reference code
-  const filteredSchedulingData = useMemo(() => {
-    if (!data || data.length === 0) {
-      return { dates: [], data: {} };
-    }
-
-    // Get all unique dates from the data
-    const allDates = [...new Set(data.map(item => {
-      if (item['Production Start DateTime']) {
-        return item['Production Start DateTime'].split(' ')[0];
-      }
-      return null;
-    }).filter(Boolean))].sort();
-
-    // Group orders by line
-    const dataByLine = {};
-    data.forEach(item => {
-      if (!item || !item['Production Start DateTime'] || !item.Line) return;
-      
-      const line = item.Line;
-      if (!dataByLine[line]) {
-        dataByLine[line] = [];
-      }
-      dataByLine[line].push(item);
-    });
-
-    // Process data similar to reference code
-    const processedData = {};
-    Object.entries(dataByLine).forEach(([line, orders]) => {
-      processedData[line] = {};
-      
-      // Group orders by SKU for this line
-      const skuOrders = {};
-      orders.forEach(order => {
-        if (!skuOrders[order.SKU]) {
-          skuOrders[order.SKU] = {};
-        }
-        
-        // For each day the order runs, add its quantity
-        const startDate = new Date(order['Production Start DateTime']);
-        const endDate = new Date(order['Production End DateTime']);
-        
-        if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
-          for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-            const dateStr = d.toISOString().split('T')[0];
-            if (allDates.includes(dateStr)) {
-              if (!skuOrders[order.SKU][dateStr]) {
-                skuOrders[order.SKU][dateStr] = 0;
-              }
-              // Distribute quantity evenly across the production days
-              const productionDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-              const plannedQuantity = parseFloat(order['Planned Quantity']) || 0;
-              skuOrders[order.SKU][dateStr] += plannedQuantity / productionDays;
-            }
-          }
-        }
-      });
-      
-      processedData[line] = skuOrders;
-    });
-
-    return { dates: allDates, data: processedData };
-  }, [data]);
-
-  const scheduleData = filteredSchedulingData;
-
-  if (!scheduleData.dates || scheduleData.dates.length === 0 || !scheduleData.data || Object.keys(scheduleData.data).length === 0) {
-    return (
-      <div className="text-center py-8 text-gray-300">
-        No production data available for schedule table.
-      </div>
-    )
-  }
-
-  // Function to format quantity values
-  const formatQuantity = (value) => {
-    if (!value || value === 0) return '-'
-    return value.toLocaleString()
-  }
-
-  // Function to get color for quantity values
-  const getQuantityColor = (value) => {
-    if (!value || value === 0) return 'text-gray-500'
-    return 'text-white'
-  }
-
-  return (
-    <div className="overflow-auto rounded-xl" style={{ 
-      backgroundColor: '#001F47',
-      border: '1px solid rgba(255, 255, 255, 0.1)',
-      backdropFilter: 'blur(10px)',
-      maxHeight: '400px'
-    }}>
-      <table className="w-full">
-        {/* Table Header */}
-        <thead>
-          <tr style={{ backgroundColor: '#002654', borderBottom: '2px solid rgba(59, 130, 246, 0.3)' }}>
-            <th className="text-left text-white font-semibold py-4 px-4 text-sm" style={{ 
-              backgroundColor: 'rgba(0, 31, 71, 0.9)',
-              borderRight: '1px solid rgba(59, 130, 246, 0.2)',
-              position: 'sticky',
-              left: 0,
-              zIndex: 10,
-              minWidth: '80px'
-            }}>
-              Line
-            </th>
-            <th className="text-left text-white font-semibold py-4 px-4 text-sm" style={{ 
-              backgroundColor: 'rgba(0, 31, 71, 0.9)',
-              borderRight: '1px solid rgba(59, 130, 246, 0.2)',
-              position: 'sticky',
-              left: '80px',
-              zIndex: 10,
-              minWidth: '100px'
-            }}>
-              SKU
-            </th>
-            {scheduleData.dates.map((date, index) => (
-              <th 
-                key={date} 
-                className="text-center text-white font-semibold py-4 px-3 text-xs"
-                style={{ 
-                  backgroundColor: '#002654',
-                  borderRight: index < scheduleData.dates.length - 1 ? '1px solid rgba(59, 130, 246, 0.2)' : 'none',
-                  minWidth: '100px'
-                }}
-              >
-                {date}
-              </th>
-            ))}
-          </tr>
-        </thead>
-
-        {/* Table Body */}
-        <tbody>
-          {Object.entries(scheduleData.data).map(([line, skus], lineIndex) =>
-            Object.entries(skus).map(([sku, dates], skuIndex) => {
-              const itemIndex = lineIndex * Object.keys(skus).length + skuIndex;
-              return (
-                <tr 
-                  key={`${line}-${sku}`} 
-                  className="group hover:bg-blue-900/20 transition-all duration-200"
-                  style={{ 
-                    backgroundColor: itemIndex % 2 === 0 ? 'rgba(0, 31, 71, 0.8)' : 'rgba(0, 31, 71, 0.6)',
-                    borderBottom: '1px solid rgba(59, 130, 246, 0.15)'
-                  }}
-                >
-                  <td className="text-white font-semibold py-3 px-4 text-sm" style={{ 
-                    backgroundColor: itemIndex % 2 === 0 ? 'rgba(0, 31, 71, 0.9)' : 'rgba(0, 31, 71, 0.7)',
-                    borderRight: '1px solid rgba(59, 130, 246, 0.2)',
-                    position: 'sticky',
-                    left: 0,
-                    zIndex: 5
-                  }}>
-                    <span className="relative">
-                      {line}
-                      <div className="absolute -left-1 top-0 bottom-0 w-1 bg-blue-400 rounded-r opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
-                    </span>
-                  </td>
-                  <td className="text-white font-semibold py-3 px-4 text-sm" style={{ 
-                    backgroundColor: itemIndex % 2 === 0 ? 'rgba(0, 31, 71, 0.9)' : 'rgba(0, 31, 71, 0.7)',
-                    borderRight: '1px solid rgba(59, 130, 246, 0.2)',
-                    position: 'sticky',
-                    left: '80px',
-                    zIndex: 5
-                  }}>
-                    {sku}
-                  </td>
-                  {scheduleData.dates.map((date, dateIndex) => {
-                    const quantity = dates[date] || 0
-                    return (
-                      <td 
-                        key={date} 
-                        className={`text-center py-3 px-3 text-xs font-medium ${getQuantityColor(quantity)}`}
-                        style={{ 
-                          borderRight: dateIndex < scheduleData.dates.length - 1 ? '1px solid rgba(59, 130, 246, 0.1)' : 'none'
-                        }}
-                      >
-                        {formatQuantity(quantity)}
-                      </td>
-                    )
-                  })}
-                </tr>
-              );
-            })
-          )}
-        </tbody>
-      </table>
-    </div>
-  )
-}
 
 // Top SKUs by Quantity Chart Component
 function TopSKUsChart({ data }) {
@@ -1222,4 +1019,3 @@ function GanttChart({ data }) {
     </div>
   )
 }
-//added Gantt Chart 
