@@ -12,7 +12,7 @@ export default function SKUTrendGraph() {
   const [selectedSKU, setSelectedSKU] = useState('All');
 
   useEffect(() => {
-    Papa.parse('/Dataset - SKU Trend Revised.csv', {
+    Papa.parse('/Dataset - SKU Trend Revised 1.csv', {
       header: true,
       download: true,
       complete: (results) => {
