@@ -58,10 +58,12 @@ export default function UCIDashboard() {
               const targetCycle = rows.reduce((sum, r) => sum + Number(r['Target Cycle Time'] || 0), 0);
               const actualCycle = rows.reduce((sum, r) => sum + Number(r['Actual Cycle Time'] || 0), 0);
               const first = rows[0];
+              // Format dates as '22 Jul 2025'
+              const dateFormat = { day: '2-digit', month: 'short', year: 'numeric' };
               return {
                 orderId,
-                startDate: isNaN(start) ? '' : start.toLocaleDateString('en-GB'),
-                endDate: isNaN(end) ? '' : end.toLocaleDateString('en-GB'),
+                startDate: isNaN(start) ? '' : start.toLocaleDateString('en-GB', dateFormat),
+                endDate: isNaN(end) ? '' : end.toLocaleDateString('en-GB', dateFormat),
                 targetCycle,
                 actualCycle,
                 status: first['Status Type'],
@@ -77,7 +79,8 @@ export default function UCIDashboard() {
       });
   }, []);
 
-  const monthOrder = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const monthOrder = ["January", "February", "March", "April", "May", "June", "July",
+    "August", "September", "October", "November", "December"];
 
   const sortValues = (values, key) => {
     if (key === 'month') {
@@ -121,7 +124,7 @@ export default function UCIDashboard() {
     });
     return [...map.entries()].map(([key, value]) => {
       const [seq, name] = key.split('-');
-      return { Process: name, Sequence: +seq, 'Sum of Actual Days': value };
+      return { Process: name, Sequence: +seq, 'Sum of Actual Cycle Time': value };
     }).sort((a, b) => a.Sequence - b.Sequence);
   }, [allRows]);
 
@@ -141,7 +144,7 @@ export default function UCIDashboard() {
     });
     return [...map.entries()].map(([key, value]) => {
       const [seq, name] = key.split('-');
-      return { Subprocess: name, Sequence: +seq, 'Sum of Actual Days': value };
+      return { Subprocess: name, Sequence: +seq, 'Sum of Actual Cycle Time': value };
     }).sort((a, b) => a.Sequence - b.Sequence);
   }, [allRows, selectedProcess]);
 
@@ -160,6 +163,7 @@ export default function UCIDashboard() {
     <div className="min-h-screen bg-gradient-to-b from-[#024673] to-[#024673] text-gray-100 p-6 space-y-6">
       <h1 className="text-4xl font-bold text-center mb-6">Cycle Time Dashboard</h1>
 
+      {/* Filter Cards */}
       <div className="grid grid-cols-5 gap-4">
         {Object.entries(filters).map(([key, value]) => (
           <div key={key} className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-4">
@@ -178,29 +182,30 @@ export default function UCIDashboard() {
         ))}
       </div>
 
+      {/* Table and Stats */}
       <div className="flex flex-col lg:flex-row gap-4">
         <div className="flex-1 bg-blue-950/80 rounded-xl shadow-lg border border-white/10 overflow-hidden">
           <div className="overflow-y-auto max-h-[400px]">
             <table className="text-white w-full">
               <thead className="sticky top-0 bg-blue-950/90 z-10">
-                <tr className="text-left">
-                  <th className="px-4 py-2">Order ID</th>
-                  <th className="px-4 py-2">Start Date</th>
-                  <th className="px-4 py-2">End Date</th>
-                  <th className="px-4 py-2">Sub TAT Day</th>
-                  <th className="px-4 py-2">Sum of Actual Days</th>
-                  <th className="px-4 py-2">Status</th>
+                <tr className="text-center">
+                  <th className="px-4 py-2 text-center">Order ID</th>
+                  <th className="px-4 py-2 text-center">Start Date</th>
+                  <th className="px-4 py-2 text-center">End Date</th>
+                  <th className="px-4 py-2 text-center">Sub TAT Day</th>
+                  <th className="px-6 py-2 text-center">Sum of Actual Cycle Time</th>
+                  <th className="px-4 py-2 text-center">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredData.map((d, i) => (
-                  <tr key={i} className="border-t border-white/10">
-                    <td className="px-4 py-2">{d.orderId}</td>
-                    <td className="px-4 py-2">{d.startDate}</td>
-                    <td className="px-4 py-2">{d.endDate}</td>
-                    <td className="px-4 py-2">{d.targetCycle}</td>
-                    <td className="px-4 py-2">{d.actualCycle}</td>
-                    <td className="px-4 py-2">{d.status}</td>
+                  <tr key={i} className="border-t border-white/10 text-center">
+                    <td className="px-4 py-2 text-center">{d.orderId}</td>
+                    <td className="px-4 py-2 text-center">{d.startDate}</td>
+                    <td className="px-4 py-2 text-center">{d.endDate}</td>
+                    <td className="px-4 py-2 text-center">{d.targetCycle}</td>
+                    <td className="px-6 py-2 text-center">{d.actualCycle}</td>
+                    <td className="px-4 py-2 text-center">{d.status}</td>
                   </tr>
                 ))}
               </tbody>
@@ -208,6 +213,7 @@ export default function UCIDashboard() {
           </div>
         </div>
 
+        {/* Summary Cards */}
         <div className="flex flex-col gap-4 mt-6 w-full lg:w-1/4 justify-between">
           <div className="bg-blue-950/80 rounded-xl shadow-lg border border-white/10 p-6 h-[190px] flex flex-col items-center justify-center">
             <GaugeChart
@@ -237,9 +243,10 @@ export default function UCIDashboard() {
         </div>
       </div>
 
+      {/* Bar Charts */}
       <div className="grid grid-cols-1 gap-6">
         <div className="bg-blue-950/80 rounded-xl shadow-lg border border-white/10 p-6">
-          <h2 className="text-white mb-4">Sum of Actual Days by Process</h2>
+          <h2 className="text-white mb-4">Sum of Actual Cycle Time by Process</h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart
               layout="vertical"
@@ -254,14 +261,14 @@ export default function UCIDashboard() {
               <XAxis type="number" stroke="#fff" />
               <YAxis dataKey="Process" type="category" stroke="#fff" width={150} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="Sum of Actual Days" fill="#3399ff" />
+              <Bar dataKey="Sum of Actual Cycle Time" fill="#3399ff" />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         <div className="bg-blue-950/80 rounded-xl shadow-lg border border-white/10 p-6">
           <h2 className="text-white mb-4">
-            Sum of Actual Days by Subprocess{' '}
+            Sum of Actual Cycle Time by Subprocess{' '}
             {selectedProcess && (
               <span className="ml-2 text-sm text-blue-300 cursor-pointer underline" onClick={() => setSelectedProcess(null)}>
                 (Clear Filter)
@@ -274,7 +281,7 @@ export default function UCIDashboard() {
               <XAxis type="number" stroke="#fff" />
               <YAxis dataKey="Subprocess" type="category" stroke="#fff" width={250} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="Sum of Actual Days" fill="#3399ff" />
+              <Bar dataKey="Sum of Actual Cycle Time" fill="#3399ff" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -282,7 +289,7 @@ export default function UCIDashboard() {
 
       <div className="mt-6 flex justify-center">
         <button
-          onClick={() => window.location.href = "../continuous-monitoring"}
+          onClick={() => window.location.href = '../continuous-monitoring'}
           className="bg-gradient-to-r from-[#024673] to-[#5C99E3] hover:from-[#023d63] hover:to-[#4b88d2] text-white px-6 py-3 rounded-lg shadow-md transition-all duration-300 font-medium"
         >
           Back to Continuous Monitoring
