@@ -839,7 +839,7 @@ export default function LifecyclePage() {
                             : 'text-white hover:bg-white/10'
                         }`}
                       >
-                        Financial Year
+                        Sales Value
                       </button>
                       <button
                         onClick={() => setActiveChart('product-stacked')}

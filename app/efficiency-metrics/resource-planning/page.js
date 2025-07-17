@@ -1,7 +1,8 @@
+// NOTE: The Mermaid chart and 'react-mermaid2' import are commented out because 'react-mermaid2' is not installed or not available in the deployment environment. Uncomment and ensure the dependency is installed if you want to use Mermaid charts.
 'use client'
 
 import { Users } from 'lucide-react'
-import Mermaid from 'react-mermaid2';
+// import Mermaid from 'react-mermaid2';
 
 export default function ResourcePlanningPage() {
   return (
@@ -29,7 +30,7 @@ export default function ResourcePlanningPage() {
               <div className="w-full overflow-x-auto" style={{background: 'transparent', padding: 0}}>
                 <div style={{display: 'inline-block', background: 'white', border: '2px solid #011a36', borderRadius: '10px', padding: '8px', margin: '0 auto'}}>
                   {/* Mermaid Flowchart for Resource Library Workflow */}
-                  <Mermaid chart={`
+                  {/* <Mermaid chart={`
                    %%{init: {"theme": "default", "themeVariables": { "primaryTextColor": "#333", "lineColor": "#333", "background": "#fff" }}}%%
                    graph LR
     start1((Start)) --> submit_new_request(Submit New Request)
@@ -82,7 +83,7 @@ export default function ResourcePlanningPage() {
     style is_partial_delivery fill:#8A2BE2,stroke:#8A2BE2,stroke-width:2px,color:#FFF
     style is_rejected_qty_0 fill:#8A2BE2,stroke:#8A2BE2,stroke-width:2px,color:#FFF
     style true_branch_rejected_qty fill:#8BC34A,stroke:#8BC34A,stroke-width:2px,color:#FFF
-                 `} style={{display: 'block', margin: '0 auto'}} />
+                 `} style={{display: 'block', margin: '0 auto'}} /> */}
                 </div>
               </div>
             </div>

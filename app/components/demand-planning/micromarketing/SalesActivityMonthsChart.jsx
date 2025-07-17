@@ -5,6 +5,20 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
 
+// Custom Tooltip to round AvgMonthsBought
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    const roundedAvg = payload[0].payload.AvgMonthsBought !== undefined ? Math.round(payload[0].payload.AvgMonthsBought) : '';
+    return (
+      <div className="bg-[#013554] p-2 rounded shadow text-white border border-blue-700">
+        <div><strong>Year:</strong> {label}</div>
+        <div><strong>Avg. Months Bought:</strong> {roundedAvg}</div>
+      </div>
+    );
+  }
+  return null;
+};
+
 const SalesActivityMonthsChart = ({
   salesActivityData = [],
   className = '',
@@ -41,7 +55,7 @@ const SalesActivityMonthsChart = ({
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="FinancialYear" stroke={axisStroke} />
           <YAxis stroke={axisStroke} domain={[0, 12]} ticks={[0, 3, 6, 9, 12]} label={{ value: 'Avg. Months Bought', angle: -90, position: 'insideLeft', fill: labelColor }} />
-          <Tooltip />
+          <Tooltip content={<CustomTooltip />} />
           <Bar
             dataKey="AvgMonthsBought"
             name="Avg. Months Bought"
