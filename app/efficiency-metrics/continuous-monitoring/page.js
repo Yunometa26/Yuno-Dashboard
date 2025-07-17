@@ -17,12 +17,14 @@ export default function ContinuousMonitoringPage() {
       id: 2,
       title: "Deviation",
       icon: <TrendingDown className="h-8 w-8 text-red-500" />,
+      path: "/efficiency-metrics/continuous-monitoring/deviation",
       borderColor: "bg-red-500"
     },
     {
       id: 3,
       title: "OPE",
       icon: <BarChart2 className="h-8 w-8 text-green-500" />,
+      path: "/efficiency-metrics/continuous-monitoring/ope",
       borderColor: "bg-green-500"
     },
   ];
