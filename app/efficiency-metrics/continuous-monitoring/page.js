@@ -1,4 +1,5 @@
-"use client";
+'use client';
+
 import React from "react";
 import { Timer, TrendingDown, BarChart2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -32,6 +33,7 @@ export default function ContinuousMonitoringPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#024673] to-[#5C99E3] flex items-center justify-center">
       <div className="max-w-4xl w-full p-8">
+        {/* Header Card */}
         <div className="mb-8 w-full overflow-hidden">
           <div className="bg-opacity-15 backdrop-blur-sm m-1 rounded-xl bg-gradient-to-r from-[#024673] to-[#5C99E3]">
             <div className="p-8 sm:p-12">
@@ -46,7 +48,9 @@ export default function ContinuousMonitoringPage() {
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+        {/* Monitoring Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
           {monitoringCards.map((card) => (
             <div
               key={card.id}
@@ -64,7 +68,17 @@ export default function ContinuousMonitoringPage() {
             </div>
           ))}
         </div>
+
+        {/* Back Button */}
+        <div className="mt-6 flex justify-center">
+          <button
+            onClick={() => window.location.href = "/"}
+            className="bg-gradient-to-r from-[#024673] to-[#5C99E3] hover:from-[#023d63] hover:to-[#4b88d2] text-white px-6 py-3 rounded-lg shadow-md transition-all duration-300 font-medium"
+          >
+            Back to Dashboard
+          </button>
+        </div>
       </div>
     </div>
   );
-} 
+}

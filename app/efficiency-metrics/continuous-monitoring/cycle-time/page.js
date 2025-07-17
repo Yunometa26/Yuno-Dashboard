@@ -29,6 +29,7 @@ export default function UCIDashboard() {
     status: 'All',
     month: 'All'
   });
+  const [selectedProcess, setSelectedProcess] = useState(null);
 
   useEffect(() => {
     fetch('/process data UCI Final.csv')
@@ -76,7 +77,20 @@ export default function UCIDashboard() {
       });
   }, []);
 
-  const uniqueValues = (key) => [...new Set(data.map(d => d[key]).filter(Boolean))];
+  const monthOrder = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  const sortValues = (values, key) => {
+    if (key === 'month') {
+      return values.sort((a, b) => monthOrder.indexOf(a) - monthOrder.indexOf(b));
+    }
+    const allNumbers = values.every(val => !isNaN(val));
+    return values.sort((a, b) => allNumbers ? Number(a) - Number(b) : a.localeCompare(b));
+  };
+
+  const uniqueValues = (key) => {
+    const values = [...new Set(filteredData.map(d => d[key]).filter(Boolean))];
+    return sortValues(values, key);
+  };
 
   const filteredData = useMemo(() => {
     return data.filter(d =>
@@ -116,8 +130,12 @@ export default function UCIDashboard() {
     allRows.forEach(row => {
       const subprocess = row['Subprocess'];
       const seq = row['Subprocess Sequence'];
+      const process = row['Process'];
       const key = `${seq}-${subprocess}`;
-      if (subprocess && seq) {
+      if (
+        subprocess && seq &&
+        (!selectedProcess || selectedProcess === process)
+      ) {
         map.set(key, (map.get(key) || 0) + Number(row['Actual Cycle Time'] || 0));
       }
     });
@@ -125,7 +143,10 @@ export default function UCIDashboard() {
       const [seq, name] = key.split('-');
       return { Subprocess: name, Sequence: +seq, 'Sum of Actual Days': value };
     }).sort((a, b) => a.Sequence - b.Sequence);
-  }, [allRows]);
+  }, [allRows, selectedProcess]);
+
+  const minCycle = useMemo(() => Math.min(...filteredData.map(d => d.actualCycle)), [filteredData]);
+  const maxCycle = useMemo(() => Math.max(...filteredData.map(d => d.actualCycle)), [filteredData]);
 
   const filterLabels = {
     startDate: 'Start Date',
@@ -188,19 +209,25 @@ export default function UCIDashboard() {
         </div>
 
         <div className="flex flex-col gap-4 mt-6 w-full lg:w-1/4 justify-between">
-          <div className="bg-blue-950/80 rounded-xl shadow-lg border border-white/10 p-6 h-[190px] flex items-center justify-center">
+          <div className="bg-blue-950/80 rounded-xl shadow-lg border border-white/10 p-6 h-[190px] flex flex-col items-center justify-center">
             <GaugeChart
               id="gauge-chart1"
               nrOfLevels={20}
               arcsLength={[1]}
               colors={["#3399ff"]}
-              percent={Math.min(+avgCycle / 100, 1)}
+              percent={Math.min(+avgCycle / maxCycle || 0, 1)}
               textColor="#fff"
               needleColor="#ffffff"
               animate={false}
               formatTextValue={() => `${avgCycle}`}
             />
+            <div className="flex justify-between text-xs w-full text-white mt-2 px-2">
+              <span className="text-left">Min: {minCycle}</span>
+              <span className="text-center">Avg: {avgCycle}</span>
+              <span className="text-right">Max: {maxCycle}</span>
+            </div>
           </div>
+
           <div className="bg-blue-950/80 rounded-xl shadow-lg border border-white/10 p-6 flex items-center justify-center h-[190px]">
             <div className="text-center">
               <h2 className="text-white mb-2">No of Order IDs</h2>
@@ -210,12 +237,19 @@ export default function UCIDashboard() {
         </div>
       </div>
 
-      {/* Bar Graphs below one by one */}
       <div className="grid grid-cols-1 gap-6">
         <div className="bg-blue-950/80 rounded-xl shadow-lg border border-white/10 p-6">
           <h2 className="text-white mb-4">Sum of Actual Days by Process</h2>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart layout="vertical" data={processData} margin={{ left: 100 }}>
+            <BarChart
+              layout="vertical"
+              data={processData}
+              margin={{ left: 100 }}
+              onClick={({ activeLabel }) => {
+                const clicked = processData.find(p => p.Process === activeLabel);
+                if (clicked) setSelectedProcess(clicked.Process);
+              }}
+            >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" stroke="#fff" />
               <YAxis dataKey="Process" type="category" stroke="#fff" width={150} />
@@ -226,7 +260,14 @@ export default function UCIDashboard() {
         </div>
 
         <div className="bg-blue-950/80 rounded-xl shadow-lg border border-white/10 p-6">
-          <h2 className="text-white mb-4">Sum of Actual Days by Subprocess</h2>
+          <h2 className="text-white mb-4">
+            Sum of Actual Days by Subprocess{' '}
+            {selectedProcess && (
+              <span className="ml-2 text-sm text-blue-300 cursor-pointer underline" onClick={() => setSelectedProcess(null)}>
+                (Clear Filter)
+              </span>
+            )}
+          </h2>
           <ResponsiveContainer width="100%" height={600}>
             <BarChart layout="vertical" data={subprocessData} margin={{ left: 150 }}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -237,6 +278,15 @@ export default function UCIDashboard() {
             </BarChart>
           </ResponsiveContainer>
         </div>
+      </div>
+
+      <div className="mt-6 flex justify-center">
+        <button
+          onClick={() => window.location.href = "../continuous-monitoring"}
+          className="bg-gradient-to-r from-[#024673] to-[#5C99E3] hover:from-[#023d63] hover:to-[#4b88d2] text-white px-6 py-3 rounded-lg shadow-md transition-all duration-300 font-medium"
+        >
+          Back to Continuous Monitoring
+        </button>
       </div>
     </div>
   );
