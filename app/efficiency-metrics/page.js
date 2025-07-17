@@ -1,6 +1,6 @@
 "use client"
 import React from 'react';
-import { Factory, BarChart3, Users } from 'lucide-react';
+import { Factory, BarChart3, Users, Monitor } from 'lucide-react';
 
 export default function EfficiencyMetricsPage() {
   const cards = [
@@ -24,6 +24,13 @@ export default function EfficiencyMetricsPage() {
       icon: <Users className="h-8 w-8 text-purple-500" />,
       path: "/efficiency-metrics/resource-planning",
       borderColor: "bg-purple-500"
+    },
+    {
+      id: 4,
+      title: "Continuous Monitoring",
+      icon: <Monitor className="h-8 w-8 text-orange-500" />,
+      path: "/efficiency-metrics/continuous-monitoring",
+      borderColor: "bg-orange-500"
     },
   ];
 
