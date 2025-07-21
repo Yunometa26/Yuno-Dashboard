@@ -32,48 +32,63 @@ export default function UCIDashboard() {
   const [selectedProcess, setSelectedProcess] = useState(null);
 
   useEffect(() => {
-    fetch('/process data UCI Final.csv')
-      .then(res => res.text())
-      .then(text => {
-        Papa.parse(text, {
-          header: true,
-          complete: (results) => {
-            const grouped = new Map();
-            results.data.forEach(row => {
-              const orderId = row['Order ID'];
-              const start = new Date(row['Sub Actual Start Date']);
-              const end = new Date(row['Sub Actual End Date']);
-              if (!grouped.has(orderId)) grouped.set(orderId, []);
-              grouped.get(orderId).push({
-                ...row,
-                startDate: start,
-                endDate: end
-              });
+    Promise.all([
+      fetch('/process data UCI Final.csv').then(res => res.text()),
+      fetch('/Process Data UCI _..csv').then(res => res.text())
+    ]).then(([mainDataText, statusDataText]) => {
+      const statusResults = Papa.parse(statusDataText, { header: true });
+      const statusMap = new Map();
+      statusResults.data.forEach(row => {
+        if (row['Order ID']) {
+          statusMap.set(row['Order ID'], row['status']);
+        }
+      });
+
+      Papa.parse(mainDataText, {
+        header: true,
+        complete: (results) => {
+          const grouped = new Map();
+          results.data.forEach(row => {
+            const orderId = row['Order ID'];
+            if (!orderId) return;
+            const start = new Date(row['Sub Actual Start Date']);
+            const end = new Date(row['Sub Actual End Date']);
+            if (!grouped.has(orderId)) grouped.set(orderId, []);
+            grouped.get(orderId).push({
+              ...row,
+              startDate: start,
+              endDate: end
+            });
+          });
+
+          const cleaned = Array.from(grouped.entries()).map(([orderId, rows]) => {
+            const start = new Date(Math.min(...rows.map(r => r.startDate)));
+            const end = new Date(Math.max(...rows.map(r => r.endDate)));
+            
+            const latestRow = rows.reduce((latest, current) => {
+              return latest.endDate > current.endDate ? latest : current;
             });
 
-            const cleaned = Array.from(grouped.entries()).map(([orderId, rows]) => {
-              const start = new Date(Math.min(...rows.map(r => r.startDate)));
-              const end = new Date(Math.max(...rows.map(r => r.endDate)));
-              const targetCycle = rows.reduce((sum, r) => sum + Number(r['Target Cycle Time'] || 0), 0);
-              const actualCycle = rows.reduce((sum, r) => sum + Number(r['Actual Cycle Time'] || 0), 0);
-              const first = rows[0];
-              const dateFormat = { day: '2-digit', month: 'short', year: 'numeric' };
-              return {
-                orderId,
-                startDate: isNaN(start) ? '' : start.toLocaleDateString('en-GB', dateFormat),
-                endDate: isNaN(end) ? '' : end.toLocaleDateString('en-GB', dateFormat),
-                targetCycle,
-                actualCycle,
-                status: first['Status Type'],
-                location: first['Inventory Location'],
-                client: first['Client Name'],
-                rows
-              };
-            });
-            setData(cleaned);
-          }
-        });
+            const targetCycle = rows.reduce((sum, r) => sum + Number(r['Target Cycle Time'] || 0), 0);
+            const actualCycle = rows.reduce((sum, r) => sum + Number(r['Actual Cycle Time'] || 0), 0);
+            
+            const dateFormat = { day: '2-digit', month: 'short', year: 'numeric' };
+            return {
+              orderId,
+              startDate: isNaN(start) ? '' : start.toLocaleDateString('en-GB', dateFormat),
+              endDate: isNaN(end) ? '' : end.toLocaleDateString('en-GB', dateFormat),
+              targetCycle,
+              actualCycle,
+              status: statusMap.get(orderId) || latestRow['Status Type'],
+              location: latestRow['Inventory Location'],
+              client: latestRow['Client Name'],
+              rows
+            };
+          });
+          setData(cleaned);
+        }
       });
+    });
   }, []);
 
   const parseDateStr = (str) => {
