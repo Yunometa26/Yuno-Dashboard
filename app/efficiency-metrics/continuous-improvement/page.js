@@ -959,7 +959,7 @@ export default function EfficiencyMetricsPage() {
                       });
                     }
                   }}
-                                 />
+                />
                 </BarChart>
               </ResponsiveContainer>
             </div>

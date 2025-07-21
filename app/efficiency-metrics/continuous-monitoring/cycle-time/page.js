@@ -3,17 +3,17 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import Papa from 'papaparse';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList
 } from 'recharts';
 import GaugeChart from 'react-gauge-chart';
+import { parse } from 'date-fns';
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-white text-black p-2 rounded shadow-md">
         <p className="font-semibold">{label}</p>
-        <p>{`${payload[0].name}: ${payload[0].value}`}</p>
+        <p>{`${payload[0].name}: ${payload[0].value.toLocaleString(undefined, { maximumFractionDigits: 0 })} (${(payload[0].value / 1000).toFixed(1)}K)`}</p>
       </div>
     );
   }
@@ -24,17 +24,17 @@ export default function UCIDashboard() {
   const [data, setData] = useState([]);
   const [filters, setFilters] = useState({
     startDate: 'All',
+    endDate: 'All',
     location: 'All',
     client: 'All',
-    status: 'All',
-    month: 'All'
+    status: 'All'
   });
   const [selectedProcess, setSelectedProcess] = useState(null);
 
   useEffect(() => {
     fetch('/process data UCI Final.csv')
-      .then((res) => res.text())
-      .then((text) => {
+      .then(res => res.text())
+      .then(text => {
         Papa.parse(text, {
           header: true,
           complete: (results) => {
@@ -54,11 +54,9 @@ export default function UCIDashboard() {
             const cleaned = Array.from(grouped.entries()).map(([orderId, rows]) => {
               const start = new Date(Math.min(...rows.map(r => r.startDate)));
               const end = new Date(Math.max(...rows.map(r => r.endDate)));
-              const month = isNaN(start) ? '' : start.toLocaleString('default', { month: 'long' });
               const targetCycle = rows.reduce((sum, r) => sum + Number(r['Target Cycle Time'] || 0), 0);
               const actualCycle = rows.reduce((sum, r) => sum + Number(r['Actual Cycle Time'] || 0), 0);
               const first = rows[0];
-              // Format dates as '22 Jul 2025'
               const dateFormat = { day: '2-digit', month: 'short', year: 'numeric' };
               return {
                 orderId,
@@ -69,7 +67,6 @@ export default function UCIDashboard() {
                 status: first['Status Type'],
                 location: first['Inventory Location'],
                 client: first['Client Name'],
-                month,
                 rows
               };
             });
@@ -79,29 +76,36 @@ export default function UCIDashboard() {
       });
   }, []);
 
-  const monthOrder = ["January", "February", "March", "April", "May", "June", "July",
-    "August", "September", "October", "November", "December"];
+  const parseDateStr = (str) => {
+    try {
+      return parse(str, 'dd-MMM-yyyy', new Date());
+    } catch {
+      return new Date('Invalid Date');
+    }
+  };
 
   const sortValues = (values, key) => {
-    if (key === 'month') {
-      return values.sort((a, b) => monthOrder.indexOf(a) - monthOrder.indexOf(b));
+    if (key === 'startDate' || key === 'endDate') {
+      return values
+        .filter(val => val && val !== 'Invalid Date')
+        .sort((a, b) => parseDateStr(a) - parseDateStr(b));
     }
     const allNumbers = values.every(val => !isNaN(val));
     return values.sort((a, b) => allNumbers ? Number(a) - Number(b) : a.localeCompare(b));
   };
 
   const uniqueValues = (key) => {
-    const values = [...new Set(filteredData.map(d => d[key]).filter(Boolean))];
+    const values = [...new Set(data.map(d => d[key]).filter(Boolean))];
     return sortValues(values, key);
   };
 
   const filteredData = useMemo(() => {
     return data.filter(d =>
       (filters.startDate === 'All' || d.startDate === filters.startDate) &&
+      (filters.endDate === 'All' || d.endDate === filters.endDate) &&
       (filters.location === 'All' || d.location === filters.location) &&
       (filters.client === 'All' || d.client === filters.client) &&
-      (filters.status === 'All' || d.status === filters.status) &&
-      (filters.month === 'All' || d.month === filters.month)
+      (filters.status === 'All' || d.status === filters.status)
     );
   }, [data, filters]);
 
@@ -124,11 +128,12 @@ export default function UCIDashboard() {
     });
     return [...map.entries()].map(([key, value]) => {
       const [seq, name] = key.split('-');
-      return { Process: name, Sequence: +seq, 'Sum of Actual Cycle Time': value };
+      return { Process: name, Sequence: +seq, 'Actual Cycle Time': value };
     }).sort((a, b) => a.Sequence - b.Sequence);
   }, [allRows]);
 
   const subprocessData = useMemo(() => {
+    if (!selectedProcess) return [];
     const map = new Map();
     allRows.forEach(row => {
       const subprocess = row['Subprocess'];
@@ -137,14 +142,14 @@ export default function UCIDashboard() {
       const key = `${seq}-${subprocess}`;
       if (
         subprocess && seq &&
-        (!selectedProcess || selectedProcess === process)
+        selectedProcess === process
       ) {
         map.set(key, (map.get(key) || 0) + Number(row['Actual Cycle Time'] || 0));
       }
     });
     return [...map.entries()].map(([key, value]) => {
       const [seq, name] = key.split('-');
-      return { Subprocess: name, Sequence: +seq, 'Sum of Actual Cycle Time': value };
+      return { Subprocess: name, Sequence: +seq, 'Actual Cycle Time': value };
     }).sort((a, b) => a.Sequence - b.Sequence);
   }, [allRows, selectedProcess]);
 
@@ -153,17 +158,28 @@ export default function UCIDashboard() {
 
   const filterLabels = {
     startDate: 'Start Date',
+    endDate: 'End Date',
     location: 'Location',
     client: 'Client',
-    status: 'Status',
-    month: 'Month'
+    status: 'Status'
+  };
+
+  const formatK = (value) => `${(value / 1000).toFixed(1)}K`;
+
+  const handleProcessBarClick = (data) => {
+    if (data && data.activeLabel) {
+      // activeLabel is the process name when clicking the bar
+      setSelectedProcess(data.activeLabel);
+    } else if (data && data.Process) {
+      setSelectedProcess(data.Process);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#024673] to-[#024673] text-gray-100 p-6 space-y-6">
       <h1 className="text-4xl font-bold text-center mb-6">Cycle Time Dashboard</h1>
 
-      {/* Filter Cards */}
+      {/* Filters */}
       <div className="grid grid-cols-5 gap-4">
         {Object.entries(filters).map(([key, value]) => (
           <div key={key} className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-4">
@@ -182,30 +198,30 @@ export default function UCIDashboard() {
         ))}
       </div>
 
-      {/* Table and Stats */}
+      {/* Table and Cards */}
       <div className="flex flex-col lg:flex-row gap-4">
         <div className="flex-1 bg-blue-950/80 rounded-xl shadow-lg border border-white/10 overflow-hidden">
           <div className="overflow-y-auto max-h-[400px]">
             <table className="text-white w-full">
               <thead className="sticky top-0 bg-blue-950/90 z-10">
                 <tr className="text-center">
-                  <th className="px-4 py-2 text-center">Order ID</th>
-                  <th className="px-4 py-2 text-center">Start Date</th>
-                  <th className="px-4 py-2 text-center">End Date</th>
-                  <th className="px-4 py-2 text-center">Sub TAT Day</th>
-                  <th className="px-6 py-2 text-center">Sum of Actual Cycle Time</th>
-                  <th className="px-4 py-2 text-center">Status</th>
+                  <th className="px-4 py-2">Order ID</th>
+                  <th className="px-4 py-2">Start Date</th>
+                  <th className="px-4 py-2">End Date</th>
+                  <th className="px-4 py-2">Actual Cycle Time</th>
+                  <th className="px-4 py-2">Target Cycle Time</th>
+                  <th className="px-4 py-2">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredData.map((d, i) => (
                   <tr key={i} className="border-t border-white/10 text-center">
-                    <td className="px-4 py-2 text-center">{d.orderId}</td>
-                    <td className="px-4 py-2 text-center">{d.startDate}</td>
-                    <td className="px-4 py-2 text-center">{d.endDate}</td>
-                    <td className="px-4 py-2 text-center">{d.targetCycle}</td>
-                    <td className="px-6 py-2 text-center">{d.actualCycle}</td>
-                    <td className="px-4 py-2 text-center">{d.status}</td>
+                    <td className="px-4 py-2">{d.orderId}</td>
+                    <td className="px-4 py-2">{d.startDate}</td>
+                    <td className="px-4 py-2">{d.endDate}</td>
+                    <td className="px-4 py-2">{d.actualCycle}</td>
+                    <td className="px-4 py-2">{d.targetCycle}</td>
+                    <td className="px-4 py-2">{d.status}</td>
                   </tr>
                 ))}
               </tbody>
@@ -213,7 +229,7 @@ export default function UCIDashboard() {
           </div>
         </div>
 
-        {/* Summary Cards */}
+        {/* Cards */}
         <div className="flex flex-col gap-4 mt-6 w-full lg:w-1/4 justify-between">
           <div className="bg-blue-950/80 rounded-xl shadow-lg border border-white/10 p-6 h-[190px] flex flex-col items-center justify-center">
             <GaugeChart
@@ -228,9 +244,9 @@ export default function UCIDashboard() {
               formatTextValue={() => `${avgCycle}`}
             />
             <div className="flex justify-between text-xs w-full text-white mt-2 px-2">
-              <span className="text-left">Min: {minCycle}</span>
-              <span className="text-center">Avg: {avgCycle}</span>
-              <span className="text-right">Max: {maxCycle}</span>
+              <span>Min: {minCycle}</span>
+              <span>Avg: {avgCycle}</span>
+              <span>Max: {maxCycle}</span>
             </div>
           </div>
 
@@ -243,48 +259,47 @@ export default function UCIDashboard() {
         </div>
       </div>
 
-      {/* Bar Charts */}
+      {/* Graphs */}
       <div className="grid grid-cols-1 gap-6">
         <div className="bg-blue-950/80 rounded-xl shadow-lg border border-white/10 p-6">
-          <h2 className="text-white mb-4">Sum of Actual Cycle Time by Process</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart
-              layout="vertical"
-              data={processData}
-              margin={{ left: 100 }}
-              onClick={({ activeLabel }) => {
-                const clicked = processData.find(p => p.Process === activeLabel);
-                if (clicked) setSelectedProcess(clicked.Process);
-              }}
-            >
+          <h2 className="text-white mb-4">Actual Cycle Time by Process</h2>
+          <ResponsiveContainer width="100%" height={500}>
+            <BarChart layout="vertical" data={processData} margin={{ left: 100 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" stroke="#fff" />
+              <XAxis type="number" stroke="#fff" tickFormatter={formatK} />
               <YAxis dataKey="Process" type="category" stroke="#fff" width={150} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="Sum of Actual Cycle Time" fill="#3399ff" />
+              <Bar dataKey="Actual Cycle Time" fill="#3399ff" onClick={handleProcessBarClick} cursor="pointer">
+                <LabelList dataKey="Actual Cycle Time" position="right" formatter={formatK} fill="#fff" />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-blue-950/80 rounded-xl shadow-lg border border-white/10 p-6">
-          <h2 className="text-white mb-4">
-            Sum of Actual Cycle Time by Subprocess{' '}
-            {selectedProcess && (
-              <span className="ml-2 text-sm text-blue-300 cursor-pointer underline" onClick={() => setSelectedProcess(null)}>
+        {selectedProcess && (
+          <div className="bg-blue-950/80 rounded-xl shadow-lg border border-white/10 p-6">
+            <h2 className="text-white mb-4">
+              Actual Cycle Time by Subprocess{' '}
+              <span
+                className="ml-2 text-sm text-blue-300 cursor-pointer underline"
+                onClick={() => setSelectedProcess(null)}
+              >
                 (Clear Filter)
               </span>
-            )}
-          </h2>
-          <ResponsiveContainer width="100%" height={600}>
-            <BarChart layout="vertical" data={subprocessData} margin={{ left: 150 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" stroke="#fff" />
-              <YAxis dataKey="Subprocess" type="category" stroke="#fff" width={250} />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="Sum of Actual Cycle Time" fill="#3399ff" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+            </h2>
+            <ResponsiveContainer width="95%" height={500}>
+              <BarChart layout="vertical" data={subprocessData} margin={{ left: 100, right: 60 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" stroke="#fff" tickFormatter={formatK} domain={[0, 'dataMax + 0.2*dataMax']} />
+                <YAxis dataKey="Subprocess" type="category" stroke="#fff" width={150} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="Actual Cycle Time" fill="#3399ff">
+                  <LabelList dataKey="Actual Cycle Time" position="right" formatter={formatK} fill="#fff" />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
 
       <div className="mt-6 flex justify-center">
