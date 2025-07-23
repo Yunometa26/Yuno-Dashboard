@@ -3,10 +3,10 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import Papa from 'papaparse';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, LabelList
 } from 'recharts';
 import GaugeChart from 'react-gauge-chart';
-import { parse } from 'date-fns';
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
@@ -20,6 +20,8 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
+const cleanName = (name) => name?.replace(/^UCI\s*[-]?\s*/i, '').trim();
+
 export default function UCIDashboard() {
   const [data, setData] = useState([]);
   const [filters, setFilters] = useState({
@@ -27,8 +29,11 @@ export default function UCIDashboard() {
     endDate: 'All',
     location: 'All',
     client: 'All',
-    status: 'All'
+    status: 'All',
+    'Responsible Person': 'All',
+    orderId: 'All',
   });
+  const [responsiblePersons, setResponsiblePersons] = useState([]);
   const [selectedProcess, setSelectedProcess] = useState(null);
 
   useEffect(() => {
@@ -48,11 +53,16 @@ export default function UCIDashboard() {
         header: true,
         complete: (results) => {
           const grouped = new Map();
+          const responsibleSet = new Set();
+
           results.data.forEach(row => {
             const orderId = row['Order ID'];
             if (!orderId) return;
             const start = new Date(row['Sub Actual Start Date']);
             const end = new Date(row['Sub Actual End Date']);
+            const resp = row['Responsible Person'];
+            if (resp) responsibleSet.add(resp);
+
             if (!grouped.has(orderId)) grouped.set(orderId, []);
             grouped.get(orderId).push({
               ...row,
@@ -61,55 +71,62 @@ export default function UCIDashboard() {
             });
           });
 
+          setResponsiblePersons([...responsibleSet].sort((a, b) => a.localeCompare(b)));
+
           const cleaned = Array.from(grouped.entries()).map(([orderId, rows]) => {
             const start = new Date(Math.min(...rows.map(r => r.startDate)));
             const end = new Date(Math.max(...rows.map(r => r.endDate)));
-            
-            const latestRow = rows.reduce((latest, current) => {
-              return latest.endDate > current.endDate ? latest : current;
-            });
-
+            const latestRow = rows.reduce((latest, current) => latest.endDate > current.endDate ? latest : current);
             const targetCycle = rows.reduce((sum, r) => sum + Number(r['Target Cycle Time'] || 0), 0);
             const actualCycle = rows.reduce((sum, r) => sum + Number(r['Actual Cycle Time'] || 0), 0);
-            
-            const dateFormat = { day: '2-digit', month: 'short', year: 'numeric' };
+
+            const formatDate = (date) => date.toLocaleDateString('en-GB', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric'
+            });
+
             return {
               orderId,
-              startDate: isNaN(start) ? '' : start.toLocaleDateString('en-GB', dateFormat),
-              endDate: isNaN(end) ? '' : end.toLocaleDateString('en-GB', dateFormat),
+              startDate: formatDate(start),
+              endDate: formatDate(end),
               targetCycle,
               actualCycle,
               status: statusMap.get(orderId) || latestRow['Status Type'],
               location: latestRow['Inventory Location'],
               client: latestRow['Client Name'],
+              'Responsible Person': latestRow['Responsible Person'],
               rows
             };
           });
+
           setData(cleaned);
         }
       });
     });
   }, []);
 
-  const parseDateStr = (str) => {
-    try {
-      return parse(str, 'dd-MMM-yyyy', new Date());
-    } catch {
-      return new Date('Invalid Date');
-    }
+  const fullDateSort = (values) => {
+    return values.sort((a, b) => {
+      const [da, ma, ya] = a.split(' ');
+      const [db, mb, yb] = b.split(' ');
+      const dateA = new Date(`${ma} ${da}, ${ya}`);
+      const dateB = new Date(`${mb} ${db}, ${yb}`);
+      return dateA - dateB;
+    });
   };
 
   const sortValues = (values, key) => {
     if (key === 'startDate' || key === 'endDate') {
-      return values
-        .filter(val => val && val !== 'Invalid Date')
-        .sort((a, b) => parseDateStr(a) - parseDateStr(b));
+      return fullDateSort(values.filter(Boolean));
     }
     const allNumbers = values.every(val => !isNaN(val));
     return values.sort((a, b) => allNumbers ? Number(a) - Number(b) : a.localeCompare(b));
   };
 
   const uniqueValues = (key) => {
+    if (key === 'Responsible Person') return responsiblePersons;
+    if (key === 'orderId') return sortValues(data.map(d => d.orderId), key);
     const values = [...new Set(data.map(d => d[key]).filter(Boolean))];
     return sortValues(values, key);
   };
@@ -120,16 +137,18 @@ export default function UCIDashboard() {
       (filters.endDate === 'All' || d.endDate === filters.endDate) &&
       (filters.location === 'All' || d.location === filters.location) &&
       (filters.client === 'All' || d.client === filters.client) &&
-      (filters.status === 'All' || d.status === filters.status)
+      (filters.status === 'All' || d.status === filters.status) &&
+      (filters['Responsible Person'] === 'All' || d['Responsible Person'] === filters['Responsible Person']) &&
+      (filters.orderId === 'All' || d.orderId === filters.orderId)
     );
   }, [data, filters]);
+
+  const allRows = useMemo(() => filteredData.flatMap(d => d.rows), [filteredData]);
 
   const avgCycle = useMemo(() => {
     const vals = filteredData.map(d => d.actualCycle);
     return vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2) : '0';
   }, [filteredData]);
-
-  const allRows = useMemo(() => filteredData.flatMap(d => d.rows), [filteredData]);
 
   const processData = useMemo(() => {
     const map = new Map();
@@ -155,10 +174,7 @@ export default function UCIDashboard() {
       const seq = row['Subprocess Sequence'];
       const process = row['Process'];
       const key = `${seq}-${subprocess}`;
-      if (
-        subprocess && seq &&
-        selectedProcess === process
-      ) {
+      if (subprocess && seq && selectedProcess === process) {
         map.set(key, (map.get(key) || 0) + Number(row['Actual Cycle Time'] || 0));
       }
     });
@@ -171,49 +187,88 @@ export default function UCIDashboard() {
   const minCycle = useMemo(() => Math.min(...filteredData.map(d => d.actualCycle)), [filteredData]);
   const maxCycle = useMemo(() => Math.max(...filteredData.map(d => d.actualCycle)), [filteredData]);
 
+  const formatK = (value) => `${(value / 1000).toFixed(1)}K`;
+  const handleProcessBarClick = (data) => {
+    if (data?.Process) setSelectedProcess(data.Process);
+  };
+
   const filterLabels = {
     startDate: 'Start Date',
     endDate: 'End Date',
     location: 'Location',
     client: 'Client',
-    status: 'Status'
+    status: 'Status',
+    'Responsible Person': 'Responsible Person',
+    orderId: 'Order ID',
   };
 
-  const formatK = (value) => `${(value / 1000).toFixed(1)}K`;
-
-  const handleProcessBarClick = (data) => {
-    if (data && data.activeLabel) {
-      // activeLabel is the process name when clicking the bar
-      setSelectedProcess(data.activeLabel);
-    } else if (data && data.Process) {
-      setSelectedProcess(data.Process);
-    }
-  };
+  const filterKeys = ['startDate', 'endDate', 'location', 'orderId', 'Responsible Person', 'client', 'status'];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#024673] to-[#024673] text-gray-100 p-6 space-y-6">
       <h1 className="text-4xl font-bold text-center mb-6">Cycle Time Dashboard</h1>
 
-      {/* Filters */}
-      <div className="grid grid-cols-5 gap-4">
-        {Object.entries(filters).map(([key, value]) => (
-          <div key={key} className="bg-blue-950/80 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-4">
+      {/* Filters layout */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {filterKeys.slice(0, 3).map((key) => (
+          <div key={key} className="bg-blue-950/80 rounded-xl shadow-lg border border-white/10 p-4">
             <label className="block mb-2 text-sm font-medium">{filterLabels[key]}</label>
             <select
-              value={value}
+              value={filters[key]}
               onChange={e => setFilters(prev => ({ ...prev, [key]: e.target.value }))}
               className="w-full bg-[#1a365d] border border-gray-600 rounded-lg p-2 text-white"
             >
               <option value="All">All</option>
               {uniqueValues(key).map(val => (
-                <option key={val} value={val}>{val}</option>
+                <option key={val} value={val}>
+                  {key === 'Responsible Person' ? cleanName(val) : val}
+                </option>
               ))}
             </select>
           </div>
         ))}
       </div>
 
-      {/* Table and Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {filterKeys.slice(3, 6).map((key) => (
+          <div key={key} className="bg-blue-950/80 rounded-xl shadow-lg border border-white/10 p-4">
+            <label className="block mb-2 text-sm font-medium">{filterLabels[key]}</label>
+            <select
+              value={filters[key]}
+              onChange={e => setFilters(prev => ({ ...prev, [key]: e.target.value }))}
+              className="w-full bg-[#1a365d] border border-gray-600 rounded-lg p-2 text-white"
+            >
+              <option value="All">All</option>
+              {uniqueValues(key).map(val => (
+                <option key={val} value={val}>
+                  {key === 'Responsible Person' ? cleanName(val) : val}
+                </option>
+              ))}
+            </select>
+          </div>
+        ))}
+      </div>
+
+      <div className="w-full md:w-1/3">
+        {filterKeys.slice(6).map((key) => (
+          <div key={key} className="bg-blue-950/80 rounded-xl shadow-lg border border-white/10 p-4">
+            <label className="block mb-2 text-sm font-medium">{filterLabels[key]}</label>
+            <select
+              value={filters[key]}
+              onChange={e => setFilters(prev => ({ ...prev, [key]: e.target.value }))}
+              className="w-full bg-[#1a365d] border border-gray-600 rounded-lg p-2 text-white"
+            >
+              <option value="All">All</option>
+              {uniqueValues(key).map(val => (
+                <option key={val} value={val}>
+                  {key === 'Responsible Person' ? cleanName(val) : val}
+                </option>
+              ))}
+            </select>
+          </div>
+        ))}
+      </div>
+
       <div className="flex flex-col lg:flex-row gap-4">
         <div className="flex-1 bg-blue-950/80 rounded-xl shadow-lg border border-white/10 overflow-hidden">
           <div className="overflow-y-auto max-h-[400px]">
@@ -244,7 +299,6 @@ export default function UCIDashboard() {
           </div>
         </div>
 
-        {/* Cards */}
         <div className="flex flex-col gap-4 mt-6 w-full lg:w-1/4 justify-between">
           <div className="bg-blue-950/80 rounded-xl shadow-lg border border-white/10 p-6 h-[190px] flex flex-col items-center justify-center">
             <GaugeChart
@@ -274,7 +328,6 @@ export default function UCIDashboard() {
         </div>
       </div>
 
-      {/* Graphs */}
       <div className="grid grid-cols-1 gap-6">
         <div className="bg-blue-950/80 rounded-xl shadow-lg border border-white/10 p-6">
           <h2 className="text-white mb-4">Actual Cycle Time by Process</h2>
