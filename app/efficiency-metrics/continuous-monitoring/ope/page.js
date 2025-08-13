@@ -53,32 +53,35 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 export default function OpeDashboard() {
   const [allData, setAllData] = useState([]);
-  const [data, setData] = useState([]);
+  const [data, setData] = useState([]); // filtered data
   const [filters, setFilters] = useState({});
   const [uniqueFilters, setUniqueFilters] = useState({});
   const [daysInMonth, setDaysInMonth] = useState([]);
 
+  // Load CSV once
   useEffect(() => {
-    Papa.parse('/Process Data UCI _.csv', {
+    Papa.parse('/OPE.csv', {
       header: true,
       download: true,
       skipEmptyLines: true,
-      complete: ({ data }) => {
-        const cleaned = data.map((row) => {
+      complete: ({ data: raw }) => {
+        // Clean whitespace from keys and values
+        const cleaned = raw.map((row) => {
           const cleanedRow = {};
           Object.entries(row).forEach(([k, v]) => {
-            cleanedRow[k.trim()] = typeof v === 'string' ? v.trim() : v;
+            cleanedRow[k && typeof k === 'string' ? k.trim() : k] = typeof v === 'string' ? v.trim() : v;
           });
           return cleanedRow;
         });
 
         setAllData(cleaned);
         setData(cleaned);
-        updateUniqueFilters(cleaned);
+        updateUniqueFilters(cleaned); // UPDATED: initialize filters/days based on full dataset
       }
     });
   }, []);
 
+  // Build unique values for filters and days
   const updateUniqueFilters = (dataset) => {
     const keys = ["Order ID", "Inventory Location", "Process", "Responsible Person"];
     const out = {};
@@ -86,10 +89,11 @@ export default function OpeDashboard() {
     keys.forEach(k => {
       const raw = dataset.map(r => r[k]).filter(Boolean);
       let cleaned = k === "Responsible Person"
-        ? raw.map(name => name.replace(/UCI/gi, '').trim())
+        ? raw.map(name => (typeof name === 'string' ? name.replace(/UCI/gi, '').trim() : name))
         : raw;
 
       if (k === "Process") {
+        // keep in PROCESS_SEQUENCE order if present
         const seen = new Set();
         cleaned = cleaned.filter(p => {
           if (seen.has(p)) return false;
@@ -98,12 +102,13 @@ export default function OpeDashboard() {
         });
         cleaned = PROCESS_SEQUENCE.filter(p => cleaned.includes(p));
       } else {
-        cleaned = Array.from(new Set(cleaned)).sort((a, b) => a.localeCompare(b));
+        cleaned = Array.from(new Set(cleaned)).sort((a, b) => String(a).localeCompare(String(b)));
       }
 
       out[k] = cleaned;
     });
 
+    // Unique start dates (only valid ones), formatted as "D MMM YYYY"
     const dates = dataset.map(r => r["Sub Actual Start Date"]).filter(Boolean);
     const uniqueDates = Array.from(new Set(dates))
       .map(d => dayjs(d))
@@ -113,21 +118,39 @@ export default function OpeDashboard() {
 
     out.startDate = uniqueDates;
     out.endDate = uniqueDates;
-    setUniqueFilters(out);
 
-    const fullDays = Array.from({ length: 31 }, (_, i) => `${i + 1}`);
-    setDaysInMonth(fullDays);
+    // UPDATED: Compute days that actually exist in dataset (so Day 1 is included when present)
+    const daysPresentSet = new Set();
+    dataset.forEach(r => {
+      const d = dayjs(r['Sub Actual Start Date']);
+      if (d.isValid()) daysPresentSet.add(String(d.date())); // keep as string to match select value type
+    });
+    let daysArr = Array.from(daysPresentSet).sort((a, b) => Number(a) - Number(b));
+    // fallback to 1..31 if none (keeps UI working)
+    if (daysArr.length === 0) {
+      daysArr = Array.from({ length: 31 }, (_, i) => i + 1);
+    }
+
+    setUniqueFilters(out);
+    setDaysInMonth(daysArr);
   };
 
+  // Apply filters to allData and return filtered rows
   const applyFilters = () => {
     return allData.filter(row => {
       const subDate = row["Sub Actual Start Date"];
       const rowDateStr = formatDateDisplay(subDate);
-      const rowDay = dayjs(subDate).date().toString();
+      const rowDay = dayjs(subDate).date(); // numeric day
 
+      // startDate / endDate are in format "D MMM YYYY" (from uniqueFilters)
       if (filters.startDate && filters.startDate !== "All" && rowDateStr !== filters.startDate) return false;
       if (filters.endDate && filters.endDate !== "All" && rowDateStr !== filters.endDate) return false;
-      if (filters.Day && filters.Day !== "All" && rowDay !== filters.Day) return false;
+
+      // UPDATED: Day comparison numeric so "1" and 1 match
+      if (filters.Day && filters.Day !== "All") {
+        const filterDayNum = Number(filters.Day);
+        if (Number.isNaN(filterDayNum) || rowDay !== filterDayNum) return false;
+      }
 
       for (let key of ["Order ID", "Inventory Location", "Process", "Responsible Person"]) {
         const filterVal = filters[key];
@@ -142,11 +165,13 @@ export default function OpeDashboard() {
     });
   };
 
+  // When filters change, re-apply and update available unique filters/days based on the filtered dataset
   useEffect(() => {
     const fd = applyFilters();
     setData(fd);
-    updateUniqueFilters(fd);
-  }, [filters]);
+    updateUniqueFilters(fd); // UPDATED: recompute filter options & days from filtered data (so Day 1 stays available if present)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, allData]); // include allData so initial load triggers
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -156,56 +181,74 @@ export default function OpeDashboard() {
     }));
   };
 
+  // compute OPE using your formulas (Availability x Performance x Quality / 10000)
   const computeOPE = (rows) => {
-    const availability = (() => {
-      const totalTAT = rows.reduce((sum, r) => sum + parseFloat(r['Sub TAT (Days)'] || 0), 0);
-      const totalActual = rows.reduce((sum, r) => sum + parseFloat(r['Actual Days'] || 0), 0);
-      if (totalActual === 0) return null;
-      return Math.min(100, (totalTAT / totalActual) * 100);
-    })();
+    if (!rows || rows.length === 0) return null;
 
-    const performance = (() => {
-      const validRows = rows.filter(r => parseFloat(r['Actual Days']) !== 0);
-      if (validRows.length === 0) return null;
-      return validRows.reduce((sum, r) => {
-        const tat = parseFloat(r['Sub TAT (Days)'] || 0);
-        const act = parseFloat(r['Actual Days'] || 0);
-        return sum + (tat === 0 ? 0 : Math.min(100, (tat / act) * 100));
-      }, 0) / validRows.length;
-    })();
+    // Availability
+    const totalTAT = rows.reduce((sum, r) => sum + parseFloat(r['Target Cycle Time'] || 0), 0);
+    const totalActual = rows.reduce((sum, r) => sum + parseFloat(r['Actual Cycle Time'] || 0), 0);
+    const availability = totalActual === 0 ? null : Math.min(100, (totalTAT / totalActual) * 100);
 
-    const quality = (() => {
-      const delayDays = rows.reduce((sum, r) => {
-        const delay = parseFloat(r['Actual Days'] || 0) - parseFloat(r['Sub TAT (Days)'] || 0);
-        return sum + (delay > 0 ? delay : 0);
-      }, 0);
-      const totalTAT = rows.reduce((sum, r) => sum + parseFloat(r['Sub TAT (Days)'] || 0), 0);
-      if (totalTAT === 0) return null;
-      return Math.max(0, 100 - (delayDays / totalTAT) * 100);
-    })();
+    // Performance (AVERAGEX with min 99)
+    const validPerfRows = rows.filter(r => parseFloat(r['Actual Cycle Time']) !== 0);
+    const performance = validPerfRows.length === 0 ? null :
+      validPerfRows.reduce((sum, r) => {
+        const tat = parseFloat(r['Target Cycle Time'] || 0);
+        const act = parseFloat(r['Actual Cycle Time'] || 0);
+        return sum + (tat === 0 ? 0 : Math.min(99, (tat / act) * 100));
+      }, 0) / validPerfRows.length;
+
+    // Quality
+    const delayDays = rows.reduce((sum, r) => {
+      const delay = parseFloat(r['Actual Cycle Time'] || 0) - parseFloat(r['Target Cycle Time'] || 0);
+      return sum + (delay > 0 ? delay : 0);
+    }, 0);
+    const rawQuality = totalTAT === 0 ? null : 100 - (delayDays / totalTAT) * 100;
+    const quality = rawQuality == null ? null : Math.max(0, Math.min(98, rawQuality));
 
     if (availability == null || performance == null || quality == null) return null;
     return +(availability * performance * quality / 10000).toFixed(2);
   };
 
+  // Build chart data by Day — ensure daysInMonth (which includes day "1" when present) are used and produce 0 if computeOPE returns null
   const chartDataByDay = useMemo(() => {
     const grouped = {};
     data.forEach((row) => {
       const d = dayjs(row['Sub Actual Start Date']);
       if (!d.isValid()) return;
-      const dayNum = d.date().toString();
+      const dayNum = d.date(); // numeric day
       if (!grouped[dayNum]) grouped[dayNum] = [];
       grouped[dayNum].push(row);
     });
-    return Object.entries(grouped)
-      .map(([day, rows]) => ({
-        name: day,
-        ope: computeOPE(rows) ?? 0
-      }))
-      .sort((a, b) => parseInt(a.name) - parseInt(b.name));
-  }, [data]);
 
+    // daysInMonth contains string days like "1", "2" — convert to numbers and sort
+    const daysToEnsure = (daysInMonth || []).map(x => Number(x)).filter(n => !Number.isNaN(n)).sort((a, b) => a - b);
+
+    const final = [];
+    if (daysToEnsure.length > 0) {
+      daysToEnsure.forEach(dn => {
+        const rowsForDay = grouped[dn] || [];
+        const ope = computeOPE(rowsForDay);
+        final.push({
+          name: String(dn),
+          ope: ope == null ? 0 : ope // UPDATED: show 0 when no OPE computed so chart still displays bar
+        });
+      });
+    } else {
+      // fallback to existing grouped days
+      Object.entries(grouped).forEach(([day, rows]) => {
+        const ope = computeOPE(rows);
+        final.push({ name: String(day), ope: ope == null ? 0 : ope });
+      });
+    }
+
+    return final.sort((a, b) => Number(a.name) - Number(b.name));
+  }, [data, daysInMonth]);
+
+  // Chart data by Responsible Person — ensure we include all persons from uniqueFilters (show 0 when no rows)
   const chartDataByPerson = useMemo(() => {
+    const persons = uniqueFilters['Responsible Person'] || [];
     const grouped = {};
     data.forEach(row => {
       const rawName = row['Responsible Person'];
@@ -213,12 +256,27 @@ export default function OpeDashboard() {
       if (!grouped[name]) grouped[name] = [];
       grouped[name].push(row);
     });
+
+    // Use persons list to preserve order and include zeros
+    if (persons.length > 0) {
+      return persons.map(p => ({
+        name: p,
+        ope: (() => {
+          const rows = grouped[p] || [];
+          const v = computeOPE(rows);
+          return v == null ? 0 : v;
+        })()
+      }));
+    }
+
+    // fallback to grouped keys
     return Object.entries(grouped).map(([key, rows]) => ({
       name: key,
       ope: computeOPE(rows) ?? 0
     }));
-  }, [data]);
+  }, [data, uniqueFilters]);
 
+  // Chart data by Month — include months present in data (sorted by MONTH_ORDER)
   const chartDataByMonth = useMemo(() => {
     const grouped = {};
     data.forEach(row => {
@@ -227,12 +285,25 @@ export default function OpeDashboard() {
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(row);
     });
-    return Object.entries(grouped)
-      .map(([month, rows]) => ({
-        name: month,
-        ope: computeOPE(rows) ?? 0
-      }))
-      .sort((a, b) => MONTH_ORDER.indexOf(a.name) - MONTH_ORDER.indexOf(b.name));
+
+    const months = Object.keys(grouped).length > 0
+      ? Object.keys(grouped)
+      : []; // if empty, will be empty
+
+    // sort months using MONTH_ORDER, keep unknowns at end
+    const sorted = months.sort((a, b) => {
+      const ia = MONTH_ORDER.indexOf(a);
+      const ib = MONTH_ORDER.indexOf(b);
+      if (ia === -1 && ib === -1) return a.localeCompare(b);
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+
+    return sorted.map(m => ({
+      name: m,
+      ope: computeOPE(grouped[m]) ?? 0
+    }));
   }, [data]);
 
   const totalOpe = computeOPE(data) ?? 0;
@@ -271,7 +342,7 @@ export default function OpeDashboard() {
               <YAxis tick={{ fill: 'white' }} />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="ope" fill={COLORS[0]}>
-                <LabelList dataKey="ope" position="top" formatter={(v) => `${v}%`} fill="#fff" />
+                <LabelList dataKey="ope" position="top" formatter={(v) => v + "%"} fill="#fff" />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -298,7 +369,7 @@ export default function OpeDashboard() {
             <YAxis tick={{ fill: 'white' }} />
             <Tooltip content={<CustomTooltip />} />
             <Bar dataKey="ope" fill={COLORS[0]}>
-              <LabelList dataKey="ope" position="top" formatter={(v) => `${v}%`} fill="#fff" />
+              <LabelList dataKey="ope" position="top" formatter={(v) => v + "%"} fill="#fff" />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
