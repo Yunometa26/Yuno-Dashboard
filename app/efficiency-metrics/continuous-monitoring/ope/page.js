@@ -27,6 +27,7 @@ const PROCESS_SEQUENCE = ['Invoice', 'Procurement', 'Production', 'Dispatch', 'P
 const FILTER_ORDER = [
   { key: "startDate", label: "Start Date", type: "select-date" },
   { key: "endDate", label: "End Date", type: "select-date" },
+  { key: "Month", label: "Month", type: "select-month" },
   { key: "Day", label: "Day", type: "select-day" },
   { key: "Order ID", label: "Order Id", type: "select" },
   { key: "Inventory Location", label: "Location", type: "select" },
@@ -119,6 +120,25 @@ export default function OpeDashboard() {
     out.startDate = uniqueDates;
     out.endDate = uniqueDates;
 
+    // Extract unique months from the dataset
+    const monthsInData = dataset.map(r => {
+      const date = new Date(r['Sub Actual Start Date']);
+      return !isNaN(date) ? format(date, 'MMMM') : null;
+    }).filter(Boolean);
+    
+    const uniqueMonths = Array.from(new Set(monthsInData));
+    // Sort months according to MONTH_ORDER
+    const sortedMonths = uniqueMonths.sort((a, b) => {
+      const ia = MONTH_ORDER.indexOf(a);
+      const ib = MONTH_ORDER.indexOf(b);
+      if (ia === -1 && ib === -1) return a.localeCompare(b);
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+
+    out.Month = sortedMonths;
+
     // UPDATED: Compute days that actually exist in dataset (so Day 1 is included when present)
     const daysPresentSet = new Set();
     dataset.forEach(r => {
@@ -141,10 +161,14 @@ export default function OpeDashboard() {
       const subDate = row["Sub Actual Start Date"];
       const rowDateStr = formatDateDisplay(subDate);
       const rowDay = dayjs(subDate).date(); // numeric day
+      const rowMonth = !isNaN(new Date(subDate)) ? format(new Date(subDate), 'MMMM') : '';
 
       // startDate / endDate are in format "D MMM YYYY" (from uniqueFilters)
       if (filters.startDate && filters.startDate !== "All" && rowDateStr !== filters.startDate) return false;
       if (filters.endDate && filters.endDate !== "All" && rowDateStr !== filters.endDate) return false;
+
+      // Month filter
+      if (filters.Month && filters.Month !== "All" && rowMonth !== filters.Month) return false;
 
       // UPDATED: Day comparison numeric so "1" and 1 match
       if (filters.Day && filters.Day !== "All") {
@@ -169,7 +193,10 @@ export default function OpeDashboard() {
   useEffect(() => {
     const fd = applyFilters();
     setData(fd);
-    updateUniqueFilters(fd); // UPDATED: recompute filter options & days from filtered data (so Day 1 stays available if present)
+    // Only update unique filters from full dataset to preserve all available options
+    if (allData.length > 0) {
+      updateUniqueFilters(allData);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, allData]); // include allData so initial load triggers
 
@@ -222,29 +249,26 @@ export default function OpeDashboard() {
       grouped[dayNum].push(row);
     });
 
-    // daysInMonth contains string days like "1", "2" — convert to numbers and sort
-    const daysToEnsure = (daysInMonth || []).map(x => Number(x)).filter(n => !Number.isNaN(n)).sort((a, b) => a - b);
+    // Get all days that have data in the current filtered dataset
+    const daysWithData = Object.keys(grouped).map(d => Number(d)).sort((a, b) => a - b);
 
     const final = [];
-    if (daysToEnsure.length > 0) {
-      daysToEnsure.forEach(dn => {
+    if (daysWithData.length > 0) {
+      daysWithData.forEach(dn => {
         const rowsForDay = grouped[dn] || [];
         const ope = computeOPE(rowsForDay);
         final.push({
           name: String(dn),
-          ope: ope == null ? 0 : ope // UPDATED: show 0 when no OPE computed so chart still displays bar
+          ope: ope == null ? 0 : ope
         });
       });
     } else {
-      // fallback to existing grouped days
-      Object.entries(grouped).forEach(([day, rows]) => {
-        const ope = computeOPE(rows);
-        final.push({ name: String(day), ope: ope == null ? 0 : ope });
-      });
+      // If no data, return empty array
+      return [];
     }
 
     return final.sort((a, b) => Number(a.name) - Number(b.name));
-  }, [data, daysInMonth]);
+  }, [data]);
 
   // Chart data by Responsible Person — ensure we include all persons from uniqueFilters (show 0 when no rows)
   const chartDataByPerson = useMemo(() => {
@@ -313,7 +337,7 @@ export default function OpeDashboard() {
     <div className="min-h-screen bg-gradient-to-b from-[#024673] to-[#024673] text-gray-100 p-6 space-y-10">
       <h1 className="text-3xl font-bold text-center">OPE Dashboard</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {FILTER_ORDER.map(({ key, label, type }) => (
           <div className={FILTER_BG} key={key}>
             <label className="block text-white mb-1">{label}</label>
@@ -324,7 +348,9 @@ export default function OpeDashboard() {
               value={filters[key] || "All"}
             >
               <option value="All">All</option>
-              {(type === "select-day" ? daysInMonth : uniqueFilters[key])?.map(val => (
+              {(type === "select-day" ? daysInMonth : 
+                type === "select-month" ? uniqueFilters.Month :
+                uniqueFilters[key])?.map(val => (
                 <option key={val} value={val}>{val}</option>
               ))}
             </select>
