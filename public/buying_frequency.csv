@@ -1,0 +1,33 @@
+Customer,FinancialYear,ActiveMonths
+Customer 1,2021-2022,12
+Customer 1,2022-2023,9
+Customer 1,2023-2024,3
+Customer 2,2021-2022,9
+Customer 2,2022-2023,11
+Customer 2,2023-2024,3
+Customer 3,2021-2022,4
+Customer 3,2022-2023,11
+Customer 3,2023-2024,6
+Customer 4,2021-2022,11
+Customer 4,2022-2023,6
+Customer 4,2023-2024,2
+Customer 5,2021-2022,7
+Customer 5,2022-2023,7
+Customer 5,2023-2024,12
+Customer 6,2021-2022,7
+Customer 6,2022-2023,10
+Customer 6,2023-2024,11
+Customer 7,2021-2022,3
+Customer 7,2022-2023,4
+Customer 7,2023-2024,2
+Customer 8,2021-2022,2
+Customer 8,2022-2023,2
+Customer 8,2023-2024,2
+Customer 9,2021-2022,2
+Customer 9,2022-2023,1
+Customer 9,2023-2024,12
+Customer 10,2021-2022,9
+Customer 10,2022-2023,12
+Customer 10,2023-2024,5
+
+//buying frequency data

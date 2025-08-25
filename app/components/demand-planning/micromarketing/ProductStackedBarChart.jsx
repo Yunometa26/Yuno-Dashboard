@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-const ProductStackedBarChart = ({ pieData, animateCharts, activeProduct, handlePieClick, data, selectedCustomers, selectedFinancialYear }) => {
+const ProductStackedBarChart = ({ pieData, animateCharts, activeProduct, handlePieClick, data, selectedCustomers = ["All Customers"], selectedFinancialYear }) => {
   const [activeIndex, setActiveIndex] = useState(null);
   
   // Enhanced dark appealing colors for different products
@@ -34,8 +34,9 @@ const ProductStackedBarChart = ({ pieData, animateCharts, activeProduct, handleP
     let filteredData = [...data];
     
     // Filter by customer if not "All Customers"
-    if (!selectedCustomers.includes("All Customers")) {
-      filteredData = filteredData.filter(row => selectedCustomers.includes(row.Customer));
+    const selectedCustomer = selectedCustomers[0];
+    if (selectedCustomer && selectedCustomer !== "All Customers") {
+      filteredData = filteredData.filter(row => row.Customer === selectedCustomer);
     }
     // Create a map to store sales by financial year and product
     const yearProductMap = {};
@@ -99,7 +100,7 @@ const ProductStackedBarChart = ({ pieData, animateCharts, activeProduct, handleP
   };
 
   return (
-    <div className={`bg-gradient-to-br from-[#024673] to-[#5C99E3] p-4 rounded-lg border border-blue-200 shadow-sm lg:col-span-2 transition-all duration-500 ease-in-out transform ${animateCharts ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`} style={{ transitionDelay: '300ms' }}>
+    <div className={`bg-[#013554] p-4 rounded-lg border border-blue-700 shadow-xl lg:col-span-2 transition-all duration-500 ease-in-out transform ${animateCharts ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`} style={{ transitionDelay: '300ms' }}>
       <h2 className="font-semibold text-white mb-4">Sales by Product (Financial Year-wise)</h2>
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
@@ -125,15 +126,12 @@ const ProductStackedBarChart = ({ pieData, animateCharts, activeProduct, handleP
               tickLine={{ stroke: 'rgba(255,255,255,0.5)' }}
               tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
             />
-            <Tooltip content={customTooltip} />
-            <Legend 
-              wrapperStyle={{ 
-                paddingTop: '10px',
-                color: 'white'
-              }}
-              iconType="rect"
+            <Tooltip
+              labelStyle={{ color: 'white' }}
+              itemStyle={{ color: 'white' }}
+              content={customTooltip}
             />
-            
+            <Legend />
             {allProducts.map((product, index) => (
               <Bar
                 key={product}
@@ -153,136 +151,10 @@ const ProductStackedBarChart = ({ pieData, animateCharts, activeProduct, handleP
           </BarChart>
         </ResponsiveContainer>
       </div>
-      
-      {/* Legend with click functionality */}
-      <div className="mt-4 flex flex-wrap gap-2 justify-center">
-        {allProducts.map((product, index) => (
-          <div
-            key={product}
-            className={`flex items-center cursor-pointer transition-all duration-300 px-3 py-2 rounded-lg border ${
-              activeProduct === product 
-                ? 'bg-blue-200 bg-opacity-20 border-white border-opacity-50 shadow-lg transform scale-105' 
-                : 'hover:bg-blue-200 hover:bg-opacity-10 border-transparent hover:border-white hover:border-opacity-30'
-            }`}
-            onClick={() => handlePieClick(product)}
-          >
-            <div
-              className="w-4 h-4 rounded-sm mr-2 shadow-sm"
-              style={{ 
-                backgroundColor: COLORS[index % COLORS.length],
-                boxShadow: activeProduct === product ? `0 0 8px ${COLORS[index % COLORS.length]}50` : 'none'
-              }}
-            />
-            <span className={`text-sm font-medium transition-all duration-300 ${
-              activeProduct === product ? 'text-white font-semibold' : 'text-gray-100'
-            }`}>
-              {product}
-            </span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 };
 
 export default ProductStackedBarChart;
 
-
-
-// import { useState } from 'react';
-// import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-
-// const ProductPieChart = ({ pieData, animateCharts, activeProduct, handlePieClick }) => {
-//   const [activeIndex, setActiveIndex] = useState(null);
-  
-//   // Colors for the pie chart
-//   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A28DFF', '#FF6B6B', '#4BC0C0', '#9966FF', '#FF9F40'];
-
-//   // Custom pie label renderer to improve visibility
-//   const renderCustomizedPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
-//     const RADIAN = Math.PI / 180;
-//     const radius = outerRadius * 1.2;
-//     const x = cx + radius * Math.cos(-midAngle * RADIAN);
-//     const y = cy + radius * Math.sin(-midAngle * RADIAN);
-    
-//     // Only show labels for segments that are significant enough (>3%)
-//     if (percent < 0.03) return null;
-    
-//     return (
-//       <text 
-//         x={x} 
-//         y={y} 
-//         fill="#FFF"
-//         textAnchor={x > cx ? 'start' : 'end'} 
-//         dominantBaseline="central"
-//         fontSize={12}
-//         fontWeight={activeIndex === index ? "bold" : "normal"}
-//       >
-//         {(percent * 100).toFixed(0)}%
-//       </text>
-//     );
-//   };
-
-//   // Handle pie chart segment click
-//   const onPieClick = (data, index) => {
-//     if (activeProduct === data.product) {
-//       handlePieClick(null);
-//       setActiveIndex(null);
-//     } else {
-//       handlePieClick(data.product);
-//       setActiveIndex(index);
-//     }
-//   };
-
-//   return (
-//     <div className={`bg-gradient-to-br from-[#024673] to-[#5C99E3] p-4 rounded-lg border border-blue-200 shadow-sm lg:col-span-2 transition-all duration-500 ease-in-out transform ${animateCharts ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`} style={{ transitionDelay: '300ms' }}>
-//       <h2 className="font-semibold text-white mb-4">Sales by Product</h2>
-//       <div className="h-64">
-//         <ResponsiveContainer width="100%" height="100%">
-//           <PieChart>
-//             <Pie
-//               data={pieData}
-//               cx="50%"
-//               cy="50%"
-//               labelLine={false}
-//               outerRadius={80}
-//               dataKey="sales"
-//               nameKey="product"
-//               label={renderCustomizedPieLabel}
-//               onClick={onPieClick}
-//               cursor="pointer"
-//               animationDuration={1500}
-//               animationEasing="ease-in-out"
-//             >
-//               {pieData.map((entry, index) => (
-//                 <Cell 
-//                   key={`cell-${index}`} 
-//                   fill={COLORS[index % COLORS.length]} 
-//                   stroke={activeProduct === entry.product ? "#000" : undefined}
-//                   strokeWidth={activeProduct === entry.product ? 2 : undefined}
-//                   className="transition-all duration-300"
-//                 />
-//               ))}
-//             </Pie>
-//             <Tooltip 
-//               formatter={(value) => `₹${value.toLocaleString()}`}
-//               contentStyle={{ 
-//                 borderRadius: '8px',
-//                 border: 'none',
-//                 boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-//                 transition: 'all 0.3s ease'
-//               }}
-//               animationDuration={300}
-//             />
-//             <Legend 
-//               wrapperStyle={{ transition: 'all 0.3s ease' }}
-//               onClick={(data) => handlePieClick(data.value)}
-//             />
-//           </PieChart>
-//         </ResponsiveContainer>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default ProductPieChart;
+// 

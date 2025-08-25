@@ -1,124 +1,106 @@
-// MaintenanceTableComponent.js
-import { useState, useEffect } from 'react';
-import Papa from 'papaparse';
+import { useEffect, useMemo, useState } from 'react';
 
-// Maintenance Comparison Table Component
+// Rendered table component
 const MaintenanceComparisonTable = ({ data }) => {
   if (!data) return null;
 
   return (
-    <div className="w-full overflow-x-auto mt-6 ml-1">
+    <div className="rounded-xl shadow-md overflow-x-auto border border-blue-200 mt-8 max-h-[500px] overflow-y-auto w-full">
       <div className="text-2xl font-bold mb-4 text-center text-white">{data.machineName}</div>
-      <table className="w-full border-collapse">
+      <table className="w-full border-collapse border border-blue-200">
         <thead>
-          <tr className="bg-gradient-to-r from-[#024673] to-[#5C99E3]">
-            <th className="p-3 text-center" colSpan="3">Before Maintenance</th>
-            <th className="p-3 text-center border-l border-white">Parameter</th>
-            <th className="p-3 text-center border-l border-white" colSpan="3">After Maintenance</th>
+          <tr className="bg-gradient-to-r from-[#024673] to-[#5C99E3] text-white sticky top-0 z-10">
+            <th className="p-3 text-center border border-blue-200" colSpan="3">Before Maintenance</th>
+            <th className="p-3 text-center border-l border-blue-200 border-y">Parameter</th>
+            <th className="p-3 text-center border border-blue-200" colSpan="3">After Maintenance</th>
           </tr>
-          <tr className="bg-gradient-to-r from-[#024673] to-[#5C99E3]">
-            <th className="p-2 text-center">Avg</th>
-            <th className="p-2 text-center">Min</th>
-            <th className="p-2 text-center">Max</th>
-            <th className="p-2 text-center border-l border-white"></th>
-            <th className="p-2 text-center border-l border-white">Avg</th>
-            <th className="p-2 text-center">Min</th>
-            <th className="p-2 text-center">Max</th>
+          <tr className="bg-gradient-to-r from-[#024673] to-[#5C99E3] text-white sticky top-[42px] z-10">
+            <th className="p-2 text-center border border-blue-200">Avg</th>
+            <th className="p-2 text-center border border-blue-200">Min</th>
+            <th className="p-2 text-center border border-blue-200">Max</th>
+            <th className="p-2 text-center border border-blue-200 border-l border-r"></th>
+            <th className="p-2 text-center border border-blue-200">Avg</th>
+            <th className="p-2 text-center border border-blue-200">Min</th>
+            <th className="p-2 text-center border border-blue-200">Max</th>
           </tr>
         </thead>
         <tbody>
-          {data.parameters.map((param, idx) => (
-            <tr key={idx} className={idx % 2 === 0 ? "bg-blue-50 text-black" : "bg-blue-100 text-black"}>
-              <td className="p-2 text-center">{param.before.avg.toFixed(2)}</td>
-              <td className="p-2 text-center">{param.before.min.toFixed(2)}</td>
-              <td className="p-2 text-center">{param.before.max.toFixed(2)}</td>
-              <td className="p-2 text-center bg-blue-200 text-black">{param.name}</td>
-              <td className="p-2 text-center">{param.after.avg.toFixed(2)}</td>
-              <td className="p-2 text-center">{param.after.min.toFixed(2)}</td>
-              <td className="p-2 text-center">{param.after.max.toFixed(2)}</td>
-            </tr>
-          ))}
+          {data.parameters.map((param, idx) => {
+            const rowBg = idx % 2 === 0 ? 'bg-[#024673]' : 'bg-[#03579E]';
+            return (
+              <tr key={idx} className={`text-white ${rowBg}`}>
+                <td className="p-2 text-center border border-blue-200">{param.before.avg.toFixed(2)}</td>
+                <td className="p-2 text-center border border-blue-200">{param.before.min.toFixed(2)}</td>
+                <td className="p-2 text-center border border-blue-200">{param.before.max.toFixed(2)}</td>
+                <td className={`p-2 text-center border border-blue-200 font-medium ${rowBg}`}>{param.name}</td>
+                <td className="p-2 text-center border border-blue-200">{param.after.avg.toFixed(2)}</td>
+                <td className="p-2 text-center border border-blue-200">{param.after.min.toFixed(2)}</td>
+                <td className="p-2 text-center border border-blue-200">{param.after.max.toFixed(2)}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
   );
 };
 
-// Calculate Before and After Maintenance Stats
-const calculateMaintenanceStats = (data, breakdownMachine, breakdownDate) => {
-  if (!data || !breakdownMachine || !breakdownDate) return null;
-  
-  // Parse the selected breakdown date
-  const selectedDate = new Date(breakdownDate);
-  
-  // Calculate 7 days before and after
-  const beforeDate = new Date(selectedDate);
-  beforeDate.setDate(beforeDate.getDate() - 7);
-  
-  const afterDate = new Date(selectedDate);
-  afterDate.setDate(afterDate.getDate() + 7);
-  
-  // Filter data for before and after maintenance
-  const beforeMaintData = data.filter(row => {
-    const rowDate = new Date(row.Date);
-    return rowDate >= beforeDate && rowDate < selectedDate && row.Machine === breakdownMachine;
-  });
-  
-  const afterMaintData = data.filter(row => {
-    const rowDate = new Date(row.Date);
-    return rowDate > selectedDate && rowDate <= afterDate && row.Machine === breakdownMachine;
-  });
+// Optimized stats calculation
+const useMaintenanceStats = (data, machine, date) => {
+  return useMemo(() => {
+    if (!data || !machine || !date) return null;
 
-  // Parameters to calculate stats for
-  const parameterKeys = [
-    { key: 'Cycle_Time_sec', name: 'Cycle Time' },
-    { key: 'Oil_Temperature_C', name: 'Oil Temperature' },
-    { key: 'Nozzle_Temperature_C', name: 'Nozzle Temperature' },
-    { key: 'Melt_Cushion_mm', name: 'Melt Cushion' },
-    { key: 'Zone Temerature', name: 'Zone Temperature' },
-    { key: 'Cooling_Time_sec', name: 'Cooling Time' }
-  ];
+    const breakdownDate = new Date(date);
+    const beforeDate = new Date(breakdownDate);
+    beforeDate.setDate(beforeDate.getDate() - 7);
+    const afterDate = new Date(breakdownDate);
+    afterDate.setDate(afterDate.getDate() + 7);
 
-  // Calculate stats for each parameter
-  const parameters = parameterKeys.map(param => {
-    // Before maintenance stats
-    const beforeValues = beforeMaintData.map(row => row[param.key] || 0).filter(val => val !== null && !isNaN(val));
-    const beforeAvg = beforeValues.length ? beforeValues.reduce((sum, val) => sum + val, 0) / beforeValues.length : 0;
-    const beforeMin = beforeValues.length ? Math.min(...beforeValues) : 0;
-    const beforeMax = beforeValues.length ? Math.max(...beforeValues) : 0;
+    const parameterKeys = [
+      { key: 'Cycle_Time_sec', name: 'Cycle Time' },
+      { key: 'Oil_Temperature_C', name: 'Oil Temperature' },
+      { key: 'Nozzle_Temperature_C', name: 'Nozzle Temperature' },
+      { key: 'Melt_Cushion_mm', name: 'Melt Cushion' },
+      { key: 'Zone Temerature', name: 'Zone Temperature' },
+      { key: 'Cooling_Time_sec', name: 'Cooling Time' }
+    ];
 
-    // After maintenance stats
-    const afterValues = afterMaintData.map(row => row[param.key] || 0).filter(val => val !== null && !isNaN(val));
-    const afterAvg = afterValues.length ? afterValues.reduce((sum, val) => sum + val, 0) / afterValues.length : 0;
-    const afterMin = afterValues.length ? Math.min(...afterValues) : 0;
-    const afterMax = afterValues.length ? Math.max(...afterValues) : 0;
+    const beforeData = [], afterData = [];
 
-    return {
-      name: param.name,
-      before: { avg: beforeAvg, min: beforeMin, max: beforeMax },
-      after: { avg: afterAvg, min: afterMin, max: afterMax }
-    };
-  });
+    for (const row of data) {
+      if (row.Machine !== machine) continue;
+      const rowDate = new Date(row.Date);
+      if (isNaN(rowDate)) continue;
 
-  return {
-    machineName: breakdownMachine,
-    parameters
-  };
+      if (rowDate >= beforeDate && rowDate < breakdownDate) beforeData.push(row);
+      else if (rowDate > breakdownDate && rowDate <= afterDate) afterData.push(row);
+    }
+
+    const parameters = parameterKeys.map(param => {
+      const getStats = (list) => {
+        const values = list.map(row => parseFloat(row[param.key])).filter(val => !isNaN(val));
+        const avg = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+        return {
+          avg,
+          min: values.length ? Math.min(...values) : 0,
+          max: values.length ? Math.max(...values) : 0
+        };
+      };
+
+      return {
+        name: param.name,
+        before: getStats(beforeData),
+        after: getStats(afterData)
+      };
+    });
+
+    return { machineName: machine, parameters };
+  }, [data, machine, date]);
 };
 
-// Main Table Component
+// Main wrapper component
 const MaintenanceTableComponent = ({ csvData, selectedMachine, selectedDate }) => {
-  const [maintenanceData, setMaintenanceData] = useState(null);
-
-  // Calculate maintenance data when selection changes
-  useEffect(() => {
-    if (selectedMachine && selectedDate) {
-      const data = calculateMaintenanceStats(csvData, selectedMachine, selectedDate);
-      setMaintenanceData(data);
-    } else {
-      setMaintenanceData(null);
-    }
-  }, [selectedMachine, selectedDate, csvData]);
+  const maintenanceData = useMaintenanceStats(csvData, selectedMachine, selectedDate);
 
   return (
     <>

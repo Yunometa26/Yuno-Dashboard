@@ -208,8 +208,8 @@ export default function MonthWiseAccuracy({
   const visibleMonths = accuracyData.slice(visibleMonthIndex, visibleMonthIndex + visibleMonthCount);
 
   return (
-    <div className="bg-gradient-to-br from-[#024673] to-[#5C99E3] rounded-xl shadow-md border border-blue-300/20 text-white mb-6 w-full overflow-hidden">
-      <div className="p-4 border-b border-blue-300/20 flex justify-between items-center">
+    <div className="bg-[#013554] rounded-lg shadow-xl border border-blue-700 text-white mb-6 w-full overflow-hidden">
+              <div className="p-4 border-b border-blue-700 flex justify-between items-center">
         <h3 className="text-sm font-medium text-white flex items-center">
           <BarChart className="w-4 h-4 mr-2 text-white" />
           Month-Wise Accuracy {selectedYear !== 'All' ? `(${selectedYear})` : '(All Years)'}
@@ -254,7 +254,7 @@ export default function MonthWiseAccuracy({
           {hasData ? (
             <div className="w-full">
               {/* Month navigation controls */}
-              <div className="flex justify-between items-center px-4 py-2 bg-gradient-to-br from-[#024673] to-[#5C99E3] text-white">
+              <div className="flex justify-between items-center px-4 py-2 bg-[#013554] text-white">
                 <button 
                   onClick={handlePreviousMonth}
                   disabled={visibleMonthIndex === 0 || loading}
@@ -280,9 +280,9 @@ export default function MonthWiseAccuracy({
               <div className="inline-block min-w-full align-middle">
                 <table className="table-fixed w-full">
                   <thead>
-                    <tr className="bg-gradient-to-br from-[#024673] to-[#5C99E3]">
+                    <tr className="bg-[#013554]">
                       {visibleMonths.map((item, index) => (
-                        <th key={index} className="py-3 px-4 text-left font-medium text-white border-r border-blue-300/20 last:border-r-0 whitespace-nowrap">
+                        <th key={index} className="py-3 px-4 text-left font-medium text-white border-r border-blue-700 last:border-r-0 whitespace-nowrap">
                           {item.month}
                         </th>
                       ))}
@@ -291,7 +291,7 @@ export default function MonthWiseAccuracy({
                   <tbody>
                     <tr>
                       {visibleMonths.map((item, index) => (
-                        <td key={index} className="py-3 px-4 border-r border-blue-300/20 last:border-r-0 whitespace-nowrap">
+                        <td key={index} className="py-3 px-4 border-r border-blue-700 last:border-r-0 whitespace-nowrap">
                           <div className={`text-center p-2 rounded-lg font-medium ${getAccuracyColor(item.averageAccuracy)}`}>
                             {item.averageAccuracy}%
                           </div>

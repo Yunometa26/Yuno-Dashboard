@@ -3,11 +3,11 @@ import React from "react";
 const OrdersTable = ({ 
   showOrdersTable,
   selectedRange,
-  aggregatedData,
+  aggregatedData = [],
   selectedOrder,
-  orderDetails,
-  data,
-  colors,
+  orderDetails = [],
+  data = [],
+  colors = {},
   closeOrdersTable,
   closeDetails,
   handleOrderClick

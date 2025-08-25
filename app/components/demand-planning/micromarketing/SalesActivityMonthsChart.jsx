@@ -1,152 +1,84 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+'use client';
 
-const SalesActivityMonthsChart = ({ data, selectedCustomers, activeProduct, animateCharts }) => {
-  
-  // Process data to count active months per financial year
-  const processMonthsData = () => {
-    if (!data || data.length === 0) return [];
+import { useMemo } from 'react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
+} from 'recharts';
 
-    let filteredData = [...data];
-    
-    // Filter by customer if not "All Customers"
-    if (!selectedCustomers.includes("All Customers")) {
-      filteredData = filteredData.filter(row => selectedCustomers.includes(row.Customer));
-    }
+// Custom Tooltip to round AvgMonthsBought
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    const roundedAvg = payload[0].payload.AvgMonthsBought !== undefined ? Math.round(payload[0].payload.AvgMonthsBought) : '';
+    return (
+      <div className="bg-[#013554] p-2 rounded shadow text-white border border-blue-700">
+        <div><strong>Year:</strong> {label}</div>
+        <div><strong>Avg. Months Bought:</strong> {roundedAvg}</div>
+      </div>
+    );
+  }
+  return null;
+};
 
-    // Filter by product if selected
-    if (activeProduct) {
-      filteredData = filteredData.filter(row => row.Product === activeProduct);
-    }
+const SalesActivityMonthsChart = ({
+  salesActivityData = [],
+  className = '',
+  axisStroke = '#fff',
+  labelColor = '#fff',
+}) => {
+  const chartData = useMemo(() => {
+    if (!salesActivityData || salesActivityData.length === 0) return [];
+    return salesActivityData;
+  }, [salesActivityData]);
 
-    // Create a map to track unique months with sales per financial year
-    const yearMonthsMap = {};
-    
-    filteredData.forEach(row => {
-      const year = row['Financial Year'];
-      const month = row.Month;
-      const sales = parseFloat(row.Sales || 0);
-      
-      if (!isNaN(sales) && sales > 0 && year && month && year !== "All Years") {
-        if (!yearMonthsMap[year]) {
-          yearMonthsMap[year] = new Set();
-        }
-        yearMonthsMap[year].add(month);
-      }
-    });
+  if (!chartData || chartData.length === 0) {
+    return <div className="text-white">No data available.</div>;
+  }
 
-    // Convert to array format for recharts
-    const monthsData = Object.keys(yearMonthsMap)
-      .sort()
-      .map(year => ({
-        year,
-        activeMonths: yearMonthsMap[year].size,
-        percentage: ((yearMonthsMap[year].size / 12) * 100).toFixed(1)
-      }));
-
-    return monthsData;
-  };
-
-  const monthsData = processMonthsData();
-
-  // Custom tooltip
-  const customTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-semibold text-gray-800">{`Financial Year: ${label}`}</p>
-          <p className="text-blue-600">
-            {`Active Months: ${data.activeMonths} out of 12`}
-          </p>
-          <p className="text-green-600">
-            {`Activity Rate: ${data.percentage}%`}
-          </p>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  // Color based on activity level
-  const getBarColor = (activeMonths) => {
-    if (activeMonths >= 11) return '#10B981'; // Green - Excellent
-    if (activeMonths >= 9) return '#3B82F6';  // Blue - Good
-    if (activeMonths >= 6) return '#F59E0B';  // Orange - Average
-    return '#EF4444'; // Red - Poor
+  // Color logic for grouped ranges
+  const getBarColor = (val) => {
+    if (val === 0) return '#d1d5db'; // gray for 0
+    if ([1, 2, 3].includes(val)) return '#ef4444'; // red
+    if ([4, 5, 6].includes(val)) return '#facc15'; // yellow
+    if ([7, 8, 9].includes(val)) return '#4ade80'; // light green
+    if ([10, 11, 12].includes(val)) return '#22C55E'; // dark green
+    return '#d1d5db'; // fallback gray
   };
 
   return (
-    <div className={`mb-6 bg-gradient-to-br from-[#024673] to-[#5C99E3] p-4 rounded-lg border border-blue-200 shadow-sm transition-all duration-500 ease-in-out transform ${animateCharts ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`} style={{ transitionDelay: '400ms' }}>
-      <h2 className="font-semibold text-white mb-4">Buying Frequency</h2>
-      <p className="text-blue-100 text-sm mb-4">Number of months with sales activity per financial year</p>
-      
-      <div className="h-64">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={monthsData}
-            margin={{
-              top: 20,
-              right: 30,
-              left: 20,
-              bottom: 5,
-            }}
+    <div className={`bg-[#013554] p-4 rounded-lg border border-blue-700 shadow-xl ${className}`}>
+      <h2 className="font-semibold text-white mb-4">Sales Activity</h2>
+      <ResponsiveContainer width="100%" height={350}>
+        <BarChart
+          data={chartData}
+          margin={{ top: 20, right: 30, left: 20, bottom: 10 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="FinancialYear" stroke={axisStroke} />
+          <YAxis stroke={axisStroke} domain={[0, 12]} ticks={[0, 3, 6, 9, 12]} label={{ value: 'Avg. Months Bought', angle: -90, position: 'insideLeft', fill: labelColor }} />
+          <Tooltip content={<CustomTooltip />} />
+          <Bar
+            dataKey="AvgMonthsBought"
+            name="Avg. Months Bought"
+            radius={[4, 4, 0, 0]}
+            animationDuration={1200}
+            animationEasing="ease-in-out"
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.2)" />
-            <XAxis 
-              dataKey="year" 
-              tick={{ fill: 'white', fontSize: 12 }}
-              axisLine={{ stroke: 'rgba(255,255,255,0.5)' }}
-              tickLine={{ stroke: 'rgba(255,255,255,0.5)' }}
-            />
-            <YAxis 
-              domain={[0, 12]}
-              tick={{ fill: 'white', fontSize: 12 }}
-              axisLine={{ stroke: 'rgba(255,255,255,0.5)' }}
-              tickLine={{ stroke: 'rgba(255,255,255,0.5)' }}
-              label={{ 
-                value: 'Active Months', 
-                angle: -90, 
-                position: 'insideLeft',
-                style: { textAnchor: 'middle', fill: 'white' }
-              }}
-            />
-            <Tooltip content={customTooltip} />
-            
-            <Bar
-              dataKey="activeMonths"
-              radius={[4, 4, 0, 0]}
-              className="transition-all duration-300"
-            >
-              {monthsData.map((entry, index) => (
-                <Cell 
-                  key={`cell-${index}`} 
-                  fill={getBarColor(entry.activeMonths)}
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+            {chartData.map((entry, idx) => {
+              const val = typeof entry.AvgMonthsBought === 'number' && !isNaN(entry.AvgMonthsBought) ? Math.round(entry.AvgMonthsBought) : 0;
+              const fill = getBarColor(val);
+              console.log('Bar', idx, 'AvgMonthsBought:', entry.AvgMonthsBought, 'Rounded:', val, 'Color:', fill);
+              return <Cell key={`cell-${idx}`} fill={fill} />;
+            })}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+      <div className="mt-4 flex flex-wrap gap-4 text-sm text-white justify-center items-center">
+        <div className="flex items-center gap-2"><span className="w-4 h-4 rounded-none" style={{ background: '#ef4444', display: 'inline-block' }}></span> 1–3 months</div>
+        <div className="flex items-center gap-2"><span className="w-4 h-4 rounded-none" style={{ background: '#facc15', display: 'inline-block' }}></span> 4–6 months</div>
+        <div className="flex items-center gap-2"><span className="w-4 h-4 rounded-none" style={{ background: '#4ade80', display: 'inline-block' }}></span> 7–9 months</div>
+        <div className="flex items-center gap-2"><span className="w-4 h-4 rounded-none" style={{ background: '#22C55E', display: 'inline-block' }}></span> 10–12 months</div>
       </div>
-
-      {/* Legend */}
-      <div className="mt-4 flex flex-wrap gap-4 justify-center text-xs">
-        <div className="flex items-center">
-          <div className="w-3 h-3 bg-green-500 rounded mr-2"></div>
-          <span className="text-white">Excellent (11-12 months)</span>
-        </div>
-        <div className="flex items-center">
-          <div className="w-3 h-3 bg-blue-500 rounded mr-2"></div>
-          <span className="text-white">Good (9-10 months)</span>
-        </div>
-        <div className="flex items-center">
-          <div className="w-3 h-3 bg-orange-500 rounded mr-2"></div>
-          <span className="text-white">Average (6-8 months)</span>
-        </div>
-        <div className="flex items-center">
-          <div className="w-3 h-3 bg-red-500 rounded mr-2"></div>
-          <span className="text-white">Poor (1-5 months)</span>
-        </div>
-      </div>
+      <div className="mt-2 text-sm text-white">Y-axis: Average number of months each product was bought in that year (for selected customer)</div>
     </div>
   );
 };

@@ -1,61 +1,108 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Label } from "recharts";
 import _ from "lodash";
 
 const BarGraphComponent = ({ data, filtered }) => {
-  // Process data to get average inventory position by year and raw material
+  // --- Dynamic filter state ---
+  const [selectedYear, setSelectedYear] = useState('All');
+  const [selectedRawMaterial, setSelectedRawMaterial] = useState('All');
+
+  // --- Dynamic options for filters ---
+  const dynamicYears = useMemo(() => {
+    let arr = filtered || [];
+    if (selectedRawMaterial !== 'All') {
+      arr = arr.filter(item => item["Raw Material"] === selectedRawMaterial);
+    }
+    const years = Array.from(new Set(arr.map(item => {
+      const year = item.Date instanceof Date ? item.Date.getFullYear() : undefined;
+      return (year && !isNaN(year)) ? year : undefined;
+    }))).filter(y => y !== undefined && y !== null && y !== 'Unknown' && y !== 'Invalid Date');
+    return ['All', ...years.sort()];
+  }, [filtered, selectedRawMaterial]);
+
+  const dynamicRawMaterials = useMemo(() => {
+    let arr = filtered || [];
+    if (selectedYear !== 'All') {
+      arr = arr.filter(item => {
+        const year = item.Date instanceof Date ? item.Date.getFullYear() : undefined;
+        return year === selectedYear;
+      });
+    }
+    const rms = Array.from(new Set(arr.map(item => item["Raw Material"])));
+    return ['All', ...rms.filter(Boolean).sort()];
+  }, [filtered, selectedYear]);
+
+  // Month names for validation and sorting
+  const validMonths = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+
+  // Dynamic month filter (if you have a month filter):
+  const dynamicMonths = useMemo(() => {
+    let arr = filtered || [];
+    // Assume item.Month is a short month name (Jan, Feb, ...)
+    const months = Array.from(new Set(arr.map(item => item.Month)))
+      .filter(month => validMonths.includes(month));
+    return ['All', ...months.sort((a, b) => validMonths.indexOf(a) - validMonths.indexOf(b))];
+  }, [filtered]);
+
+  // Dynamic days filter
+  const dynamicDays = useMemo(() => {
+    let arr = filtered || [];
+    const days = Array.from(new Set(arr.map(item => Number(item.Day)).filter(day => !isNaN(day) && day >= 1 && day <= 31)));
+    return ['All', ...days.sort((a, b) => a - b)];
+  }, [filtered]);
+
+  // --- Filter data for chart based on selected filters ---
+  const filteredData = useMemo(() => {
+    let arr = filtered || [];
+    if (selectedYear !== 'All') {
+      arr = arr.filter(item => (item.Date instanceof Date ? item.Date.getFullYear() : 'Unknown') === selectedYear);
+    }
+    if (selectedRawMaterial !== 'All') {
+      arr = arr.filter(item => item["Raw Material"] === selectedRawMaterial);
+    }
+    return arr;
+  }, [filtered, selectedYear, selectedRawMaterial]);
+
+  // --- Chart data calculation (same as before, but use filteredData) ---
   const chartData = useMemo(() => {
-    if (!filtered || filtered.length === 0) {
+    if (!filteredData || filteredData.length === 0) {
       return [];
     }
-
-    // Group the filtered data by year
-    const groupedByYear = _.groupBy(filtered, item => 
+    const groupedByYear = _.groupBy(filteredData, item => 
       item.Date instanceof Date ? item.Date.getFullYear() : 'Unknown'
     );
-
-    // Get unique raw materials
-    const rawMaterials = _.uniq(filtered.map(item => item["Raw Material"]))
+    const rawMaterials = _.uniq(filteredData.map(item => item["Raw Material"]))
       .filter(Boolean)
       .sort();
-
-    // Calculate average inventory position for each year and raw material
     const result = Object.entries(groupedByYear).map(([year, items]) => {
       const yearData = { year };
-      
-      // For each raw material, calculate the average
       rawMaterials.forEach(rm => {
         const rmItems = items.filter(item => item["Raw Material"] === rm);
         const validItems = rmItems.filter(item => 
           item["Inventory Position"] !== undefined && 
           item["Inventory Position"] !== null
         );
-        
         const average = validItems.length > 0 
           ? _.meanBy(validItems, item => item["Inventory Position"]) 
           : 0;
-        
-        // Store average for this raw material
         yearData[rm] = parseFloat(average.toFixed(2));
-        
-        // Also store the count for tooltips
         yearData[`${rm}_count`] = validItems.length;
       });
-      
       return yearData;
     });
-
-    // Sort by year
     return _.sortBy(result, 'year');
-  }, [filtered]);
+  }, [filteredData]);
 
-  // Get unique raw materials for rendering bars
+  // --- Raw materials for rendering bars and legend (from filteredData) ---
   const rawMaterials = useMemo(() => {
-    if (!filtered || filtered.length === 0) return [];
-    return _.uniq(filtered.map(item => item["Raw Material"]))
+    if (!filteredData || filteredData.length === 0) return [];
+    return _.uniq(filteredData.map(item => item["Raw Material"]))
       .filter(Boolean)
       .sort();
-  }, [filtered]);
+  }, [filteredData]);
 
   // Define colors for raw materials
   const colorMap = {
@@ -94,7 +141,7 @@ const BarGraphComponent = ({ data, filtered }) => {
     return null;
   };
 
-  if (!filtered || filtered.length === 0) {
+  if (!filteredData || filteredData.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-8 text-center">
         <p className="text-gray-500">No data available to display</p>
@@ -113,6 +160,32 @@ const BarGraphComponent = ({ data, filtered }) => {
   return (
     <div className="bg-gradient-to-r from-[#024673] to-[#5C99E3] rounded-xl mr-1 ml-1 shadow p-4 mb-4">
       <h3 className="text-lg font-bold text-center text-white mb-4">Inventory Position Trend</h3>
+      <div className="flex flex-wrap gap-4 mb-4 justify-center">
+        <div>
+          <label className="block text-white text-sm mb-1">Year</label>
+          <select
+            value={selectedYear}
+            onChange={e => setSelectedYear(e.target.value)}
+            className="px-2 py-1 rounded-md"
+          >
+            {dynamicYears.map((year, idx) => (
+              <option key={idx} value={year}>{year}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-white text-sm mb-1">Raw Material</label>
+          <select
+            value={selectedRawMaterial}
+            onChange={e => setSelectedRawMaterial(e.target.value)}
+            className="px-2 py-1 rounded-md"
+          >
+            {dynamicRawMaterials.map((rm, idx) => (
+              <option key={idx} value={rm}>{rm}</option>
+            ))}
+          </select>
+        </div>
+      </div>
       
       <div className="h-96">
         <ResponsiveContainer width="100%" height="100%">

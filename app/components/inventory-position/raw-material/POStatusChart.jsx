@@ -2,34 +2,52 @@ import React, { useMemo, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import POStatusDetailTable from './POStatusDetailTable';
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28']; // Blue, Green, Yellow
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042']; // Blue, Green, Yellow, Orange
 
 const POStatusChart = ({ filtered }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('');
 
+  // Compute unique PO status counts using the same logic as POStatusCards
   const statusData = useMemo(() => {
-    // Count occurrences of each status
-    const statusCounts = {
-      "Open": 0,
-      "Closed": 0,
-      "Delayed": 0
-    };
-    
+    if (!filtered || filtered.length === 0) return [];
+    const uniquePOs = new Map();
     filtered.forEach(item => {
-      if (item["PO Status"] && statusCounts.hasOwnProperty(item["PO Status"])) {
-        statusCounts[item["PO Status"]]++;
-      } else if (item["PO Status"]) {
-        // In case there are other statuses in the data
-        statusCounts[item["PO Status"]] = 1;
+      const poIdentifier = item["PO Number"] || `po-${filtered.indexOf(item)}`;
+      if (!uniquePOs.has(poIdentifier)) {
+        // Determine delivery performance if possible
+        let computedStatus = item["PO Status"] || 'Unknown';
+        if (item["Expected Delivery Date"] && item["Actual Delivery Date"]) {
+          const expectedDate = new Date(item["Expected Delivery Date"]);
+          const actualDate = new Date(item["Actual Delivery Date"]);
+          if (actualDate > expectedDate) {
+            computedStatus = 'Delayed';
+          } else {
+            computedStatus = 'On-Time/Early';
+          }
+        }
+        uniquePOs.set(poIdentifier, computedStatus);
       }
     });
-    
-    // Convert to array format for recharts
-    return Object.keys(statusCounts).map(status => ({
-      name: status,
-      value: statusCounts[status]
-    })).filter(item => item.value > 0); // Only include statuses with values
+    // Count each computed status
+    const statusCounts = {
+      'On-Time/Early': 0,
+      'Delayed': 0,
+      'Open': 0,
+      'Closed': 0,
+      'Unknown': 0
+    };
+    for (const status of uniquePOs.values()) {
+      if (statusCounts.hasOwnProperty(status)) {
+        statusCounts[status]++;
+      } else {
+        statusCounts['Unknown']++;
+      }
+    }
+    // Only include statuses with values
+    return Object.keys(statusCounts)
+      .map(status => ({ name: status, value: statusCounts[status] }))
+      .filter(item => item.value > 0);
   }, [filtered]);
 
   const handlePieClick = (entry) => {
@@ -52,7 +70,6 @@ const POStatusChart = ({ filtered }) => {
     const radius = innerRadius + (outerRadius - innerRadius) * 0.6;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
-    
     return (
       <text 
         x={x} 
@@ -67,7 +84,25 @@ const POStatusChart = ({ filtered }) => {
     );
   };
 
-  // If no data or all values are 0, show a message
+  // For modal: filter data by computed status
+  const getModalData = () => {
+    if (!filtered || !selectedStatus) return [];
+    // Use the same computed status logic as above
+    return filtered.filter(item => {
+      let computedStatus = item["PO Status"] || 'Unknown';
+      if (item["Expected Delivery Date"] && item["Actual Delivery Date"]) {
+        const expectedDate = new Date(item["Expected Delivery Date"]);
+        const actualDate = new Date(item["Actual Delivery Date"]);
+        if (actualDate > expectedDate) {
+          computedStatus = 'Delayed';
+        } else {
+          computedStatus = 'On-Time/Early';
+        }
+      }
+      return computedStatus === selectedStatus;
+    });
+  };
+
   if (statusData.length === 0) {
     return (
       <div className="bg-white rounded-xl shadow p-5 mb-4">
@@ -98,7 +133,7 @@ const POStatusChart = ({ filtered }) => {
                 label={renderCustomizedLabel}
                 onClick={handleSectorClick}
                 isAnimationActive={true}
-                activeIndex={[]} // This prevents hover color change
+                activeIndex={[]}
               >
                 {statusData.map((entry, index) => (
                   <Cell 
@@ -125,7 +160,7 @@ const POStatusChart = ({ filtered }) => {
       <POStatusDetailTable
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        data={filtered}
+        data={getModalData()}
         selectedStatus={selectedStatus}
       />
     </>
